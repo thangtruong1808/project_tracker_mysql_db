@@ -20,8 +20,137 @@ if (!JWT_SECRET) {
   )
 }
 
-const ACCESS_TOKEN_EXPIRY = '15m'
-const REFRESH_TOKEN_EXPIRY = '7d'
+import {
+  ACCESS_TOKEN_EXPIRY,
+  REFRESH_TOKEN_EXPIRY,
+  REFRESH_TOKEN_DIALOG_THRESHOLD_SECONDS,
+  ROTATION_SAFETY_MARGIN_SECONDS,
+} from '../constants/auth'
+
+/**
+ * Convert time string to seconds
+ * Parses time strings like '45s', '7d', '1h', '30m', etc.
+ * @param timeString - Time string to parse (e.g., '10m', '1h', '7d')
+ * @returns Number of seconds, or 0 if format is invalid
+ */
+export const parseTimeStringToSeconds = (timeString: string): number => {
+  const match = timeString.match(/^(\d+)([smhd])$/)
+  if (!match) {
+    return 0
+  }
+
+  const value = parseInt(match[1], 10)
+  const unit = match[2]
+
+  switch (unit) {
+    case 's': // seconds
+      return value
+    case 'm': // minutes
+      return value * 60
+    case 'h': // hours
+      return value * 60 * 60
+    case 'd': // days
+      return value * 24 * 60 * 60
+    default:
+      return 0
+  }
+}
+
+/**
+ * Calculate expiration date based on REFRESH_TOKEN_EXPIRY constant
+ * Parses time strings like '45s', '7d', '1h', etc.
+ * @returns Date object representing the expiration time
+ */
+export const calculateRefreshTokenExpiry = (): Date => {
+  const expiresAt = new Date()
+  
+  // Parse REFRESH_TOKEN_EXPIRY string (e.g., '45s', '7d', '1h', '30m')
+  const match = REFRESH_TOKEN_EXPIRY.match(/^(\d+)([smhd])$/)
+  if (!match) {
+    // Default to 7 days if format is invalid
+    expiresAt.setDate(expiresAt.getDate() + 7)
+    return expiresAt
+  }
+
+  const value = parseInt(match[1], 10)
+  const unit = match[2]
+
+  switch (unit) {
+    case 's': // seconds
+      expiresAt.setSeconds(expiresAt.getSeconds() + value)
+      break
+    case 'm': // minutes
+      expiresAt.setMinutes(expiresAt.getMinutes() + value)
+      break
+    case 'h': // hours
+      expiresAt.setHours(expiresAt.getHours() + value)
+      break
+    case 'd': // days
+      expiresAt.setDate(expiresAt.getDate() + value)
+      break
+    default:
+      // Default to 7 days if unit is unknown
+      expiresAt.setDate(expiresAt.getDate() + 7)
+  }
+
+  return expiresAt
+}
+
+/**
+ * Calculate refresh token rotation threshold in seconds
+ * Prevents rotation when refresh token is close to expiration
+ * Formula: REFRESH_TOKEN_DIALOG_THRESHOLD_SECONDS + ACCESS_TOKEN_EXPIRY (in seconds) + ROTATION_SAFETY_MARGIN_SECONDS
+ * This ensures refresh token can reach dialog threshold without being rotated
+ * When refresh token has <= this threshold remaining, rotation is stopped to allow dialog to appear
+ * 
+ * @author Thang Truong
+ * @date 2024-12-24
+ * @returns Threshold in seconds
+ */
+export const getRefreshTokenRotationThresholdSeconds = (): number => {
+  // Parse ACCESS_TOKEN_EXPIRY to get seconds (e.g., '1m' = 60 seconds)
+  const accessTokenExpirySeconds = parseTimeStringToSeconds(ACCESS_TOKEN_EXPIRY)
+  
+  // Calculate threshold: dialog threshold + access token expiry + safety margin
+  // This ensures we stop rotating when we're getting close to the dialog threshold
+  // Example: With 10s dialog threshold, 60s access token expiry, and 10s safety margin = 10 + 60 + 10 = 80s
+  // When refresh token has <= 80s remaining, we stop rotating to allow dialog to appear
+  const threshold = REFRESH_TOKEN_DIALOG_THRESHOLD_SECONDS + accessTokenExpirySeconds + ROTATION_SAFETY_MARGIN_SECONDS
+  
+  // Return the calculated threshold
+  return threshold
+}
+
+/**
+ * Set refresh token as HTTP-only cookie
+ * @param res - Express response object
+ * @param refreshToken - Refresh token to set in cookie
+ */
+export const setRefreshTokenCookie = (res: any, refreshToken: string): void => {
+  const expiresAt = calculateRefreshTokenExpiry()
+  const maxAge = Math.floor((expiresAt.getTime() - Date.now()) / 1000) // Convert to seconds
+
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true, // Prevents JavaScript access (XSS protection)
+    secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
+    sameSite: 'strict', // CSRF protection
+    maxAge: maxAge * 1000, // Cookie expiration in milliseconds
+    path: '/', // Cookie available for all paths
+  })
+}
+
+/**
+ * Clear refresh token cookie
+ * @param res - Express response object
+ */
+export const clearRefreshTokenCookie = (res: any): void => {
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/',
+  })
+}
 
 /**
  * Hash password using bcrypt

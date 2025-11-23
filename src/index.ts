@@ -9,6 +9,7 @@
 import './utils/loadEnv'
 import express from 'express'
 import cors from 'cors'
+import cookieParser from 'cookie-parser'
 import { ApolloServer } from '@apollo/server'
 import { expressMiddleware } from '@apollo/server/express4'
 import { createServer } from 'http'
@@ -18,6 +19,9 @@ import { db } from './db'
 
 const app = express()
 const httpServer = createServer(app)
+
+// Parse cookies from requests (needed for HTTP-only refresh token cookies)
+app.use(cookieParser())
 
 /**
  * Configure CORS options
@@ -51,8 +55,8 @@ async function startServer() {
     cors(corsOptions),
     express.json(),
     expressMiddleware(server, {
-      context: async ({ req }) => {
-        return { req }
+      context: async ({ req, res }) => {
+        return { req, res }
       },
     })
   )

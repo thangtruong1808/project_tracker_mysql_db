@@ -13,11 +13,19 @@ export const typeDefs = gql`
     hello: String
     projects: [Project!]!
     project(id: ID!): Project
+    refreshTokenStatus: RefreshTokenStatus
+  }
+
+  type RefreshTokenStatus {
+    isValid: Boolean!
+    timeRemaining: Int
+    isAboutToExpire: Boolean!
   }
 
   type Mutation {
     login(email: String!, password: String!): LoginResponse!
     register(input: RegisterInput!): LoginResponse!
+    refreshToken(extendSession: Boolean): RefreshTokenResponse!
     createProject(input: CreateProjectInput!): Project!
     updateProject(id: ID!, input: UpdateProjectInput!): Project!
     deleteProject(id: ID!): Boolean!
@@ -25,8 +33,11 @@ export const typeDefs = gql`
 
   type LoginResponse {
     accessToken: String!
-    refreshToken: String!
     user: User!
+  }
+
+  type RefreshTokenResponse {
+    accessToken: String!
   }
 
   type User {
