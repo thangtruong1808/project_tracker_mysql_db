@@ -1,43 +1,91 @@
+/**
+ * Server Entry Point
+ * Initializes Express and Apollo GraphQL server with CORS support
+ *
+ * @author Thang Truong
+ * @date 2024-12-24
+ */
+
+import './utils/loadEnv'
 import express from 'express'
+import cors from 'cors'
 import { ApolloServer } from '@apollo/server'
 import { expressMiddleware } from '@apollo/server/express4'
 import { createServer } from 'http'
-import dotenv from 'dotenv'
 import { typeDefs } from './schema'
 import { resolvers } from './resolvers'
 import { db } from './db'
 
-dotenv.config()
-
 const app = express()
 const httpServer = createServer(app)
+
+/**
+ * Configure CORS options
+ * Allows frontend to connect from localhost:3000
+ */
+const corsOptions = {
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  credentials: true,
+}
+
+// Apply CORS middleware to all routes
+app.use(cors(corsOptions))
 
 const server = new ApolloServer({
   typeDefs,
   resolvers,
 })
 
+/**
+ * Start the server and initialize database connection
+ */
 async function startServer() {
   await server.start()
 
-  app.use('/graphql', express.json(), expressMiddleware(server))
+  /**
+   * GraphQL endpoint with CORS support
+   * Handles all GraphQL queries and mutations
+   */
+  app.use(
+    '/graphql',
+    cors(corsOptions),
+    express.json(),
+    expressMiddleware(server, {
+      context: async ({ req }) => {
+        return { req }
+      },
+    })
+  )
 
   const PORT = process.env.PORT || 4000
 
+  /**
+   * Start HTTP server and listen on specified port
+   */
   httpServer.listen(PORT, () => {
-    console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`)
+    // Server started successfully
+    console.log(`Server is running on port ${PORT}`)
   })
 
-  // Test database connection
+  /**
+   * Test database connection on startup
+   */
   try {
     await db.query('SELECT 1')
-    console.log('✅ Database connected successfully')
+    // Database connection successful
   } catch (error) {
-    console.error('❌ Database connection failed:', error)
+    // Database connection failed
+    console.error('Database connection failed', error)
+    process.exit(1)
   }
 }
 
-startServer().catch((error) => {
-  console.error('Failed to start server:', error)
+/**
+ * Handle server startup errors
+ */
+startServer().catch(() => {
+  // Failed to start server
+  console.error('Failed to start server')
+  process.exit(1)
 })
 
