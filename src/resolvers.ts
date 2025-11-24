@@ -88,6 +88,36 @@ const fetchTeamMemberRecord = async (projectId: string | number, userId: string 
   return mapTeamMemberRecord(rows[0])
 }
 
+/**
+ * Resolve a user-friendly action label for activity logs.
+ * Falls back to predefined text when no custom action is stored.
+ *
+ * @author Thang Truong
+ * @date 2025-11-24
+ * @param type - Activity type enum value
+ * @param customAction - Optional action text stored in DB
+ * @returns Display-ready action string
+ */
+const resolveActivityAction = (type: string, customAction?: string | null): string => {
+  if (customAction && customAction.trim()) {
+    return customAction.trim()
+  }
+
+  const actionLabels: Record<string, string> = {
+    USER_CREATED: 'User created',
+    USER_UPDATED: 'User updated',
+    USER_DELETED: 'User deleted',
+    PROJECT_CREATED: 'Project created',
+    PROJECT_UPDATED: 'Project updated',
+    PROJECT_DELETED: 'Project deleted',
+    TASK_CREATED: 'Task created',
+    TASK_UPDATED: 'Task updated',
+    TASK_DELETED: 'Task deleted',
+  }
+
+  return actionLabels[type] || 'Activity recorded'
+}
+
 export const resolvers = {
   Query: {
     hello: () => 'Hello from GraphQL!',
@@ -646,7 +676,20 @@ export const resolvers = {
      */
     activities: async () => {
       const activities = (await db.query(
-        'SELECT id, user_id, target_user_id, project_id, task_id, action, type, metadata, created_at, updated_at FROM activity_logs ORDER BY created_at DESC'
+        `SELECT
+          al.id,
+          al.user_id,
+          COALESCE(al.target_user_id, t.assigned_to) AS target_user_id,
+          al.project_id,
+          al.task_id,
+          al.action,
+          al.type,
+          al.metadata,
+          al.created_at,
+          al.updated_at
+        FROM activity_logs AS al
+        LEFT JOIN tasks AS t ON al.task_id = t.id
+        ORDER BY al.created_at DESC`
       )) as any[]
       /**
        * Convert MySQL DATETIME to ISO string for proper serialization
@@ -690,7 +733,7 @@ export const resolvers = {
         targetUserId: activity.target_user_id ? activity.target_user_id.toString() : null,
         projectId: activity.project_id ? activity.project_id.toString() : null,
         taskId: activity.task_id ? activity.task_id.toString() : null,
-        action: activity.action,
+        action: resolveActivityAction(activity.type, activity.action),
         type: activity.type,
         metadata: formatMetadata(activity.metadata),
         createdAt: formatDateToISO(activity.created_at),
@@ -708,7 +751,20 @@ export const resolvers = {
      */
     activity: async (_: any, { id }: { id: string }) => {
       const activities = (await db.query(
-        'SELECT id, user_id, target_user_id, project_id, task_id, action, type, metadata, created_at, updated_at FROM activity_logs WHERE id = ?',
+        `SELECT
+          al.id,
+          al.user_id,
+          COALESCE(al.target_user_id, t.assigned_to) AS target_user_id,
+          al.project_id,
+          al.task_id,
+          al.action,
+          al.type,
+          al.metadata,
+          al.created_at,
+          al.updated_at
+        FROM activity_logs AS al
+        LEFT JOIN tasks AS t ON al.task_id = t.id
+        WHERE al.id = ?`,
         [id]
       )) as any[]
       if (activities.length === 0) {
@@ -757,7 +813,7 @@ export const resolvers = {
         targetUserId: activity.target_user_id ? activity.target_user_id.toString() : null,
         projectId: activity.project_id ? activity.project_id.toString() : null,
         taskId: activity.task_id ? activity.task_id.toString() : null,
-        action: activity.action,
+        action: resolveActivityAction(activity.type, activity.action),
         type: activity.type,
         metadata: formatMetadata(activity.metadata),
         createdAt: formatDateToISO(activity.created_at),
@@ -2043,7 +2099,20 @@ export const resolvers = {
         [userId, targetUserId || null, projectId || null, taskId || null, action || null, type, metadataValue]
       )) as any
       const activities = (await db.query(
-        'SELECT id, user_id, target_user_id, project_id, task_id, action, type, metadata, created_at, updated_at FROM activity_logs WHERE id = ?',
+        `SELECT
+          al.id,
+          al.user_id,
+          COALESCE(al.target_user_id, t.assigned_to) AS target_user_id,
+          al.project_id,
+          al.task_id,
+          al.action,
+          al.type,
+          al.metadata,
+          al.created_at,
+          al.updated_at
+        FROM activity_logs AS al
+        LEFT JOIN tasks AS t ON al.task_id = t.id
+        WHERE al.id = ?`,
         [result.insertId]
       )) as any[]
       if (activities.length === 0) {
@@ -2086,7 +2155,7 @@ export const resolvers = {
         targetUserId: activity.target_user_id ? activity.target_user_id.toString() : null,
         projectId: activity.project_id ? activity.project_id.toString() : null,
         taskId: activity.task_id ? activity.task_id.toString() : null,
-        action: activity.action,
+        action: resolveActivityAction(activity.type, activity.action),
         type: activity.type,
         metadata: formatMetadata(activity.metadata),
         createdAt: formatDateToISO(activity.created_at),
@@ -2158,7 +2227,20 @@ export const resolvers = {
       )
 
       const activities = (await db.query(
-        'SELECT id, user_id, target_user_id, project_id, task_id, action, type, metadata, created_at, updated_at FROM activity_logs WHERE id = ?',
+        `SELECT
+          al.id,
+          al.user_id,
+          COALESCE(al.target_user_id, t.assigned_to) AS target_user_id,
+          al.project_id,
+          al.task_id,
+          al.action,
+          al.type,
+          al.metadata,
+          al.created_at,
+          al.updated_at
+        FROM activity_logs AS al
+        LEFT JOIN tasks AS t ON al.task_id = t.id
+        WHERE al.id = ?`,
         [id]
       )) as any[]
       if (activities.length === 0) {
@@ -2201,7 +2283,7 @@ export const resolvers = {
         targetUserId: activity.target_user_id ? activity.target_user_id.toString() : null,
         projectId: activity.project_id ? activity.project_id.toString() : null,
         taskId: activity.task_id ? activity.task_id.toString() : null,
-        action: activity.action,
+        action: resolveActivityAction(activity.type, activity.action),
         type: activity.type,
         metadata: formatMetadata(activity.metadata),
         createdAt: formatDateToISO(activity.created_at),

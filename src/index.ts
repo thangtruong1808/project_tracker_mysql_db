@@ -16,6 +16,7 @@ import { createServer } from 'http'
 import { typeDefs } from './schema'
 import { resolvers } from './resolvers'
 import { db } from './db'
+import { ensureActivityLogTargetUsers } from './utils/activityLogMaintenance'
 
 const app = express()
 const httpServer = createServer(app)
@@ -76,6 +77,7 @@ async function startServer() {
    */
   try {
     await db.query('SELECT 1')
+    await ensureActivityLogTargetUsers()
     // Database connection successful
   } catch (error) {
     // Database connection failed

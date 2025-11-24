@@ -432,8 +432,16 @@ CREATE TRIGGER trg_tasks_after_insert_log
 AFTER INSERT ON tasks
 FOR EACH ROW
 BEGIN
-  INSERT INTO activity_logs (user_id, project_id, task_id, type, metadata, created_at)
-  VALUES (COALESCE(NEW.assigned_to, 1), NEW.project_id, NEW.id, 'TASK_CREATED', JSON_OBJECT('uuid', NEW.uuid, 'title', NEW.title, 'status', NEW.status), NOW(3));
+  INSERT INTO activity_logs (user_id, target_user_id, project_id, task_id, type, metadata, created_at)
+  VALUES (
+    COALESCE(NEW.assigned_to, 1),
+    NEW.assigned_to,
+    NEW.project_id,
+    NEW.id,
+    'TASK_CREATED',
+    JSON_OBJECT('uuid', NEW.uuid, 'title', NEW.title, 'status', NEW.status),
+    NOW(3)
+  );
 END;
 
 -- Log task updates
@@ -442,10 +450,26 @@ AFTER UPDATE ON tasks
 FOR EACH ROW
 BEGIN
   IF NEW.is_deleted = TRUE AND OLD.is_deleted = FALSE THEN
-    INSERT INTO activity_logs (user_id, project_id, task_id, type, metadata, created_at)
-    VALUES (COALESCE(NEW.assigned_to, 1), NEW.project_id, NEW.id, 'TASK_DELETED', JSON_OBJECT('uuid', NEW.uuid), NOW(3));
+    INSERT INTO activity_logs (user_id, target_user_id, project_id, task_id, type, metadata, created_at)
+    VALUES (
+      COALESCE(NEW.assigned_to, 1),
+      NEW.assigned_to,
+      NEW.project_id,
+      NEW.id,
+      'TASK_DELETED',
+      JSON_OBJECT('uuid', NEW.uuid),
+      NOW(3)
+    );
   ELSEIF NEW.is_deleted = FALSE THEN
-    INSERT INTO activity_logs (user_id, project_id, task_id, type, metadata, created_at)
-    VALUES (COALESCE(NEW.assigned_to, 1), NEW.project_id, NEW.id, 'TASK_UPDATED', JSON_OBJECT('uuid', NEW.uuid, 'version', NEW.version), NOW(3));
+    INSERT INTO activity_logs (user_id, target_user_id, project_id, task_id, type, metadata, created_at)
+    VALUES (
+      COALESCE(NEW.assigned_to, 1),
+      NEW.assigned_to,
+      NEW.project_id,
+      NEW.id,
+      'TASK_UPDATED',
+      JSON_OBJECT('uuid', NEW.uuid, 'version', NEW.version),
+      NOW(3)
+    );
   END IF;
 END;
