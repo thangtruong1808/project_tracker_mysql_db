@@ -26,6 +26,76 @@ import {
 } from './constants/auth'
 import { v4 as uuidv4 } from 'uuid'
 
+const DEFAULT_PROJECT_STATUSES = ['PLANNING', 'IN_PROGRESS', 'COMPLETED']
+const DEFAULT_TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE']
+const DEFAULT_PAGE_SIZE = 10
+const MAX_PAGE_SIZE = 50
+
+/**
+ * Build SQL status filter clause based on selected statuses.
+ *
+ * @author Thang Truong
+ * @date 2025-11-24
+ */
+const buildStatusFilterClause = (column: string, statuses: string[], values: any[]) => {
+  if (!statuses || statuses.length === 0) {
+    return ''
+  }
+  const placeholders = statuses.map(() => '?').join(', ')
+  values.push(...statuses)
+  return ` AND ${column} IN (${placeholders})`
+}
+
+/**
+ * Clamp page size between defaults to avoid excessive payloads.
+ *
+ * @author Thang Truong
+ * @date 2025-11-24
+ */
+const clampPageSize = (value?: number | null) => {
+  if (!value || value <= 0) {
+    return DEFAULT_PAGE_SIZE
+  }
+  return Math.min(value, MAX_PAGE_SIZE)
+}
+
+/**
+ * Clamp page number to a minimum of 1.
+ *
+ * @author Thang Truong
+ * @date 2025-11-24
+ */
+const clampPageNumber = (value?: number | null) => {
+  if (!value || value <= 0) {
+    return 1
+  }
+  return value
+}
+
+/**
+ * Apply keyword and status filters to a base SQL query.
+ *
+ * @author Thang Truong
+ * @date 2025-11-24
+ */
+const applySearchFilters = (
+  baseSql: string,
+  searchTerm: string,
+  statuses: string[],
+  values: any[],
+  textColumns: string[]
+) => {
+  let sql = baseSql
+  if (searchTerm && textColumns.length > 0) {
+    const likeClause = textColumns.map((column) => `${column} LIKE ?`).join(' OR ')
+    sql += ` AND (${likeClause})`
+    const likeTerm = `%${searchTerm}%`
+    textColumns.forEach(() => values.push(likeTerm))
+  }
+  sql += buildStatusFilterClause('status', statuses, values)
+  return sql
+}
+
 const formatTeamDateToISO = (dateValue: any): string => {
   try {
     if (!dateValue) {
@@ -190,6 +260,130 @@ export const resolvers = {
         ORDER BY pm.created_at DESC`
       )) as any[]
       return members.map((member: any) => mapTeamMemberRecord(member))
+    },
+    /**
+     * Search dashboard resources
+     * Filters projects and tasks by keyword and status selections
+     *
+     * @author Thang Truong
+     * @date 2025-11-24
+     */
+    searchDashboard: async (
+      _: any,
+      {
+        input,
+      }: {
+        input: {
+          query?: string
+          projectStatuses?: string[]
+          taskStatuses?: string[]
+          projectPage?: number
+          projectPageSize?: number
+          taskPage?: number
+          taskPageSize?: number
+        }
+      }
+    ) => {
+      const searchTerm = input?.query?.trim() || ''
+      const projectStatuses = Array.isArray(input?.projectStatuses)
+        ? input.projectStatuses.filter((status) => !!status)
+        : []
+      const taskStatuses = Array.isArray(input?.taskStatuses) ? input.taskStatuses.filter((status) => !!status) : []
+
+      const projectPageSize = clampPageSize(input?.projectPageSize)
+      const taskPageSize = clampPageSize(input?.taskPageSize)
+      const projectPage = clampPageNumber(input?.projectPage)
+      const taskPage = clampPageNumber(input?.taskPage)
+
+      const shouldSearchProjects = Boolean(searchTerm) || projectStatuses.length > 0
+      const shouldSearchTasks = Boolean(searchTerm) || taskStatuses.length > 0
+
+      const projectValues: any[] = []
+      let projectSql = applySearchFilters(
+        'SELECT id, name, description, status, updated_at FROM projects WHERE is_deleted = false',
+        searchTerm,
+        projectStatuses,
+        projectValues,
+        ['name', 'description']
+      )
+      const projectOffset = (projectPage - 1) * projectPageSize
+      projectSql += ` ORDER BY updated_at DESC LIMIT ${projectPageSize} OFFSET ${projectOffset}`
+
+      const projectCountValues: any[] = []
+      const projectCountSql = applySearchFilters(
+        'SELECT COUNT(*) as total FROM projects WHERE is_deleted = false',
+        searchTerm,
+        projectStatuses,
+        projectCountValues,
+        ['name', 'description']
+      )
+
+      const taskValues: any[] = []
+      let taskSql = applySearchFilters(
+        'SELECT id, title, description, status, project_id, updated_at FROM tasks WHERE is_deleted = false',
+        searchTerm,
+        taskStatuses,
+        taskValues,
+        ['title', 'description']
+      )
+      const taskOffset = (taskPage - 1) * taskPageSize
+      taskSql += ` ORDER BY updated_at DESC LIMIT ${taskPageSize} OFFSET ${taskOffset}`
+
+      const taskCountValues: any[] = []
+      const taskCountSql = applySearchFilters(
+        'SELECT COUNT(*) as total FROM tasks WHERE is_deleted = false',
+        searchTerm,
+        taskStatuses,
+        taskCountValues,
+        ['title', 'description']
+      )
+
+      const [projects, projectCountResult, tasks, taskCountResult] = await Promise.all([
+        shouldSearchProjects ? (db.query(projectSql, projectValues) as Promise<any[]>) : Promise.resolve([]),
+        shouldSearchProjects
+          ? (db.query(projectCountSql, projectCountValues) as Promise<any[]>)
+          : Promise.resolve([{ total: 0 }]),
+        shouldSearchTasks ? (db.query(taskSql, taskValues) as Promise<any[]>) : Promise.resolve([]),
+        shouldSearchTasks ? (db.query(taskCountSql, taskCountValues) as Promise<any[]>) : Promise.resolve([{ total: 0 }]),
+      ])
+
+      const formatDateToISO = (dateValue: any): string => {
+        try {
+          if (!dateValue) {
+            return new Date().toISOString()
+          }
+          if (dateValue instanceof Date) {
+            return dateValue.toISOString()
+          }
+          if (typeof dateValue === 'string') {
+            const date = new Date(dateValue)
+            return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
+          }
+          return new Date().toISOString()
+        } catch (error) {
+          return new Date().toISOString()
+        }
+      }
+
+      return {
+        projects: projects.map((project) => ({
+          id: project.id.toString(),
+          name: project.name,
+          status: project.status,
+          description: project.description,
+          updatedAt: formatDateToISO(project.updated_at),
+        })),
+        tasks: tasks.map((task) => ({
+          id: task.id.toString(),
+          title: task.title,
+          status: task.status,
+          projectId: task.project_id ? task.project_id.toString() : '',
+          description: task.description,
+          updatedAt: formatDateToISO(task.updated_at),
+        })),
+        projectTotal: Number(projectCountResult[0]?.total || 0),
+        taskTotal: Number(taskCountResult[0]?.total || 0),
+      }
     },
     /**
      * Project query

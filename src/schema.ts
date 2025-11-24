@@ -24,6 +24,7 @@ export const typeDefs = gql`
     activity(id: ID!): ActivityLog
     teamMembers: [TeamMember!]!
     refreshTokenStatus: RefreshTokenStatus
+    searchDashboard(input: SearchDashboardInput!): SearchResults!
   }
 
   type RefreshTokenStatus {
@@ -259,6 +260,40 @@ export const typeDefs = gql`
     projectId: String!
     userId: String!
     role: String!
+  }
+
+  type SearchResultProject {
+    id: ID!
+    name: String!
+    status: String!
+    description: String
+    updatedAt: String!
+  }
+
+  type SearchResultTask {
+    id: ID!
+    title: String!
+    status: String!
+    projectId: String!
+    description: String
+    updatedAt: String!
+  }
+
+  type SearchResults {
+    projects: [SearchResultProject!]!
+    tasks: [SearchResultTask!]!
+    projectTotal: Int!
+    taskTotal: Int!
+  }
+
+  input SearchDashboardInput {
+    query: String
+    projectStatuses: [String!]
+    taskStatuses: [String!]
+    projectPage: Int
+    projectPageSize: Int
+    taskPage: Int
+    taskPageSize: Int
   }
 `
 
