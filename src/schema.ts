@@ -13,6 +13,7 @@ export const typeDefs = gql`
     hello: String
     projects: [Project!]!
     project(id: ID!): Project
+    users: [User!]!
     refreshTokenStatus: RefreshTokenStatus
   }
 
@@ -29,6 +30,9 @@ export const typeDefs = gql`
     createProject(input: CreateProjectInput!): Project!
     updateProject(id: ID!, input: UpdateProjectInput!): Project!
     deleteProject(id: ID!): Boolean!
+    createUser(input: CreateUserInput!): User!
+    updateUser(id: ID!, input: UpdateUserInput!): User!
+    deleteUser(id: ID!): Boolean!
   }
 
   type LoginResponse {
@@ -47,6 +51,8 @@ export const typeDefs = gql`
     lastName: String!
     email: String!
     role: String!
+    createdAt: String!
+    updatedAt: String!
   }
 
   type Project {
@@ -75,6 +81,21 @@ export const typeDefs = gql`
     lastName: String!
     email: String!
     password: String!
+  }
+
+  input CreateUserInput {
+    firstName: String!
+    lastName: String!
+    email: String!
+    password: String!
+    role: String
+  }
+
+  input UpdateUserInput {
+    firstName: String
+    lastName: String
+    email: String
+    role: String
   }
 `
 

@@ -29,18 +29,154 @@ import { v4 as uuidv4 } from 'uuid'
 export const resolvers = {
   Query: {
     hello: () => 'Hello from GraphQL!',
+    /**
+     * Projects query
+     * Fetches all projects from the database (excluding deleted projects)
+     * Returns list of projects with formatted dates
+     *
+     * @author Thang Truong
+     * @date 2024-12-24
+     * @returns Array of project objects
+     */
     projects: async () => {
       const projects = (await db.query(
-        'SELECT * FROM projects WHERE is_deleted = false ORDER BY created_at DESC'
+        'SELECT id, name, description, status, created_at, updated_at FROM projects WHERE is_deleted = false ORDER BY created_at DESC'
       )) as any[]
-      return projects
+      /**
+       * Convert MySQL DATETIME to ISO string for proper serialization
+       */
+      const formatDateToISO = (dateValue: any): string => {
+        try {
+          if (!dateValue) {
+            return new Date().toISOString()
+          }
+          if (dateValue instanceof Date) {
+            return dateValue.toISOString()
+          }
+          if (typeof dateValue === 'string') {
+            const date = new Date(dateValue)
+            return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
+          }
+          return new Date().toISOString()
+        } catch (error) {
+          return new Date().toISOString()
+        }
+      }
+      return projects.map((project: any) => ({
+        id: project.id.toString(),
+        name: project.name,
+        description: project.description,
+        status: project.status,
+        createdAt: formatDateToISO(project.created_at),
+        updatedAt: formatDateToISO(project.updated_at),
+      }))
     },
+    /**
+     * Project query
+     * Fetches a single project by ID
+     *
+     * @author Thang Truong
+     * @date 2024-12-24
+     * @param id - Project ID to fetch
+     * @returns Project object or null
+     */
     project: async (_: any, { id }: { id: string }) => {
       const projects = (await db.query(
-        'SELECT * FROM projects WHERE id = ? AND is_deleted = false',
+        'SELECT id, name, description, status, created_at, updated_at FROM projects WHERE id = ? AND is_deleted = false',
         [id]
       )) as any[]
-      return projects[0] || null
+      if (projects.length === 0) {
+        return null
+      }
+      const project = projects[0]
+      /**
+       * Convert MySQL DATETIME to ISO string for proper serialization
+       */
+      const formatDateToISO = (dateValue: any): string => {
+        try {
+          if (!dateValue) {
+            return new Date().toISOString()
+          }
+          if (dateValue instanceof Date) {
+            return dateValue.toISOString()
+          }
+          if (typeof dateValue === 'string') {
+            const date = new Date(dateValue)
+            return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
+          }
+          return new Date().toISOString()
+        } catch (error) {
+          return new Date().toISOString()
+        }
+      }
+      return {
+        id: project.id.toString(),
+        name: project.name,
+        description: project.description,
+        status: project.status,
+        createdAt: formatDateToISO(project.created_at),
+        updatedAt: formatDateToISO(project.updated_at),
+      }
+    },
+    /**
+     * Users query
+     * Fetches all users from the database (excluding deleted users)
+     * Returns list of users with id, uuid, firstName, lastName, email, and role
+     *
+     * @author Thang Truong
+     * @date 2024-12-24
+     * @returns Array of user objects
+     */
+    users: async () => {
+      const users = (await db.query(
+        'SELECT id, uuid, first_name, last_name, email, role, created_at, updated_at FROM users WHERE is_deleted = false ORDER BY created_at DESC'
+      )) as any[]
+      return users.map((user: any) => {
+        /**
+         * Convert MySQL DATETIME to ISO string for proper serialization
+         * Handles both Date objects and string formats from MySQL
+         * mysql2 library returns Date objects for DATETIME fields
+         *
+         * @param dateValue - Date value from MySQL (Date object or string)
+         * @returns ISO string representation of the date
+         */
+        const formatDateToISO = (dateValue: any): string => {
+          try {
+            if (!dateValue) {
+              return new Date().toISOString()
+            }
+            // mysql2 returns Date objects for DATETIME fields
+            if (dateValue instanceof Date) {
+              return dateValue.toISOString()
+            }
+            // If it's a string, parse and convert to ISO
+            if (typeof dateValue === 'string') {
+              // Handle MySQL DATETIME format: "YYYY-MM-DD HH:mm:ss.sss"
+              const date = new Date(dateValue)
+              if (isNaN(date.getTime())) {
+                return new Date().toISOString()
+              }
+              return date.toISOString()
+            }
+            // Fallback to current date if unknown type
+            return new Date().toISOString()
+          } catch (error) {
+            // Return current date as fallback if conversion fails
+            return new Date().toISOString()
+          }
+        }
+
+        return {
+          id: user.id.toString(),
+          uuid: user.uuid,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          email: user.email,
+          role: user.role,
+          createdAt: formatDateToISO(user.created_at),
+          updatedAt: formatDateToISO(user.updated_at),
+        }
+      })
     },
     /**
      * Refresh token status query
@@ -378,17 +514,68 @@ export const resolvers = {
         throw new Error(error.message || 'Failed to refresh token')
       }
     },
+    /**
+     * Create project mutation
+     * Creates a new project
+     *
+     * @author Thang Truong
+     * @date 2024-12-24
+     * @param input - Project creation input fields
+     * @returns Created project object
+     */
     createProject: async (_: any, { input }: { input: any }) => {
       const { name, description, status } = input
       const result = (await db.query(
         'INSERT INTO projects (name, description, status) VALUES (?, ?, ?)',
         [name, description || null, status]
       )) as any
-      const projects = (await db.query('SELECT * FROM projects WHERE id = ?', [
-        result.insertId,
-      ])) as any[]
-      return projects[0]
+      const projects = (await db.query(
+        'SELECT id, name, description, status, created_at, updated_at FROM projects WHERE id = ?',
+        [result.insertId]
+      )) as any[]
+      if (projects.length === 0) {
+        throw new Error('Failed to retrieve created project')
+      }
+      const project = projects[0]
+      /**
+       * Convert MySQL DATETIME to ISO string for proper serialization
+       */
+      const formatDateToISO = (dateValue: any): string => {
+        try {
+          if (!dateValue) {
+            return new Date().toISOString()
+          }
+          if (dateValue instanceof Date) {
+            return dateValue.toISOString()
+          }
+          if (typeof dateValue === 'string') {
+            const date = new Date(dateValue)
+            return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
+          }
+          return new Date().toISOString()
+        } catch (error) {
+          return new Date().toISOString()
+        }
+      }
+      return {
+        id: project.id.toString(),
+        name: project.name,
+        description: project.description,
+        status: project.status,
+        createdAt: formatDateToISO(project.created_at),
+        updatedAt: formatDateToISO(project.updated_at),
+      }
     },
+    /**
+     * Update project mutation
+     * Updates project information (name, description, status)
+     *
+     * @author Thang Truong
+     * @date 2024-12-24
+     * @param id - Project ID to update
+     * @param input - Project update input fields
+     * @returns Updated project object
+     */
     updateProject: async (_: any, { id, input }: { id: string; input: any }) => {
       const updates: string[] = []
       const values: any[] = []
@@ -412,15 +599,252 @@ export const resolvers = {
 
       values.push(id)
       await db.query(
-        `UPDATE projects SET ${updates.join(', ')}, updatedAt = NOW() WHERE id = ?`,
+        `UPDATE projects SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND is_deleted = false`,
         values
       )
 
-      const projects = (await db.query('SELECT * FROM projects WHERE id = ?', [id])) as any[]
-      return projects[0]
+      const projects = (await db.query(
+        'SELECT id, name, description, status, created_at, updated_at FROM projects WHERE id = ? AND is_deleted = false',
+        [id]
+      )) as any[]
+      if (projects.length === 0) {
+        throw new Error('Project not found')
+      }
+      const project = projects[0]
+      /**
+       * Convert MySQL DATETIME to ISO string for proper serialization
+       */
+      const formatDateToISO = (dateValue: any): string => {
+        try {
+          if (!dateValue) {
+            return new Date().toISOString()
+          }
+          if (dateValue instanceof Date) {
+            return dateValue.toISOString()
+          }
+          if (typeof dateValue === 'string') {
+            const date = new Date(dateValue)
+            return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
+          }
+          return new Date().toISOString()
+        } catch (error) {
+          return new Date().toISOString()
+        }
+      }
+      return {
+        id: project.id.toString(),
+        name: project.name,
+        description: project.description,
+        status: project.status,
+        createdAt: formatDateToISO(project.created_at),
+        updatedAt: formatDateToISO(project.updated_at),
+      }
     },
+    /**
+     * Delete project mutation
+     * Soft deletes project by setting is_deleted flag to true
+     *
+     * @author Thang Truong
+     * @date 2024-12-24
+     * @param id - Project ID to delete
+     * @returns Boolean indicating success
+     */
     deleteProject: async (_: any, { id }: { id: string }) => {
-      await db.query('DELETE FROM projects WHERE id = ?', [id])
+      const result = (await db.query(
+        'UPDATE projects SET is_deleted = true, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND is_deleted = false',
+        [id]
+      )) as any
+      if (result.affectedRows === 0) {
+        throw new Error('Project not found or already deleted')
+      }
+      return true
+    },
+    /**
+     * Create user mutation
+     * Creates a new user account (admin function)
+     * Does not generate tokens - user must login separately
+     *
+     * @author Thang Truong
+     * @date 2024-12-24
+     * @param input - User creation input fields
+     * @returns Created user object
+     */
+    createUser: async (_: any, { input }: { input: any }) => {
+      // Check if user with email already exists
+      const existingUsers = (await db.query(
+        'SELECT * FROM users WHERE email = ? AND is_deleted = false',
+        [input.email]
+      )) as any[]
+
+      if (existingUsers.length > 0) {
+        throw new Error('Email already registered')
+      }
+
+      // Hash password
+      const hashedPassword = await hashPassword(input.password)
+
+      // Generate UUID for user
+      const userUuid = uuidv4()
+
+      // Set default role if not provided
+      const userRole = input.role || 'Frontend Developer'
+
+      // Insert new user into database
+      const result = (await db.query(
+        'INSERT INTO users (uuid, first_name, last_name, email, password, role) VALUES (?, ?, ?, ?, ?, ?)',
+        [userUuid, input.firstName, input.lastName, input.email, hashedPassword, userRole]
+      )) as any
+
+      const userId = result.insertId
+
+      // Fetch created user
+      const users = (await db.query(
+        'SELECT id, uuid, first_name, last_name, email, role, created_at, updated_at FROM users WHERE id = ?',
+        [userId]
+      )) as any[]
+
+      if (users.length === 0) {
+        throw new Error('Failed to create user')
+      }
+
+      const user = users[0]
+
+      /**
+       * Convert MySQL DATETIME to ISO string for proper serialization
+       */
+      const formatDateToISO = (dateValue: any): string => {
+        try {
+          if (!dateValue) {
+            return new Date().toISOString()
+          }
+          if (dateValue instanceof Date) {
+            return dateValue.toISOString()
+          }
+          if (typeof dateValue === 'string') {
+            const date = new Date(dateValue)
+            return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
+          }
+          return new Date().toISOString()
+        } catch (error) {
+          return new Date().toISOString()
+        }
+      }
+
+      return {
+        id: user.id.toString(),
+        uuid: user.uuid,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        email: user.email,
+        role: user.role,
+        createdAt: formatDateToISO(user.created_at),
+        updatedAt: formatDateToISO(user.updated_at),
+      }
+    },
+    /**
+     * Update user mutation
+     * Updates user information (firstName, lastName, email, role)
+     * Uses soft delete pattern - sets is_deleted flag instead of hard delete
+     *
+     * @author Thang Truong
+     * @date 2024-12-24
+     * @param id - User ID to update
+     * @param input - User update input fields
+     * @returns Updated user object
+     */
+    updateUser: async (_: any, { id, input }: { id: string; input: any }) => {
+      const updates: string[] = []
+      const values: any[] = []
+
+      if (input.firstName !== undefined) {
+        updates.push('first_name = ?')
+        values.push(input.firstName)
+      }
+      if (input.lastName !== undefined) {
+        updates.push('last_name = ?')
+        values.push(input.lastName)
+      }
+      if (input.email !== undefined) {
+        updates.push('email = ?')
+        values.push(input.email)
+      }
+      if (input.role !== undefined) {
+        updates.push('role = ?')
+        values.push(input.role)
+      }
+
+      if (updates.length === 0) {
+        throw new Error('No fields to update')
+      }
+
+      values.push(id)
+      await db.query(
+        `UPDATE users SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND is_deleted = false`,
+        values
+      )
+
+      const users = (await db.query(
+        'SELECT id, uuid, first_name, last_name, email, role, created_at, updated_at FROM users WHERE id = ? AND is_deleted = false',
+        [id]
+      )) as any[]
+
+      if (users.length === 0) {
+        throw new Error('User not found')
+      }
+
+      const user = users[0]
+      /**
+       * Convert MySQL DATETIME to ISO string for proper serialization
+       */
+      const formatDateToISO = (dateValue: any): string => {
+        try {
+          if (!dateValue) {
+            return new Date().toISOString()
+          }
+          if (dateValue instanceof Date) {
+            return dateValue.toISOString()
+          }
+          if (typeof dateValue === 'string') {
+            const date = new Date(dateValue)
+            return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
+          }
+          return new Date().toISOString()
+        } catch (error) {
+          return new Date().toISOString()
+        }
+      }
+
+      return {
+        id: user.id.toString(),
+        uuid: user.uuid,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        email: user.email,
+        role: user.role,
+        createdAt: formatDateToISO(user.created_at),
+        updatedAt: formatDateToISO(user.updated_at),
+      }
+    },
+    /**
+     * Delete user mutation
+     * Soft deletes user by setting is_deleted flag to true
+     * Does not permanently remove user from database
+     *
+     * @author Thang Truong
+     * @date 2024-12-24
+     * @param id - User ID to delete
+     * @returns Boolean indicating success
+     */
+    deleteUser: async (_: any, { id }: { id: string }) => {
+      const result = (await db.query(
+        'UPDATE users SET is_deleted = true, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND is_deleted = false',
+        [id]
+      )) as any
+
+      if (result.affectedRows === 0) {
+        throw new Error('User not found or already deleted')
+      }
+
       return true
     },
   },
