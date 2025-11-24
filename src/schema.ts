@@ -14,6 +14,15 @@ export const typeDefs = gql`
     projects: [Project!]!
     project(id: ID!): Project
     users: [User!]!
+    tags: [Tag!]!
+    tag(id: ID!): Tag
+    tasks: [Task!]!
+    task(id: ID!): Task
+    notifications: [Notification!]!
+    notification(id: ID!): Notification
+    activities: [ActivityLog!]!
+    activity(id: ID!): ActivityLog
+    teamMembers: [TeamMember!]!
     refreshTokenStatus: RefreshTokenStatus
   }
 
@@ -33,6 +42,21 @@ export const typeDefs = gql`
     createUser(input: CreateUserInput!): User!
     updateUser(id: ID!, input: UpdateUserInput!): User!
     deleteUser(id: ID!): Boolean!
+    createTag(input: CreateTagInput!): Tag!
+    updateTag(id: ID!, input: UpdateTagInput!): Tag!
+    deleteTag(id: ID!): Boolean!
+    createTask(input: CreateTaskInput!): Task!
+    updateTask(id: ID!, input: UpdateTaskInput!): Task!
+    deleteTask(id: ID!): Boolean!
+    createNotification(input: CreateNotificationInput!): Notification!
+    updateNotification(id: ID!, input: UpdateNotificationInput!): Notification!
+    deleteNotification(id: ID!): Boolean!
+    createActivity(input: CreateActivityLogInput!): ActivityLog!
+    updateActivity(id: ID!, input: UpdateActivityLogInput!): ActivityLog!
+    deleteActivity(id: ID!): Boolean!
+    createTeamMember(input: CreateTeamMemberInput!): TeamMember!
+    updateTeamMember(input: UpdateTeamMemberInput!): TeamMember!
+    deleteTeamMember(projectId: ID!, userId: ID!): Boolean!
   }
 
   type LoginResponse {
@@ -96,6 +120,145 @@ export const typeDefs = gql`
     lastName: String
     email: String
     role: String
+  }
+
+  type Tag {
+    id: ID!
+    name: String!
+    description: String
+    title: String
+    type: String
+    category: String
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  input CreateTagInput {
+    name: String!
+    description: String
+    title: String
+    type: String
+    category: String
+  }
+
+  input UpdateTagInput {
+    name: String
+    description: String
+    title: String
+    type: String
+    category: String
+  }
+
+  type Task {
+    id: ID!
+    uuid: String!
+    title: String!
+    description: String!
+    status: String!
+    priority: String!
+    dueDate: String
+    projectId: String!
+    assignedTo: String
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  input CreateTaskInput {
+    title: String!
+    description: String!
+    status: String!
+    priority: String!
+    dueDate: String
+    projectId: String!
+    assignedTo: String
+  }
+
+  input UpdateTaskInput {
+    title: String
+    description: String
+    status: String
+    priority: String
+    dueDate: String
+    projectId: String
+    assignedTo: String
+  }
+
+  type Notification {
+    id: ID!
+    userId: String!
+    message: String!
+    isRead: Boolean!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  input CreateNotificationInput {
+    userId: String!
+    message: String!
+    isRead: Boolean
+  }
+
+  input UpdateNotificationInput {
+    userId: String
+    message: String
+    isRead: Boolean
+  }
+
+  type ActivityLog {
+    id: ID!
+    userId: String!
+    targetUserId: String
+    projectId: String
+    taskId: String
+    action: String
+    type: String!
+    metadata: String
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  input CreateActivityLogInput {
+    userId: String!
+    targetUserId: String
+    projectId: String
+    taskId: String
+    action: String
+    type: String!
+    metadata: String
+  }
+
+  input UpdateActivityLogInput {
+    userId: String
+    targetUserId: String
+    projectId: String
+    taskId: String
+    action: String
+    type: String
+    metadata: String
+  }
+
+  type TeamMember {
+    id: ID!
+    projectId: String!
+    projectName: String!
+    userId: String!
+    memberName: String!
+    memberEmail: String!
+    role: String!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  input CreateTeamMemberInput {
+    projectId: String!
+    userId: String!
+    role: String
+  }
+
+  input UpdateTeamMemberInput {
+    projectId: String!
+    userId: String!
+    role: String!
   }
 `
 
