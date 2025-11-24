@@ -17,7 +17,7 @@ export const ACCESS_TOKEN_EXPIRY = '1m'
  * Refresh token expiration time
  * Format: '40s', '1h', '7d', etc.
  */
-export const REFRESH_TOKEN_EXPIRY = '2m'
+export const REFRESH_TOKEN_EXPIRY = '20m'
 
 /**
  * Threshold (in seconds) for showing expiration dialog

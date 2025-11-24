@@ -14,7 +14,6 @@ let envLoaded = false
 for (const envPath of envPaths) {
   if (fs.existsSync(envPath)) {
     dotenv.config({ path: envPath })
-    console.log(`📄 Loaded .env from: ${envPath}`)
     envLoaded = true
     break
   }
@@ -41,8 +40,6 @@ async function runMigration() {
   }
 
   const dbPort = process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 3306
-  
-  console.log(`🔌 Connecting to MySQL at ${dbHost}:${dbPort} as ${dbUser}...`)
 
   const connection = await mysql.createConnection({
     host: dbHost,
@@ -53,7 +50,6 @@ async function runMigration() {
   })
 
   try {
-    console.log('📦 Reading migration file...')
     const migrationPath = path.join(
       __dirname,
       'migrations',
@@ -61,10 +57,7 @@ async function runMigration() {
     )
     const sql = fs.readFileSync(migrationPath, 'utf8')
 
-    console.log('🚀 Running migration...')
     await connection.query(sql)
-    console.log('✅ Migration completed successfully!')
-    console.log('📊 Database and all tables have been created.')
   } catch (error: any) {
     console.error('❌ Migration failed:', error.message)
     if (error.sql) {
