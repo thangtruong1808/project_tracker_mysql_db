@@ -959,6 +959,26 @@ export const resolvers = {
        */
       const fetchComments = async () => {
         try {
+          /**
+           * Get authenticated user ID from JWT token for isLiked calculation
+           *
+           * @author Thang Truong
+           * @date 2025-01-27
+           */
+          let userId: number | null = null
+          try {
+            const authHeader = context.req?.headers?.authorization || ''
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+              const token = authHeader.replace('Bearer ', '')
+              const decoded = verifyAccessToken(token)
+              if (decoded && decoded.userId) {
+                userId = decoded.userId
+              }
+            }
+          } catch {
+            // User not authenticated - userId remains null
+          }
+
           const comments = (await db.query(
             `SELECT 
               c.id, 
@@ -974,13 +994,20 @@ export const resolvers = {
               u.role as user_role,
               u.uuid as user_uuid,
               u.created_at as user_created_at,
-              u.updated_at as user_updated_at
+              u.updated_at as user_updated_at,
+              COALESCE(cl.likes_count, 0) as likes_count,
+              EXISTS(SELECT 1 FROM comment_likes WHERE user_id = ? AND comment_id = c.id) as is_liked
             FROM comments c
             INNER JOIN tasks t ON c.task_id = t.id
             LEFT JOIN users u ON c.user_id = u.id AND u.is_deleted = false
+            LEFT JOIN (
+              SELECT comment_id, COUNT(*) as likes_count
+              FROM comment_likes
+              GROUP BY comment_id
+            ) cl ON c.id = cl.comment_id
             WHERE t.project_id = ? AND c.is_deleted = false AND t.is_deleted = false
             ORDER BY c.created_at DESC`,
-            [projectId]
+            [userId || 0, projectId]
           )) as any[]
 
           /**
@@ -1011,6 +1038,8 @@ export const resolvers = {
             content: comment.content,
             taskId: comment.task_id.toString(),
             user: formatCommentUser(comment),
+            likesCount: Number(comment.likes_count || 0),
+            isLiked: Boolean(comment.is_liked || false),
             createdAt: formatDateToISO(comment.created_at),
             updatedAt: formatDateToISO(comment.updated_at),
           }))
@@ -2368,6 +2397,126 @@ export const resolvers = {
           }
         }
         throw new Error('Failed to like task. Please try again.')
+      }
+    },
+    /**
+     * Like comment mutation
+     * Allows authenticated users to like a comment
+     * Requires authentication via JWT token
+     *
+     * @author Thang Truong
+     * @date 2025-01-27
+     */
+    likeComment: async (_: any, { commentId }: { commentId: string }, context: { req: any }) => {
+      /**
+       * Extract and verify JWT token from Authorization header
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const authHeader = context.req?.headers?.authorization || ''
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        throw new Error('Authentication required. Please login to like comments.')
+      }
+
+      const token = authHeader.replace('Bearer ', '')
+      const decoded = verifyAccessToken(token)
+
+      if (!decoded || !decoded.userId) {
+        throw new Error('Invalid or expired token. Please login again.')
+      }
+
+      const userId = decoded.userId
+
+      /**
+       * Verify comment exists and is not deleted
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const comments = (await db.query(
+        'SELECT id FROM comments WHERE id = ? AND is_deleted = false',
+        [commentId]
+      )) as any[]
+
+      if (comments.length === 0) {
+        throw new Error('Comment not found or has been deleted')
+      }
+
+      /**
+       * Check if user already liked this comment
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const existingLikes = (await db.query(
+        'SELECT id FROM comment_likes WHERE user_id = ? AND comment_id = ?',
+        [userId, commentId]
+      )) as any[]
+
+      if (existingLikes.length > 0) {
+        /**
+         * User already liked - delete the like (unlike)
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        await db.query(
+          'DELETE FROM comment_likes WHERE user_id = ? AND comment_id = ?',
+          [userId, commentId]
+        )
+
+        const likesCountResult = (await db.query(
+          'SELECT COUNT(*) as count FROM comment_likes WHERE comment_id = ?',
+          [commentId]
+        )) as any[]
+
+        return {
+          success: true,
+          message: 'Comment unliked successfully',
+          likesCount: Number(likesCountResult[0]?.count || 0),
+          isLiked: false,
+        }
+      }
+
+      /**
+       * User hasn't liked - insert new like into database
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      try {
+        await db.query(
+          'INSERT INTO comment_likes (user_id, comment_id) VALUES (?, ?)',
+          [userId, commentId]
+        )
+
+        const likesCountResult = (await db.query(
+          'SELECT COUNT(*) as count FROM comment_likes WHERE comment_id = ?',
+          [commentId]
+        )) as any[]
+
+        return {
+          success: true,
+          message: 'Comment liked successfully',
+          likesCount: Number(likesCountResult[0]?.count || 0),
+          isLiked: true,
+        }
+      } catch (error: any) {
+        if (error.code === 'ER_DUP_ENTRY') {
+          const likesCountResult = (await db.query(
+            'SELECT COUNT(*) as count FROM comment_likes WHERE comment_id = ?',
+            [commentId]
+          )) as any[]
+
+          return {
+            success: true,
+            message: 'Comment liked successfully',
+            likesCount: Number(likesCountResult[0]?.count || 0),
+            isLiked: true,
+          }
+        }
+        throw new Error('Failed to like comment. Please try again.')
       }
     },
     /**
