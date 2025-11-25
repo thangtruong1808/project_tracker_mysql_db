@@ -29,7 +29,7 @@ import { pubsub } from './utils/pubsub'
 
 const DEFAULT_PROJECT_STATUSES = ['PLANNING', 'IN_PROGRESS', 'COMPLETED']
 const DEFAULT_TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE']
-const DEFAULT_PAGE_SIZE = 10
+const DEFAULT_PAGE_SIZE = 12
 const MAX_PAGE_SIZE = 50
 
 /**
@@ -2303,12 +2303,38 @@ export const resolvers = {
        * @date 2025-01-27
        */
       const tasks = (await db.query(
-        'SELECT id FROM tasks WHERE id = ? AND is_deleted = false',
+        `SELECT 
+          t.id,
+          t.project_id,
+          p.owner_id
+        FROM tasks t
+        INNER JOIN projects p ON t.project_id = p.id AND p.is_deleted = false
+        WHERE t.id = ? AND t.is_deleted = false`,
         [taskId]
       )) as any[]
 
       if (tasks.length === 0) {
         throw new Error('Task not found or has been deleted')
+      }
+
+      const task = tasks[0]
+
+      /**
+       * Ensure user is the project owner or active member before liking tasks
+       *
+       * @author Thang Truong
+       * @date 2025-11-25
+       */
+      const isOwner = Number(task.owner_id) === Number(userId)
+      if (!isOwner) {
+        const membership = (await db.query(
+          'SELECT 1 FROM project_members WHERE project_id = ? AND user_id = ? AND is_deleted = false',
+          [task.project_id, userId]
+        )) as any[]
+
+        if (membership.length === 0) {
+          throw new Error('Only project members can like tasks. Please join this project first.')
+        }
       }
 
       /**
@@ -2429,18 +2455,128 @@ export const resolvers = {
       const userId = decoded.userId
 
       /**
-       * Verify comment exists and is not deleted
+       * Verify comment exists, belongs to valid project, and ensure membership
        *
        * @author Thang Truong
-       * @date 2025-01-27
+       * @date 2025-11-25
        */
-      const comments = (await db.query(
-        'SELECT id FROM comments WHERE id = ? AND is_deleted = false',
+      const commentRecords = (await db.query(
+        `SELECT 
+          c.id,
+          c.task_id,
+          t.project_id,
+          p.owner_id
+        FROM comments c
+        LEFT JOIN tasks t ON c.task_id = t.id AND t.is_deleted = false
+        INNER JOIN projects p ON t.project_id = p.id AND p.is_deleted = false
+        WHERE c.id = ? AND c.is_deleted = false`,
         [commentId]
       )) as any[]
 
-      if (comments.length === 0) {
+      if (commentRecords.length === 0) {
         throw new Error('Comment not found or has been deleted')
+      }
+
+      const commentRecord = commentRecords[0]
+      const projectIdForComment = commentRecord.project_id
+      const projectOwnerId = commentRecord.owner_id
+
+      if (projectOwnerId !== userId) {
+        const membership = (await db.query(
+          'SELECT 1 FROM project_members WHERE project_id = ? AND user_id = ? AND is_deleted = false',
+          [projectIdForComment, userId]
+        )) as any[]
+
+        if (membership.length === 0) {
+          throw new Error('Only project members can like comments.')
+        }
+      }
+
+      /**
+       * Helper to convert MySQL date values to ISO strings
+       *
+       * @author Thang Truong
+       * @date 2025-11-25
+       */
+      const formatDateToISO = (dateValue: any): string => {
+        try {
+          if (!dateValue) {
+            return new Date().toISOString()
+          }
+          if (dateValue instanceof Date) {
+            return dateValue.toISOString()
+          }
+          if (typeof dateValue === 'string') {
+            const date = new Date(dateValue)
+            return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
+          }
+          return new Date().toISOString()
+        } catch {
+          return new Date().toISOString()
+        }
+      }
+
+      /**
+       * Build subscription payload with latest comment data
+       *
+       * @author Thang Truong
+       * @date 2025-11-25
+       */
+      const buildCommentPayload = async (likesCountValue: number, isLikedValue: boolean) => {
+        const commentDetails = (await db.query(
+          `SELECT 
+            c.id,
+            c.uuid,
+            c.content,
+            c.task_id,
+            c.created_at,
+            c.updated_at,
+            u.id as user_id,
+            u.first_name as user_first_name,
+            u.last_name as user_last_name,
+            u.email as user_email,
+            u.role as user_role,
+            u.uuid as user_uuid,
+            u.created_at as user_created_at,
+            u.updated_at as user_updated_at
+          FROM comments c
+          LEFT JOIN users u ON c.user_id = u.id AND u.is_deleted = false
+          WHERE c.id = ?`,
+          [commentId]
+        )) as any[]
+
+        if (commentDetails.length === 0) {
+          return null
+        }
+
+        const comment = commentDetails[0]
+        const formatCommentUser = (record: any) => {
+          if (!record.user_id) {
+            return null
+          }
+          return {
+            id: record.user_id.toString(),
+            uuid: record.user_uuid || '',
+            firstName: record.user_first_name || '',
+            lastName: record.user_last_name || '',
+            email: record.user_email || '',
+            role: record.user_role || '',
+            createdAt: formatDateToISO(record.user_created_at),
+            updatedAt: formatDateToISO(record.user_updated_at),
+          }
+        }
+
+        return {
+          id: comment.id.toString(),
+          uuid: comment.uuid || '',
+          content: comment.content,
+          taskId: comment.task_id.toString(),
+          user: formatCommentUser(comment),
+          likesCount: likesCountValue,
+          isLiked: isLikedValue,
+          createdAt: formatDateToISO(comment.created_at),
+          updatedAt: formatDateToISO(comment.updated_at),
+        }
       }
 
       /**
@@ -2453,6 +2589,10 @@ export const resolvers = {
         'SELECT id FROM comment_likes WHERE user_id = ? AND comment_id = ?',
         [userId, commentId]
       )) as any[]
+
+      let updatedLikesCount = 0
+      let updatedIsLiked = false
+      let responseMessage = ''
 
       if (existingLikes.length > 0) {
         /**
@@ -2471,52 +2611,50 @@ export const resolvers = {
           [commentId]
         )) as any[]
 
-        return {
-          success: true,
-          message: 'Comment unliked successfully',
-          likesCount: Number(likesCountResult[0]?.count || 0),
-          isLiked: false,
+        updatedLikesCount = Number(likesCountResult[0]?.count || 0)
+        updatedIsLiked = false
+        responseMessage = 'Comment unliked successfully'
+      } else {
+        /**
+         * User hasn't liked - insert new like into database
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        try {
+          await db.query(
+            'INSERT INTO comment_likes (user_id, comment_id) VALUES (?, ?)',
+            [userId, commentId]
+          )
+        } catch (error: any) {
+          if (error.code !== 'ER_DUP_ENTRY') {
+            throw new Error('Failed to like comment. Please try again.')
+          }
         }
-      }
-
-      /**
-       * User hasn't liked - insert new like into database
-       *
-       * @author Thang Truong
-       * @date 2025-01-27
-       */
-      try {
-        await db.query(
-          'INSERT INTO comment_likes (user_id, comment_id) VALUES (?, ?)',
-          [userId, commentId]
-        )
 
         const likesCountResult = (await db.query(
           'SELECT COUNT(*) as count FROM comment_likes WHERE comment_id = ?',
           [commentId]
         )) as any[]
 
-        return {
-          success: true,
-          message: 'Comment liked successfully',
-          likesCount: Number(likesCountResult[0]?.count || 0),
-          isLiked: true,
-        }
-      } catch (error: any) {
-        if (error.code === 'ER_DUP_ENTRY') {
-          const likesCountResult = (await db.query(
-            'SELECT COUNT(*) as count FROM comment_likes WHERE comment_id = ?',
-            [commentId]
-          )) as any[]
+        updatedLikesCount = Number(likesCountResult[0]?.count || 0)
+        updatedIsLiked = true
+        responseMessage = 'Comment liked successfully'
+      }
 
-          return {
-            success: true,
-            message: 'Comment liked successfully',
-            likesCount: Number(likesCountResult[0]?.count || 0),
-            isLiked: true,
-          }
-        }
-        throw new Error('Failed to like comment. Please try again.')
+      const subscriptionPayload = await buildCommentPayload(updatedLikesCount, updatedIsLiked)
+
+      if (subscriptionPayload) {
+        await pubsub.publish(`COMMENT_LIKE_UPDATED_${projectIdForComment}`, {
+          commentLikeUpdated: subscriptionPayload,
+        })
+      }
+
+      return {
+        success: true,
+        message: responseMessage,
+        likesCount: updatedLikesCount,
+        isLiked: updatedIsLiked,
       }
     },
     /**
@@ -2711,12 +2849,36 @@ export const resolvers = {
           }
         }
 
+        /**
+         * Get likes count for the newly created comment (should be 0)
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        const likesCountResult = (await db.query(
+          'SELECT COUNT(*) as count FROM comment_likes WHERE comment_id = ?',
+          [comment.id]
+        )) as any[]
+
+        /**
+         * Check if the authenticated user has liked this comment (should be false for new comments)
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        const isLikedResult = (await db.query(
+          'SELECT 1 FROM comment_likes WHERE user_id = ? AND comment_id = ?',
+          [userId, comment.id]
+        )) as any[]
+
         const formattedComment = {
           id: comment.id.toString(),
           uuid: comment.uuid || '',
           content: comment.content,
           taskId: comment.task_id.toString(),
           user: formatCommentUser(comment),
+          likesCount: Number(likesCountResult[0]?.count || 0),
+          isLiked: Boolean(isLikedResult.length > 0),
           createdAt: formatDateToISO(comment.created_at),
           updatedAt: formatDateToISO(comment.updated_at),
         }
@@ -2735,6 +2897,382 @@ export const resolvers = {
         return formattedComment
       } catch (error: any) {
         throw new Error(error.message || 'Failed to create comment. Please try again.')
+      }
+    },
+    /**
+     * Update comment mutation
+     * Allows authenticated users to update their own comments
+     * Requires authentication via JWT token and ownership verification
+     *
+     * @author Thang Truong
+     * @date 2025-01-27
+     * @param commentId - Comment ID to update
+     * @param content - New comment content
+     * @param context - GraphQL context containing request headers
+     * @returns Updated comment object
+     */
+    updateComment: async (_: any, { commentId, content }: { commentId: string; content: string }, context: { req: any }) => {
+      /**
+       * Extract and verify JWT token from Authorization header
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const authHeader = context.req?.headers?.authorization || ''
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        throw new Error('Authentication required. Please login to edit comments.')
+      }
+
+      const token = authHeader.replace('Bearer ', '')
+      const decoded = verifyAccessToken(token)
+
+      if (!decoded || !decoded.userId) {
+        throw new Error('Invalid or expired token. Please login again.')
+      }
+
+      const userId = decoded.userId
+
+      if (!content || !content.trim()) {
+        throw new Error('Comment content cannot be empty.')
+      }
+
+      /**
+       * Verify comment exists, is not deleted, and belongs to the authenticated user
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const comments = (await db.query(
+        `SELECT c.id, c.user_id, c.version, c.created_at, c.updated_at, c.uuid, c.task_id,
+          t.project_id,
+          u.id as user_id, u.first_name as user_first_name, u.last_name as user_last_name,
+          u.email as user_email, u.role as user_role, u.uuid as user_uuid,
+          u.created_at as user_created_at, u.updated_at as user_updated_at
+        FROM comments c
+        LEFT JOIN tasks t ON c.task_id = t.id AND t.is_deleted = false
+        LEFT JOIN users u ON c.user_id = u.id AND u.is_deleted = false
+        WHERE c.id = ? AND c.is_deleted = false`,
+        [commentId]
+      )) as any[]
+
+      if (comments.length === 0) {
+        throw new Error('Comment not found or has been deleted')
+      }
+
+      const comment = comments[0]
+
+      /**
+       * Verify comment ownership
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      if (Number(comment.user_id) !== userId) {
+        throw new Error('You can only edit your own comments.')
+      }
+
+      /**
+       * Update comment content and version
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      try {
+        await db.query(
+          'UPDATE comments SET content = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND user_id = ?',
+          [content.trim(), commentId, userId]
+        )
+
+        /**
+         * Fetch updated comment
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        const updatedComments = (await db.query(
+          `SELECT c.id, c.user_id, c.version, c.created_at, c.updated_at, c.uuid, c.task_id, c.content,
+            t.project_id,
+            u.id as user_id, u.first_name as user_first_name, u.last_name as user_last_name,
+            u.email as user_email, u.role as user_role, u.uuid as user_uuid,
+            u.created_at as user_created_at, u.updated_at as user_updated_at
+          FROM comments c
+          LEFT JOIN tasks t ON c.task_id = t.id AND t.is_deleted = false
+          LEFT JOIN users u ON c.user_id = u.id AND u.is_deleted = false
+          WHERE c.id = ? AND c.is_deleted = false`,
+          [commentId]
+        )) as any[]
+
+        if (updatedComments.length === 0) {
+          throw new Error('Failed to retrieve updated comment')
+        }
+
+        const updatedComment = updatedComments[0]
+
+        /**
+         * Convert MySQL DATETIME to ISO string for proper serialization
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        const formatDateToISO = (dateValue: any): string => {
+          try {
+            if (!dateValue) {
+              return new Date().toISOString()
+            }
+            if (dateValue instanceof Date) {
+              return dateValue.toISOString()
+            }
+            if (typeof dateValue === 'string') {
+              const date = new Date(dateValue)
+              return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
+            }
+            return new Date().toISOString()
+          } catch (error) {
+            return new Date().toISOString()
+          }
+        }
+
+        /**
+         * Format user object for comment author
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        const formatCommentUser = (comment: any) => {
+          if (!comment.user_id) {
+            throw new Error('User information not found for comment')
+          }
+          return {
+            id: comment.user_id.toString(),
+            uuid: comment.user_uuid || '',
+            firstName: comment.user_first_name || '',
+            lastName: comment.user_last_name || '',
+            email: comment.user_email || '',
+            role: comment.user_role || '',
+            createdAt: formatDateToISO(comment.user_created_at),
+            updatedAt: formatDateToISO(comment.user_updated_at),
+          }
+        }
+
+        /**
+         * Get likes count for the comment
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        const likesCountResult = (await db.query(
+          'SELECT COUNT(*) as count FROM comment_likes WHERE comment_id = ?',
+          [commentId]
+        )) as any[]
+
+        const isLikedResult = (await db.query(
+          'SELECT 1 FROM comment_likes WHERE user_id = ? AND comment_id = ?',
+          [userId, commentId]
+        )) as any[]
+
+        const formattedComment = {
+          id: updatedComment.id.toString(),
+          uuid: updatedComment.uuid || '',
+          content: updatedComment.content,
+          taskId: updatedComment.task_id.toString(),
+          user: formatCommentUser(updatedComment),
+          likesCount: Number(likesCountResult[0]?.count || 0),
+          isLiked: Boolean(isLikedResult.length > 0),
+          createdAt: formatDateToISO(updatedComment.created_at),
+          updatedAt: formatDateToISO(updatedComment.updated_at),
+        }
+
+        /**
+         * Publish comment updated event for real-time subscriptions
+         * Mirrors comment creation flow to keep clients synchronized
+         *
+         * @author Thang Truong
+         * @date 2025-11-25
+         */
+        if (updatedComment.project_id) {
+          await pubsub.publish(`COMMENT_UPDATED_${updatedComment.project_id}`, {
+            commentUpdated: formattedComment,
+          })
+        }
+
+        return formattedComment
+      } catch (error: any) {
+        throw new Error(error.message || 'Failed to update comment. Please try again.')
+      }
+    },
+    /**
+     * Delete comment mutation
+     * Allows authenticated users to delete their own comments
+     * Requires authentication via JWT token and ownership verification
+     *
+     * @author Thang Truong
+     * @date 2025-01-27
+     * @param commentId - Comment ID to delete
+     * @param context - GraphQL context containing request headers
+     * @returns Boolean indicating success
+     */
+    deleteComment: async (_: any, { commentId }: { commentId: string }, context: { req: any }) => {
+      /**
+       * Extract and verify JWT token from Authorization header
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const authHeader = context.req?.headers?.authorization || ''
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        throw new Error('Authentication required. Please login to delete comments.')
+      }
+
+      const token = authHeader.replace('Bearer ', '')
+      const decoded = verifyAccessToken(token)
+
+      if (!decoded || !decoded.userId) {
+        throw new Error('Invalid or expired token. Please login again.')
+      }
+
+      const userId = decoded.userId
+
+      /**
+       * Verify comment exists, is not deleted, and belongs to the authenticated user
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const comments = (await db.query(
+        `SELECT 
+          c.id,
+          c.user_id,
+          c.uuid,
+          c.content,
+          c.task_id,
+          c.created_at,
+          c.updated_at,
+          t.project_id,
+          u.id as user_id,
+          u.first_name as user_first_name,
+          u.last_name as user_last_name,
+          u.email as user_email,
+          u.role as user_role,
+          u.uuid as user_uuid,
+          u.created_at as user_created_at,
+          u.updated_at as user_updated_at
+        FROM comments c
+        LEFT JOIN tasks t ON c.task_id = t.id AND t.is_deleted = false
+        LEFT JOIN users u ON c.user_id = u.id AND u.is_deleted = false
+        WHERE c.id = ? AND c.is_deleted = false`,
+        [commentId]
+      )) as any[]
+
+      if (comments.length === 0) {
+        throw new Error('Comment not found or has been deleted')
+      }
+
+      const comment = comments[0]
+
+      /**
+       * Verify comment ownership
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      if (Number(comment.user_id) !== userId) {
+        throw new Error('You can only delete your own comments.')
+      }
+
+      /**
+       * Soft delete comment (mark as deleted)
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      /**
+       * Helper to convert MySQL DATETIME to ISO strings
+       *
+       * @author Thang Truong
+       * @date 2025-11-25
+       */
+      const formatDateToISO = (dateValue: any): string => {
+        try {
+          if (!dateValue) {
+            return new Date().toISOString()
+          }
+          if (dateValue instanceof Date) {
+            return dateValue.toISOString()
+          }
+          if (typeof dateValue === 'string') {
+            const date = new Date(dateValue)
+            return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
+          }
+          return new Date().toISOString()
+        } catch {
+          return new Date().toISOString()
+        }
+      }
+
+      /**
+       * Format user information for deleted comment payload
+       *
+       * @author Thang Truong
+       * @date 2025-11-25
+       */
+      const formatCommentUser = (record: any) => {
+        if (!record.user_id) {
+          throw new Error('User information not found for comment')
+        }
+        return {
+          id: record.user_id.toString(),
+          uuid: record.user_uuid || '',
+          firstName: record.user_first_name || '',
+          lastName: record.user_last_name || '',
+          email: record.user_email || '',
+          role: record.user_role || '',
+          createdAt: formatDateToISO(record.user_created_at),
+          updatedAt: formatDateToISO(record.user_updated_at),
+        }
+      }
+
+      /**
+       * Fetch likes count for deleted comment to provide consistent payload
+       *
+       * @author Thang Truong
+       * @date 2025-11-25
+       */
+      const likesCountResult = (await db.query(
+        'SELECT COUNT(*) as count FROM comment_likes WHERE comment_id = ?',
+        [commentId]
+      )) as any[]
+
+      const formattedDeletedComment = {
+        id: comment.id.toString(),
+        uuid: comment.uuid || '',
+        content: comment.content,
+        taskId: comment.task_id ? comment.task_id.toString() : '',
+        user: formatCommentUser(comment),
+        likesCount: Number(likesCountResult[0]?.count || 0),
+        isLiked: false,
+        createdAt: formatDateToISO(comment.created_at),
+        updatedAt: formatDateToISO(comment.updated_at),
+      }
+
+      try {
+        await db.query('UPDATE comments SET is_deleted = true WHERE id = ? AND user_id = ?', [commentId, userId])
+
+        /**
+         * Publish comment deleted subscription event
+         * Notifies all members to refresh their view immediately
+         *
+         * @author Thang Truong
+         * @date 2025-11-25
+         */
+        if (comment.project_id) {
+          await pubsub.publish(`COMMENT_DELETED_${comment.project_id}`, {
+            commentDeleted: formattedDeletedComment,
+          })
+        }
+
+        return true
+      } catch (error: any) {
+        throw new Error(error.message || 'Failed to delete comment. Please try again.')
       }
     },
     /**
@@ -3823,6 +4361,51 @@ export const resolvers = {
       resolve: (payload: any) => {
         // Extract commentCreated from payload published by createComment mutation
         return payload.commentCreated
+      },
+    },
+    /**
+     * Comment like updated subscription
+     * Real-time subscription for comment like/unlike events on a project
+     *
+     * @author Thang Truong
+     * @date 2025-11-25
+     */
+    commentLikeUpdated: {
+      subscribe: (_: any, { projectId }: { projectId: string }) => {
+        return pubsub.asyncIterator(`COMMENT_LIKE_UPDATED_${projectId}`)
+      },
+      resolve: (payload: any) => {
+        return payload.commentLikeUpdated
+      },
+    },
+    /**
+     * Comment updated subscription
+     * Real-time subscription for edited comments on a project
+     *
+     * @author Thang Truong
+     * @date 2025-11-25
+     */
+    commentUpdated: {
+      subscribe: (_: any, { projectId }: { projectId: string }) => {
+        return pubsub.asyncIterator(`COMMENT_UPDATED_${projectId}`)
+      },
+      resolve: (payload: any) => {
+        return payload.commentUpdated
+      },
+    },
+    /**
+     * Comment deleted subscription
+     * Real-time subscription for deleted comments on a project
+     *
+     * @author Thang Truong
+     * @date 2025-11-25
+     */
+    commentDeleted: {
+      subscribe: (_: any, { projectId }: { projectId: string }) => {
+        return pubsub.asyncIterator(`COMMENT_DELETED_${projectId}`)
+      },
+      resolve: (payload: any) => {
+        return payload.commentDeleted
       },
     },
   },

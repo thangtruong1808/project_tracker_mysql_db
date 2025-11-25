@@ -44,6 +44,8 @@ export const typeDefs = gql`
     likeTask(taskId: ID!): LikeTaskResponse!
     likeComment(commentId: ID!): LikeCommentResponse!
     createComment(projectId: ID!, content: String!): Comment!
+    updateComment(commentId: ID!, content: String!): Comment!
+    deleteComment(commentId: ID!): Boolean!
     createUser(input: CreateUserInput!): User!
     updateUser(id: ID!, input: UpdateUserInput!): User!
     deleteUser(id: ID!): Boolean!
@@ -354,6 +356,9 @@ export const typeDefs = gql`
 
   type Subscription {
     commentCreated(projectId: ID!): Comment!
+    commentLikeUpdated(projectId: ID!): Comment!
+    commentUpdated(projectId: ID!): Comment!
+    commentDeleted(projectId: ID!): Comment!
   }
 `
 
