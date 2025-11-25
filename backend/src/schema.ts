@@ -195,6 +195,7 @@ export const typeDefs = gql`
     projectId: String!
     assignedTo: String
     owner: User
+    tags: [Tag!]!
     likesCount: Int!
     commentsCount: Int!
     isLiked: Boolean!
@@ -210,6 +211,7 @@ export const typeDefs = gql`
     dueDate: String
     projectId: String!
     assignedTo: String
+    tagIds: [String!]
   }
 
   input UpdateTaskInput {
@@ -220,6 +222,7 @@ export const typeDefs = gql`
     dueDate: String
     projectId: String
     assignedTo: String
+    tagIds: [String!]
   }
 
   type Notification {

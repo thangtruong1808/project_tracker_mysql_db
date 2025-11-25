@@ -7,6 +7,7 @@
  */
 
 import { useMemo } from 'react'
+import { ApolloError } from '@apollo/client'
 import ProjectsGrid from './ProjectsGrid'
 import SearchLoadingState from './SearchLoadingState'
 import SearchEmptyState from './SearchEmptyState'
@@ -16,6 +17,7 @@ interface ProjectOwner {
   firstName: string
   lastName: string
   email: string
+  role: string
 }
 
 interface Project {
@@ -34,15 +36,13 @@ interface Project {
 interface ProjectsContentProps {
   projects: Project[]
   loading: boolean
-  error: any
+  error?: ApolloError
   selectedStatuses: string[]
   dateFrom: string
   dateTo: string
   currentPage: number
   itemsPerPage: number
   onPageChange: (page: number) => Promise<void>
-  onEdit?: (id: string) => Promise<void>
-  onDelete?: (id: string) => Promise<void>
 }
 
 /**
@@ -106,8 +106,6 @@ const ProjectsContent = ({
   currentPage,
   itemsPerPage,
   onPageChange,
-  onEdit,
-  onDelete
 }: ProjectsContentProps) => {
   /**
    * Filter projects based on selected statuses and date range
@@ -189,8 +187,6 @@ const ProjectsContent = ({
       currentPage={currentPage}
       itemsPerPage={itemsPerPage}
       onPageChange={onPageChange}
-      onEdit={onEdit}
-      onDelete={onDelete}
     />
   )
 }

@@ -105,12 +105,14 @@ const CreateNotificationModal = ({ isOpen, onClose, onSuccess }: CreateNotificat
         },
       })
 
-      await showToast('Notification created successfully', 'success', 3000)
+      await showToast('Notification created successfully', 'success', 7000)
       reset()
       onSuccess()
       onClose()
-    } catch (err: any) {
-      setError(err.message || 'Failed to create notification. Please try again.')
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to create notification. Please try again.'
+      setError(errorMessage)
     }
   }
 

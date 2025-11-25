@@ -75,12 +75,13 @@ const CreateTeamMemberModal = ({ isOpen, onClose, onSuccess }: CreateTeamMemberM
           },
         },
       })
-      await showToast('Team member added successfully', 'success', 3000)
+      await showToast('Team member added successfully', 'success', 7000)
       reset()
       onSuccess()
       onClose()
-    } catch (err: any) {
-      setError(err.message || 'Failed to add team member. Please try again.')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add team member. Please try again.'
+      setError(errorMessage)
     }
   }
 

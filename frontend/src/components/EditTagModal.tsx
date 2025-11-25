@@ -125,11 +125,12 @@ const EditTagModal = ({ tag, isOpen, onClose, onSuccess }: EditTagModalProps) =>
         },
       })
 
-      await showToast('Tag updated successfully', 'success', 3000)
+      await showToast('Tag updated successfully', 'success', 7000)
       onSuccess()
       onClose()
-    } catch (err: any) {
-      setError(err.message || 'Failed to update tag. Please try again.')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update tag. Please try again.'
+      setError(errorMessage)
     }
   }
 

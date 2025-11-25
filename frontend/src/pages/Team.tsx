@@ -60,7 +60,7 @@ const Team = () => {
 
   useEffect(() => {
     if (error) {
-      showToast('Failed to load team members. Please try again later.', 'error', 5000)
+      showToast('Failed to load team members. Please try again later.', 'error', 7000)
     }
   }, [error, showToast])
 

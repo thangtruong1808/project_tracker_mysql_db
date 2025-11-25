@@ -7,8 +7,8 @@
  * @date 2024-12-24
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useQuery } from '@apollo/client'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useQuery, useSubscription } from '@apollo/client'
 import { useToast } from '../hooks/useToast'
 import { NOTIFICATIONS_QUERY } from '../graphql/queries'
 import NotificationsTable from '../components/NotificationsTable'
@@ -17,6 +17,8 @@ import NotificationsPagination from '../components/NotificationsPagination'
 import EditNotificationModal from '../components/EditNotificationModal'
 import DeleteNotificationDialog from '../components/DeleteNotificationDialog'
 import CreateNotificationModal from '../components/CreateNotificationModal'
+import { useAuth } from '../context/AuthContext'
+import { NOTIFICATION_CREATED_SUBSCRIPTION } from '../graphql/subscriptions'
 
 interface Notification {
   id: string
@@ -38,6 +40,7 @@ type SortDirection = 'ASC' | 'DESC'
  */
 const Notifications = () => {
   const { showToast } = useToast()
+  const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [sortField, setSortField] = useState<SortField>('id')
@@ -48,6 +51,7 @@ const Notifications = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const processedNotificationIds = useRef<Set<string>>(new Set())
 
   /**
    * Fetch notifications data from GraphQL API
@@ -56,6 +60,20 @@ const Notifications = () => {
   const { data, loading, error, refetch } = useQuery<{ notifications: Notification[] }>(NOTIFICATIONS_QUERY, {
     fetchPolicy: 'cache-and-network',
     errorPolicy: 'all',
+  })
+
+  useSubscription(NOTIFICATION_CREATED_SUBSCRIPTION, {
+    variables: { userId: user?.id },
+    skip: !user?.id,
+    onData: async ({ data: subscriptionData }) => {
+      const newNotification = subscriptionData?.data?.notificationCreated
+      if (!newNotification || processedNotificationIds.current.has(newNotification.id)) {
+        return
+      }
+      processedNotificationIds.current.add(newNotification.id)
+      await showToast('New notification received.', 'info', 7000)
+      await refetch()
+    },
   })
 
   /**
@@ -204,12 +222,13 @@ const Notifications = () => {
    * Handle successful create, edit or delete
    * Resets selected notification and closes modals
    */
-  const handleSuccess = useCallback(() => {
+  const handleSuccess = useCallback(async () => {
     setSelectedNotification(null)
     setIsEditModalOpen(false)
     setIsDeleteDialogOpen(false)
     setIsCreateModalOpen(false)
-  }, [])
+    await refetch()
+  }, [refetch])
 
   /**
    * Handle create notification action

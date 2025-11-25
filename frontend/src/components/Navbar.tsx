@@ -7,13 +7,17 @@
  * @date 2024-12-24
  */
 
-import { useState } from 'react'
+import { useState, useCallback, useMemo } from 'react'
+import { useQuery, useSubscription } from '@apollo/client'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Logo from './Logo'
 import UserProfileDropdown from './UserProfileDropdown'
 import ProjectHeaderBio from './ProjectHeaderBio'
 import SearchDrawer from './SearchDrawer'
+import NotificationDrawer from './NotificationDrawer'
+import { NOTIFICATIONS_QUERY } from '../graphql/queries'
+import { NOTIFICATION_CREATED_SUBSCRIPTION } from '../graphql/subscriptions'
 
 interface NavItem {
   label: string
@@ -22,11 +26,45 @@ interface NavItem {
   onClick?: () => void
 }
 
+interface NotificationRecord {
+  id: string
+  userId: string
+  message: string
+  isRead: boolean
+  createdAt: string
+}
+
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isSearchDrawerOpen, setIsSearchDrawerOpen] = useState(false)
+  const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false)
   const { isAuthenticated, user } = useAuth()
   const location = useLocation()
+
+  const {
+    data: notificationsData,
+    loading: notificationsLoading,
+    refetch: refetchNotifications,
+  } = useQuery<{ notifications: NotificationRecord[] }>(NOTIFICATIONS_QUERY, {
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  })
+
+  useSubscription(NOTIFICATION_CREATED_SUBSCRIPTION, {
+    variables: { userId: user?.id },
+    skip: !user?.id,
+    onData: async () => {
+      await refetchNotifications()
+    },
+  })
+
+  const userNotifications = useMemo(() => {
+    if (!user?.id) {
+      return []
+    }
+    return (notificationsData?.notifications || []).filter((notification) => notification.userId === user.id)
+  }, [notificationsData?.notifications, user?.id])
+  const unreadCount = userNotifications.filter((notification) => !notification.isRead).length
 
   /**
    * Home icon SVG component
@@ -52,6 +90,15 @@ const Navbar = () => {
   const ProjectsIcon = () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+    </svg>
+  )
+
+  /**
+   * Notifications icon SVG component
+   */
+  const NotificationsIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-5-5.917V4a2 2 0 10-4 0v1.083A6 6 0 004 11v3.159c0 .538-.214 1.055-.595 1.436L2 17h5m8 0v1a3 3 0 11-6 0v-1m6 0H9" />
     </svg>
   )
 
@@ -106,6 +153,24 @@ const Navbar = () => {
   }
 
   /**
+   * Open notifications drawer with fresh data
+   *
+   * @author Thang Truong
+   * @date 2025-11-26
+   */
+  const openNotificationsDrawer = useCallback(async () => {
+    if (!isAuthenticated) {
+      return
+    }
+    await refetchNotifications()
+    setIsNotificationDrawerOpen(true)
+  }, [isAuthenticated, refetchNotifications])
+
+  const closeNotificationsDrawer = useCallback(() => {
+    setIsNotificationDrawerOpen(false)
+  }, [])
+
+  /**
    * Get navigation items based on authentication status and role.
    * Dashboard appears only for users with privileged roles.
    *
@@ -114,22 +179,51 @@ const Navbar = () => {
    * @returns Array of nav items filtered by authentication status
    */
   const getNavItems = (): NavItem[] => {
+    // Home item
     const items: NavItem[] = [
       { label: 'Home', href: '/', icon: <HomeIcon /> },
+      // Projects item
       { label: 'Projects', href: '/projects', icon: <ProjectsIcon /> },
-      { label: 'About', href: '/about', icon: <AboutIcon /> },
-      { label: 'Search', onClick: openSearchDrawer, icon: <SearchIcon /> },
-
     ]
 
+    // About item
+    items.push({ label: 'About', href: '/about', icon: <AboutIcon /> })
+    // Search item
+    items.push({ label: 'Search', onClick: openSearchDrawer, icon: <SearchIcon /> })
+    // Dashboard item
     if (hasDashboardAccess()) {
-      items.splice(3, 0, { label: 'Dashboard', href: '/dashboard', icon: <DashboardIcon /> })
+      const aboutIndex = items.findIndex((item) => item.label === 'Notifications')
+      const dashboardItem = { label: 'Dashboard', href: '/dashboard', icon: <DashboardIcon /> }
+      if (aboutIndex >= 0) {
+        items.splice(aboutIndex, 0, dashboardItem)
+      } else {
+        items.push(dashboardItem)
+      }
+    }
+    // Notifications item
+    if (isAuthenticated) {
+      items.push({ label: 'Notifications', onClick: openNotificationsDrawer, icon: <NotificationsIcon /> })
     }
 
     return items
   }
 
   const navItems = getNavItems()
+
+  const renderNavIcon = (item: NavItem) => {
+    if (item.label !== 'Notifications' || unreadCount === 0) {
+      return item.icon
+    }
+    const badgeLabel = unreadCount > 99 ? '99+' : unreadCount.toString()
+    return (
+      <span className="relative inline-flex">
+        {item.icon}
+        <span className="absolute -top-2 -right-2 min-w-[1.1rem] h-[1.1rem] rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-1">
+          {badgeLabel}
+        </span>
+      </span>
+    )
+  }
 
   /**
    * Checks if a nav item is currently active based on location pathname
@@ -177,7 +271,7 @@ const Navbar = () => {
                   onClick={item.onClick}
                   className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors"
                 >
-                  {item.icon}
+                  {renderNavIcon(item)}
                   <span>{item.label}</span>
                 </button>
               ) : (
@@ -189,7 +283,7 @@ const Navbar = () => {
                     : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
                     }`}
                 >
-                  {item.icon}
+                  {renderNavIcon(item)}
                   <span>{item.label}</span>
                 </Link>
               )
@@ -253,7 +347,7 @@ const Navbar = () => {
                     }}
                     className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors text-left"
                   >
-                    {item.icon}
+                    {renderNavIcon(item)}
                     <span>{item.label}</span>
                   </button>
                 ) : (
@@ -266,7 +360,7 @@ const Navbar = () => {
                       }`}
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    {item.icon}
+                    {renderNavIcon(item)}
                     <span>{item.label}</span>
                   </Link>
                 )
@@ -285,6 +379,12 @@ const Navbar = () => {
         )}
       </div>
       <SearchDrawer isOpen={isSearchDrawerOpen} onClose={closeSearchDrawer} />
+      <NotificationDrawer
+        isOpen={isNotificationDrawerOpen}
+        onClose={closeNotificationsDrawer}
+        notifications={userNotifications}
+        isLoading={notificationsLoading}
+      />
     </nav>
   )
 }

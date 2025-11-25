@@ -3,7 +3,7 @@
  * Modal dialog for editing task information with react-hook-form validation
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-25
  */
 
 import { useEffect, useState } from 'react'
@@ -11,8 +11,15 @@ import { useForm } from 'react-hook-form'
 import { useMutation, useQuery } from '@apollo/client'
 import { useToast } from '../hooks/useToast'
 import { UPDATE_TASK_MUTATION } from '../graphql/mutations'
-import { TASKS_QUERY, PROJECTS_QUERY, USERS_QUERY } from '../graphql/queries'
+import { TASKS_QUERY, PROJECTS_QUERY, USERS_QUERY, TAGS_QUERY } from '../graphql/queries'
 import EditTaskFormFields from './EditTaskFormFields'
+
+interface Tag {
+  id: string
+  name: string
+  description?: string
+  category?: string
+}
 
 interface Task {
   id: string
@@ -24,6 +31,7 @@ interface Task {
   dueDate: string | null
   projectId: string
   assignedTo: string | null
+  tags?: Tag[]
   createdAt: string
   updatedAt: string
 }
@@ -58,16 +66,26 @@ interface EditTaskFormData {
 const EditTaskModal = ({ task, isOpen, onClose, onSuccess }: EditTaskModalProps) => {
   const { showToast } = useToast()
   const [error, setError] = useState('')
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
 
   /**
-   * Fetch projects and users for dropdowns
+   * Fetch projects, users, and tags for dropdowns
+   *
+   * @author Thang Truong
+   * @date 2025-11-25
    */
-  const { data: projectsData } = useQuery<{ projects: Array<{ id: string; name: string }> }>(PROJECTS_QUERY, {
-    skip: !isOpen,
-  })
-  const { data: usersData } = useQuery<{ users: Array<{ id: string; firstName: string; lastName: string }> }>(USERS_QUERY, {
-    skip: !isOpen,
-  })
+  const { data: projectsData } = useQuery<{ projects: Array<{ id: string; name: string }> }>(
+    PROJECTS_QUERY,
+    { skip: !isOpen }
+  )
+  const { data: usersData } = useQuery<{ users: Array<{ id: string; firstName: string; lastName: string }> }>(
+    USERS_QUERY,
+    { skip: !isOpen }
+  )
+  const { data: tagsData } = useQuery<{ tags: Tag[] }>(
+    TAGS_QUERY,
+    { skip: !isOpen }
+  )
 
   /**
    * Initialize react-hook-form with validation rules
@@ -93,6 +111,9 @@ const EditTaskModal = ({ task, isOpen, onClose, onSuccess }: EditTaskModalProps)
   /**
    * Update task mutation
    * Refetches tasks list after successful update
+   *
+   * @author Thang Truong
+   * @date 2025-11-25
    */
   const [updateTask] = useMutation(UPDATE_TASK_MUTATION, {
     refetchQueries: [{ query: TASKS_QUERY }],
@@ -103,23 +124,21 @@ const EditTaskModal = ({ task, isOpen, onClose, onSuccess }: EditTaskModalProps)
   })
 
   /**
-   * Initialize form data when task changes
+   * Initialize form data and tags when task changes
+   *
+   * @author Thang Truong
+   * @date 2025-11-25
    */
   useEffect(() => {
     if (task) {
-      // Format dueDate for date input (YYYY-MM-DD)
-      // Backend returns dueDate as YYYY-MM-DD string, so use it directly
       let formattedDueDate = ''
       if (task.dueDate) {
         try {
-          // Check if it's already in YYYY-MM-DD format
           if (/^\d{4}-\d{2}-\d{2}$/.test(task.dueDate)) {
             formattedDueDate = task.dueDate
           } else {
-            // Otherwise parse and format
             const date = new Date(task.dueDate)
             if (!isNaN(date.getTime())) {
-              // Use UTC to avoid timezone shifts for date-only fields
               const year = date.getUTCFullYear()
               const month = String(date.getUTCMonth() + 1).padStart(2, '0')
               const day = String(date.getUTCDate()).padStart(2, '0')
@@ -140,19 +159,37 @@ const EditTaskModal = ({ task, isOpen, onClose, onSuccess }: EditTaskModalProps)
         projectId: task.projectId,
         assignedTo: task.assignedTo || '',
       })
+
+      // Initialize selected tags from task
+      const taskTagIds = task.tags?.map(tag => tag.id) || []
+      setSelectedTagIds(taskTagIds)
     }
   }, [task, reset])
+
+  /**
+   * Handle tag selection change
+   * Updates selected tag IDs state
+   *
+   * @author Thang Truong
+   * @date 2025-11-25
+   * @param tagIds - Array of selected tag IDs
+   */
+  const handleTagsChange = async (tagIds: string[]) => {
+    setSelectedTagIds(tagIds)
+  }
 
   /**
    * Handle form submission with validated data
    * Updates task information upon successful validation
    *
+   * @author Thang Truong
+   * @date 2025-11-25
    * @param data - Form data containing task information
    */
   const onSubmit = async (data: EditTaskFormData) => {
     if (!task) return
 
-    setError('') // Clear previous errors
+    setError('')
 
     try {
       await updateTask({
@@ -166,25 +203,31 @@ const EditTaskModal = ({ task, isOpen, onClose, onSuccess }: EditTaskModalProps)
             dueDate: data.dueDate || null,
             projectId: data.projectId,
             assignedTo: data.assignedTo || null,
+            tagIds: selectedTagIds,
           },
         },
       })
 
-      await showToast('Task updated successfully', 'success', 3000)
-      onSuccess()
+      await showToast('Task updated successfully', 'success', 7000)
+      await onSuccess()
       onClose()
-    } catch (err: any) {
-      setError(err.message || 'Failed to update task. Please try again.')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update task. Please try again.'
+      setError(errorMessage)
     }
   }
 
   /**
    * Handle modal close
-   * Resets form data
+   * Resets form data and state
+   *
+   * @author Thang Truong
+   * @date 2025-11-25
    */
   const handleClose = () => {
     reset()
     setError('')
+    setSelectedTagIds([])
     onClose()
   }
 
@@ -194,11 +237,13 @@ const EditTaskModal = ({ task, isOpen, onClose, onSuccess }: EditTaskModalProps)
 
   const projects = projectsData?.projects || []
   const users = usersData?.users || []
+  const tags = tagsData?.tags || []
 
   return (
+    /* Edit Task Modal Overlay */
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
+        {/* Modal Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">Edit Task</h2>
           <button
@@ -212,9 +257,17 @@ const EditTaskModal = ({ task, isOpen, onClose, onSuccess }: EditTaskModalProps)
           </button>
         </div>
 
-        {/* Form */}
+        {/* Form Content */}
         <form onSubmit={handleSubmit(onSubmit)} className="p-6">
-          <EditTaskFormFields register={register} errors={errors} projects={projects} users={users} />
+          <EditTaskFormFields
+            register={register}
+            errors={errors}
+            projects={projects}
+            users={users}
+            tags={tags}
+            selectedTagIds={selectedTagIds}
+            onTagsChange={handleTagsChange}
+          />
 
           {/* Error Message Display */}
           {error && (
@@ -236,7 +289,7 @@ const EditTaskModal = ({ task, isOpen, onClose, onSuccess }: EditTaskModalProps)
             </div>
           )}
 
-          {/* Actions */}
+          {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
             <button
               type="button"
@@ -261,4 +314,3 @@ const EditTaskModal = ({ task, isOpen, onClose, onSuccess }: EditTaskModalProps)
 }
 
 export default EditTaskModal
-

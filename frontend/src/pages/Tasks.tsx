@@ -4,7 +4,7 @@
  * Provides task management capabilities with edit and delete actions
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-25
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
@@ -18,6 +18,13 @@ import EditTaskModal from '../components/EditTaskModal'
 import DeleteTaskDialog from '../components/DeleteTaskDialog'
 import CreateTaskModal from '../components/CreateTaskModal'
 
+interface Tag {
+  id: string
+  name: string
+  description?: string
+  category?: string
+}
+
 interface Task {
   id: string
   uuid: string
@@ -28,6 +35,7 @@ interface Task {
   dueDate: string | null
   projectId: string
   assignedTo: string | null
+  tags?: Tag[]
   createdAt: string
   updatedAt: string
 }

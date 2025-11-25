@@ -3,7 +3,7 @@
  * Modal dialog for creating a new task with react-hook-form validation
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-25
  */
 
 import { useState, useEffect } from 'react'
@@ -11,8 +11,15 @@ import { useForm } from 'react-hook-form'
 import { useMutation, useQuery } from '@apollo/client'
 import { useToast } from '../hooks/useToast'
 import { CREATE_TASK_MUTATION } from '../graphql/mutations'
-import { TASKS_QUERY, PROJECTS_QUERY, USERS_QUERY } from '../graphql/queries'
+import { TASKS_QUERY, PROJECTS_QUERY, USERS_QUERY, TAGS_QUERY } from '../graphql/queries'
 import CreateTaskFormFields from './CreateTaskFormFields'
+
+interface Tag {
+  id: string
+  name: string
+  description?: string
+  category?: string
+}
 
 interface CreateTaskModalProps {
   isOpen: boolean
@@ -42,16 +49,26 @@ interface CreateTaskFormData {
 const CreateTaskModal = ({ isOpen, onClose, onSuccess }: CreateTaskModalProps) => {
   const { showToast } = useToast()
   const [error, setError] = useState('')
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
 
   /**
-   * Fetch projects and users for dropdowns
+   * Fetch projects, users, and tags for dropdowns
+   *
+   * @author Thang Truong
+   * @date 2025-11-25
    */
-  const { data: projectsData } = useQuery<{ projects: Array<{ id: string; name: string }> }>(PROJECTS_QUERY, {
-    skip: !isOpen,
-  })
-  const { data: usersData } = useQuery<{ users: Array<{ id: string; firstName: string; lastName: string }> }>(USERS_QUERY, {
-    skip: !isOpen,
-  })
+  const { data: projectsData } = useQuery<{ projects: Array<{ id: string; name: string }> }>(
+    PROJECTS_QUERY,
+    { skip: !isOpen }
+  )
+  const { data: usersData } = useQuery<{ users: Array<{ id: string; firstName: string; lastName: string }> }>(
+    USERS_QUERY,
+    { skip: !isOpen }
+  )
+  const { data: tagsData } = useQuery<{ tags: Tag[] }>(
+    TAGS_QUERY,
+    { skip: !isOpen }
+  )
 
   /**
    * Initialize react-hook-form with validation rules
@@ -77,6 +94,9 @@ const CreateTaskModal = ({ isOpen, onClose, onSuccess }: CreateTaskModalProps) =
   /**
    * Create task mutation
    * Refetches tasks list after successful creation
+   *
+   * @author Thang Truong
+   * @date 2025-11-25
    */
   const [createTask] = useMutation(CREATE_TASK_MUTATION, {
     refetchQueries: [{ query: TASKS_QUERY }],
@@ -88,22 +108,40 @@ const CreateTaskModal = ({ isOpen, onClose, onSuccess }: CreateTaskModalProps) =
 
   /**
    * Reset form when modal closes
+   *
+   * @author Thang Truong
+   * @date 2025-11-25
    */
   useEffect(() => {
     if (!isOpen) {
       reset()
       setError('')
+      setSelectedTagIds([])
     }
   }, [isOpen, reset])
+
+  /**
+   * Handle tag selection change
+   * Updates selected tag IDs state
+   *
+   * @author Thang Truong
+   * @date 2025-11-25
+   * @param tagIds - Array of selected tag IDs
+   */
+  const handleTagsChange = async (tagIds: string[]) => {
+    setSelectedTagIds(tagIds)
+  }
 
   /**
    * Handle form submission with validated data
    * Creates new task upon successful validation
    *
+   * @author Thang Truong
+   * @date 2025-11-25
    * @param data - Form data containing task information
    */
   const onSubmit = async (data: CreateTaskFormData) => {
-    setError('') // Clear previous errors
+    setError('')
 
     try {
       await createTask({
@@ -116,26 +154,33 @@ const CreateTaskModal = ({ isOpen, onClose, onSuccess }: CreateTaskModalProps) =
             dueDate: data.dueDate || null,
             projectId: data.projectId,
             assignedTo: data.assignedTo || null,
+            tagIds: selectedTagIds.length > 0 ? selectedTagIds : null,
           },
         },
       })
 
-      await showToast('Task created successfully', 'success', 3000)
+      await showToast('Task created successfully', 'success', 7000)
       reset()
-      onSuccess()
+      setSelectedTagIds([])
+      await onSuccess()
       onClose()
-    } catch (err: any) {
-      setError(err.message || 'Failed to create task. Please try again.')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create task. Please try again.'
+      setError(errorMessage)
     }
   }
 
   /**
    * Handle modal close
-   * Resets form data
+   * Resets form data and state
+   *
+   * @author Thang Truong
+   * @date 2025-11-25
    */
   const handleClose = () => {
     reset()
     setError('')
+    setSelectedTagIds([])
     onClose()
   }
 
@@ -145,11 +190,13 @@ const CreateTaskModal = ({ isOpen, onClose, onSuccess }: CreateTaskModalProps) =
 
   const projects = projectsData?.projects || []
   const users = usersData?.users || []
+  const tags = tagsData?.tags || []
 
   return (
+    /* Create Task Modal Overlay */
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
+        {/* Modal Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">Create New Task</h2>
           <button
@@ -163,9 +210,17 @@ const CreateTaskModal = ({ isOpen, onClose, onSuccess }: CreateTaskModalProps) =
           </button>
         </div>
 
-        {/* Form */}
+        {/* Form Content */}
         <form onSubmit={handleSubmit(onSubmit)} className="p-6">
-          <CreateTaskFormFields register={register} errors={errors} projects={projects} users={users} />
+          <CreateTaskFormFields
+            register={register}
+            errors={errors}
+            projects={projects}
+            users={users}
+            tags={tags}
+            selectedTagIds={selectedTagIds}
+            onTagsChange={handleTagsChange}
+          />
 
           {/* Error Message Display */}
           {error && (
@@ -187,7 +242,7 @@ const CreateTaskModal = ({ isOpen, onClose, onSuccess }: CreateTaskModalProps) =
             </div>
           )}
 
-          {/* Actions */}
+          {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
             <button
               type="button"
@@ -212,4 +267,3 @@ const CreateTaskModal = ({ isOpen, onClose, onSuccess }: CreateTaskModalProps) =
 }
 
 export default CreateTaskModal
-

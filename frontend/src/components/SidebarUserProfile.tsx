@@ -91,7 +91,14 @@ const SidebarUserProfile = ({ isOpen }: SidebarUserProfileProps) => {
           {/* Email Sub-item */}
           <li>
             <div className="flex items-center space-x-3 px-2 py-2 rounded-lg text-gray-700">
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {/* Email Icon */}
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
               <div className="flex-1 min-w-0">
@@ -106,10 +113,22 @@ const SidebarUserProfile = ({ isOpen }: SidebarUserProfileProps) => {
           <li>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center space-x-3 px-2 py-2 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+              className="w-full flex items-center space-x-3 px-2 py-3 rounded-lg text-gray-700 hover:bg-red-100 hover:text-red-600 transition-colors"
             >
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              {/* Logout Icon */}
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                />
               </svg>
               <span className="text-sm font-medium">Logout</span>
             </button>

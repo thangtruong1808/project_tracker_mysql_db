@@ -13,8 +13,6 @@ import { PROJECTS_QUERY } from '../graphql/queries'
 import ProjectsHeader from '../components/ProjectsHeader'
 import ProjectsFilter from '../components/ProjectsFilter'
 import ProjectsContent from '../components/ProjectsContent'
-import EditProjectModal from '../components/EditProjectModal'
-import DeleteProjectDialog from '../components/DeleteProjectDialog'
 import { useAuth } from '../context/AuthContext'
 
 interface ProjectOwner {
@@ -22,6 +20,7 @@ interface ProjectOwner {
   firstName: string
   lastName: string
   email: string
+  role: string
 }
 
 interface Project {
@@ -48,14 +47,11 @@ const PROJECTS_PER_PAGE = 12
  */
 const ProjectsPublic = () => {
   const { showToast } = useToast()
-  const { isAuthenticated, accessToken } = useAuth()
+  const { accessToken } = useAuth()
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
   const [dateFrom, setDateFrom] = useState<string>('')
   const [dateTo, setDateTo] = useState<string>('')
   const [currentPage, setCurrentPage] = useState(1)
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
   /**
    * Fetch projects data from GraphQL API
@@ -97,7 +93,7 @@ const ProjectsPublic = () => {
   useEffect(() => {
     const handleError = async (): Promise<void> => {
       if (error) {
-        await showToast('Failed to load projects. Please try again later.', 'error', 5000)
+        await showToast('Failed to load projects. Please try again later.', 'error', 7000)
       }
     }
     handleError()
@@ -132,37 +128,6 @@ const ProjectsPublic = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
-  const handleEdit = useCallback(async (projectId: string): Promise<void> => {
-    if (!isAuthenticated) {
-      await showToast('Please log in to edit projects', 'info', 3000)
-      return
-    }
-    const project = projects.find((p) => p.id === projectId)
-    if (project) {
-      setSelectedProject(project)
-      setIsEditModalOpen(true)
-    }
-  }, [projects, isAuthenticated, showToast])
-
-  const handleDelete = useCallback(async (projectId: string): Promise<void> => {
-    if (!isAuthenticated) {
-      await showToast('Please log in to delete projects', 'info', 3000)
-      return
-    }
-    const project = projects.find((p) => p.id === projectId)
-    if (project) {
-      setSelectedProject(project)
-      setIsDeleteDialogOpen(true)
-    }
-  }, [projects, isAuthenticated, showToast])
-
-  const handleSuccess = useCallback(async (): Promise<void> => {
-    setSelectedProject(null)
-    setIsEditModalOpen(false)
-    setIsDeleteDialogOpen(false)
-    await refetch()
-  }, [refetch])
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -189,33 +154,8 @@ const ProjectsPublic = () => {
             currentPage={currentPage}
             itemsPerPage={PROJECTS_PER_PAGE}
             onPageChange={handlePageChange}
-            onEdit={isAuthenticated ? handleEdit : undefined}
-            onDelete={isAuthenticated ? handleDelete : undefined}
           />
         </div>
-
-        {isAuthenticated && (
-          <>
-            <EditProjectModal
-              project={selectedProject}
-              isOpen={isEditModalOpen}
-              onClose={() => {
-                setIsEditModalOpen(false)
-                setSelectedProject(null)
-              }}
-              onSuccess={handleSuccess}
-            />
-            <DeleteProjectDialog
-              project={selectedProject}
-              isOpen={isDeleteDialogOpen}
-              onClose={() => {
-                setIsDeleteDialogOpen(false)
-                setSelectedProject(null)
-              }}
-              onSuccess={handleSuccess}
-            />
-          </>
-        )}
       </div>
     </div>
   )

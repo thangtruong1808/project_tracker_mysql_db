@@ -109,7 +109,7 @@ const UserProfileDropdown = ({ className = '' }: UserProfileDropdownProps) => {
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className={`absolute ${isInSidebar ? 'left-0 bottom-full mb-2' : 'right-0 mt-2'} w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50 animate-fade-in`}>
+        <div className={`absolute ${isInSidebar ? 'left-0 bottom-full mb-2' : 'right-0 mt-2'} w-64 bg-white rounded-lg shadow-xl border border-gray-200  z-50 animate-fade-in`}>
           {/* User Info Section */}
           <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
             <div className="flex items-center space-x-3">
@@ -135,11 +135,11 @@ const UserProfileDropdown = ({ className = '' }: UserProfileDropdownProps) => {
           </div>
 
           {/* Menu Items */}
-          <div className="py-1">
+          <div className="">
             {/* Logout Button */}
             <button
               onClick={handleLogout}
-              className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+              className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-red-100 hover:text-red-600 transition-colors rounded-b-md"
             >
               {/* Logout Icon */}
               <svg

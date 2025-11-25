@@ -121,11 +121,12 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }: EditUserModalProps)
         },
       })
 
-      await showToast('User updated successfully', 'success', 3000)
+      await showToast('User updated successfully', 'success', 7000)
       onSuccess()
       onClose()
-    } catch (err: any) {
-      setError(err.message || 'Failed to update user. Please try again.')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update user. Please try again.'
+      setError(errorMessage)
     }
   }
 

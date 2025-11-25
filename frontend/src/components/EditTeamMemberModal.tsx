@@ -87,11 +87,13 @@ const EditTeamMemberModal = ({ member, isOpen, onClose, onSuccess }: EditTeamMem
           },
         },
       })
-      await showToast('Team member updated successfully', 'success', 3000)
+      await showToast('Team member updated successfully', 'success', 7000)
       onSuccess()
       onClose()
-    } catch (err: any) {
-      setError(err.message || 'Failed to update team member. Please try again.')
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to update team member. Please try again.'
+      setError(errorMessage)
     }
   }
 

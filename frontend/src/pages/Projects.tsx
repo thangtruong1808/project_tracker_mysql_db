@@ -21,6 +21,7 @@ interface ProjectOwner {
   firstName: string
   lastName: string
   email: string
+  role: string
 }
 
 interface Project {
@@ -81,7 +82,7 @@ const Projects = () => {
   useEffect(() => {
     const handleError = async (): Promise<void> => {
       if (error) {
-        await showToast('Failed to load projects. Please try again later.', 'error', 5000)
+        await showToast('Failed to load projects. Please try again later.', 'error', 7000)
       }
     }
     handleError()

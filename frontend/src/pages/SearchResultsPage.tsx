@@ -33,8 +33,8 @@ const parseStatuses = (value: string | null): string[] => {
   return parts.length > 0 ? parts : []
 }
 
-const PROJECT_PAGE_SIZE = 10
-const TASK_PAGE_SIZE = 10
+const PROJECT_PAGE_SIZE = 12
+const TASK_PAGE_SIZE = 12
 
 /**
  * SearchResultsPage Component
@@ -47,7 +47,7 @@ const SearchResultsPage = () => {
   const [searchParams] = useSearchParams()
   const [projectPage, setProjectPage] = useState(1)
   const [taskPage, setTaskPage] = useState(1)
-  
+
   const [searchDashboard, { loading: isLoading, error: queryError, data }] = useLazyQuery(
     SEARCH_DASHBOARD_QUERY,
     {
@@ -59,7 +59,7 @@ const SearchResultsPage = () => {
   const queryValue = searchParams.get('q') || ''
   const projectStatusParam = searchParams.get('projectStatuses')
   const taskStatusParam = searchParams.get('taskStatuses')
-  
+
   const projectStatuses = useMemo(() => parseStatuses(projectStatusParam), [projectStatusParam])
   const taskStatuses = useMemo(() => parseStatuses(taskStatusParam), [taskStatusParam])
 
@@ -175,9 +175,7 @@ const SearchResultsPage = () => {
               projectTotal={results.projectTotal || 0}
               taskTotal={results.taskTotal || 0}
               projectPage={projectPage}
-              projectPageSize={PROJECT_PAGE_SIZE}
               taskPage={taskPage}
-              taskPageSize={TASK_PAGE_SIZE}
               onProjectPageChange={handleProjectPageChange}
               onTaskPageChange={handleTaskPageChange}
             />

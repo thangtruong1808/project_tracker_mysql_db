@@ -1,6 +1,6 @@
 /**
  * CommentItem Component
- * Displays a single comment with user info, content, and like functionality
+ * Displays a single comment with user info, content, like, edit, and delete functionality
  *
  * @author Thang Truong
  * @date 2025-01-27
@@ -10,9 +10,12 @@ import { useState } from 'react'
 import { useMutation } from '@apollo/client'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../hooks/useToast'
-import { LIKE_COMMENT_MUTATION } from '../graphql/mutations'
+import { LIKE_COMMENT_MUTATION, UPDATE_COMMENT_MUTATION } from '../graphql/mutations'
 import { PROJECT_QUERY } from '../graphql/queries'
 import { useParams } from 'react-router-dom'
+import CommentEditForm from './CommentEditForm'
+import CommentHeader from './CommentHeader'
+import DeleteCommentDialog from './DeleteCommentDialog'
 
 interface CommentUser {
   id: string
@@ -28,47 +31,42 @@ interface CommentItemProps {
   likesCount: number
   isLiked: boolean
   createdAt: string
+  updatedAt: string
   projectId: string
 }
 
 /**
- * Format date for display
- * @author Thang Truong
- * @date 2025-01-27
- */
-const formatDate = (dateString: string): string => {
-  try {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return 'Invalid date'
-  }
-}
-
-/**
  * CommentItem Component
- * Displays comment with like functionality for authenticated users
+ * Displays comment with like, edit, and delete functionality for authenticated users
+ * Only comment owners can edit and delete their comments
  *
  * @author Thang Truong
  * @date 2025-01-27
  */
-const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, projectId }: CommentItemProps) => {
+const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, updatedAt, projectId }: CommentItemProps) => {
   const { id: projectIdFromParams } = useParams<{ id: string }>()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user: currentUser } = useAuth()
   const { showToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const isCommentOwner = Boolean(isAuthenticated && currentUser && currentUser.id === user.id)
+  const isEdited = createdAt !== updatedAt
 
   const [likeComment] = useMutation(LIKE_COMMENT_MUTATION, {
     refetchQueries: [{ query: PROJECT_QUERY, variables: { id: projectIdFromParams || projectId } }],
     onError: async (error) => {
       setIsSubmitting(false)
-      await showToast(error.message || 'Failed to like comment. Please try again.', 'error', 5000)
+      await showToast(error.message || 'Failed to like comment. Please try again.', 'error', 7000)
+    },
+  })
+
+  const [updateComment] = useMutation(UPDATE_COMMENT_MUTATION, {
+    refetchQueries: [{ query: PROJECT_QUERY, variables: { id: projectIdFromParams || projectId } }],
+    awaitRefetchQueries: true,
+    onError: async (error) => {
+      setIsSubmitting(false)
+      await showToast(error.message || 'Failed to update comment. Please try again.', 'error', 7000)
     },
   })
 
@@ -95,15 +93,85 @@ const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, projec
     try {
       const result = await likeComment({ variables: { commentId: id } })
       if (result.data?.likeComment?.success) {
-        await showToast(result.data.likeComment.message || 'Comment liked successfully!', 'success', 3000)
+        await showToast(result.data.likeComment.message || 'Comment liked successfully!', 'success', 7000)
       } else {
-        await showToast(result.data?.likeComment?.message || 'Unable to like comment. Please try again.', 'info', 3000)
+        await showToast(result.data?.likeComment?.message || 'Unable to like comment. Please try again.', 'info', 7000)
       }
-    } catch (error: any) {
-      await showToast(error.message || 'Failed to like comment. Please try again.', 'error', 5000)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to like comment. Please try again.'
+      await showToast(errorMessage, 'error', 7000)
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  /**
+   * Handle edit button click - enables edit mode
+   * @author Thang Truong
+   * @date 2025-01-27
+   */
+  const handleEdit = (e: React.MouseEvent): void => {
+    e.stopPropagation()
+    setIsEditing(true)
+  }
+
+  /**
+   * Handle save edited comment
+   * @author Thang Truong
+   * @date 2025-01-27
+   */
+  const handleSaveEdit = async (newContent: string): Promise<void> => {
+    if (isSubmitting) return
+    setIsSubmitting(true)
+    try {
+      await updateComment({ variables: { commentId: id, content: newContent } })
+      await showToast('Comment updated successfully!', 'success', 7000)
+      setIsEditing(false)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update comment. Please try again.'
+      await showToast(errorMessage, 'error', 7000)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  /**
+   * Handle cancel edit
+   * @author Thang Truong
+   * @date 2025-01-27
+   */
+  const handleCancelEdit = (): void => {
+    setIsEditing(false)
+  }
+
+  /** Handle delete button click - opens confirmation dialog */
+  const handleDelete = (e: React.MouseEvent): void => {
+    e.stopPropagation()
+    setIsDeleteDialogOpen(true)
+  }
+
+  /** Handle delete dialog close */
+  const handleDeleteDialogClose = (): void => {
+    setIsDeleteDialogOpen(false)
+  }
+
+  /** Handle delete success - refetch handled by dialog mutation */
+  const handleDeleteSuccess = async (): Promise<void> => {
+    setIsDeleteDialogOpen(false)
+  }
+
+  if (isEditing) {
+    return (
+      <div className="bg-white rounded-lg p-4 border border-gray-200">
+        {/* Edit form container */}
+        <CommentEditForm
+          initialContent={content}
+          onSave={handleSaveEdit}
+          onCancel={handleCancelEdit}
+          isSubmitting={isSubmitting}
+        />
+      </div>
+    )
   }
 
   return (
@@ -118,10 +186,17 @@ const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, projec
         </div>
         {/* Comment content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-medium text-gray-900">{user.firstName} {user.lastName}</span>
-            <span className="text-xs text-gray-500">{formatDate(createdAt)}</span>
-          </div>
+          {/* Comment header with user info, timestamp, edited badge, and action buttons */}
+          <CommentHeader
+            user={user}
+            createdAt={createdAt}
+            isEdited={isEdited}
+            isCommentOwner={isCommentOwner}
+            isSubmitting={isSubmitting}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+          {/* Comment text */}
           <p className="text-sm text-gray-700 whitespace-pre-wrap break-words mb-2">{content}</p>
           {/* Like button */}
           <button
@@ -150,6 +225,16 @@ const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, projec
           </button>
         </div>
       </div>
+      {/* Delete confirmation dialog */}
+      {isDeleteDialogOpen && (
+        <DeleteCommentDialog
+          comment={{ id, content, user, createdAt, updatedAt, likesCount }}
+          isOpen={isDeleteDialogOpen}
+          onClose={handleDeleteDialogClose}
+          onSuccess={handleDeleteSuccess}
+          projectId={projectIdFromParams || projectId}
+        />
+      )}
     </div>
   )
 }

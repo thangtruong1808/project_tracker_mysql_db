@@ -14,6 +14,7 @@ interface ProjectOwner {
   firstName: string
   lastName: string
   email: string
+  role: string
 }
 
 interface Project {
@@ -34,8 +35,6 @@ interface ProjectsGridProps {
   currentPage: number
   itemsPerPage: number
   onPageChange: (page: number) => Promise<void>
-  onEdit?: (id: string) => Promise<void>
-  onDelete?: (id: string) => Promise<void>
 }
 
 /**
@@ -50,8 +49,6 @@ const ProjectsGrid = ({
   currentPage,
   itemsPerPage,
   onPageChange,
-  onEdit,
-  onDelete
 }: ProjectsGridProps) => {
   /**
    * Validate projects array is not empty
@@ -90,8 +87,6 @@ const ProjectsGrid = ({
             likesCount={project.likesCount}
             commentsCount={project.commentsCount}
             isLiked={project.isLiked}
-            onEdit={onEdit}
-            onDelete={onDelete}
           />
         ))}
       </div>

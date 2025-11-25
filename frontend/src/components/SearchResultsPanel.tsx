@@ -10,13 +10,7 @@ import ProjectSearchCard from './ProjectSearchCard'
 import TaskSearchCard from './TaskSearchCard'
 import SearchPagination from './SearchPagination'
 import SearchEmptyState from './SearchEmptyState'
-
-interface ProjectOwner {
-  id: string
-  firstName: string
-  lastName: string
-  email: string
-}
+import { ProjectOwner } from '../types/project'
 
 interface SearchResultsPanelProps {
   query: string
@@ -46,9 +40,7 @@ interface SearchResultsPanelProps {
   projectTotal: number
   taskTotal: number
   projectPage: number
-  projectPageSize: number
   taskPage: number
-  taskPageSize: number
   onProjectPageChange: (page: number) => Promise<void>
   onTaskPageChange: (page: number) => Promise<void>
 }
@@ -68,12 +60,11 @@ const SearchResultsPanel = ({
   projectTotal,
   taskTotal,
   projectPage,
-  projectPageSize,
   taskPage,
-  taskPageSize,
   onProjectPageChange,
   onTaskPageChange,
 }: SearchResultsPanelProps) => {
+  const desiredPageSize = 12
   const hasProjects = projects.length > 0
   const hasTasks = tasks.length > 0
   const hasResults = hasProjects || hasTasks
@@ -161,12 +152,12 @@ const SearchResultsPanel = ({
                 />
               ))}
             </div>
-            {projectTotal > projectPageSize && (
+            {projectTotal > desiredPageSize && (
               <div className="mt-6">
                 <SearchPagination
                   page={projectPage}
                   total={projectTotal}
-                  pageSize={projectPageSize}
+                  pageSize={desiredPageSize}
                   onChange={onProjectPageChange}
                 />
               </div>
@@ -226,12 +217,12 @@ const SearchResultsPanel = ({
                 />
               ))}
             </div>
-            {taskTotal > taskPageSize && (
+            {taskTotal > desiredPageSize && (
               <div className="mt-6">
                 <SearchPagination
                   page={taskPage}
                   total={taskTotal}
-                  pageSize={taskPageSize}
+                  pageSize={desiredPageSize}
                   onChange={onTaskPageChange}
                 />
               </div>

@@ -2233,14 +2233,92 @@ export const resolvers = {
      * @param id - Project ID to delete
      * @returns Boolean indicating success
      */
-    deleteProject: async (_: any, { id }: { id: string }) => {
+    deleteProject: async (_: any, { id }: { id: string }, context: { req: any }) => {
+      const actorUserId = tryGetUserIdFromRequest(context.req)
+      if (!actorUserId) {
+        throw new Error('Authentication required. Please login to delete projects.')
+      }
+
+      /**
+       * Get all task IDs for this project to clean up related records
+       *
+       * @author Thang Truong
+       * @date 2025-11-25
+       */
+      const projectTasks = (await db.query(
+        'SELECT id FROM tasks WHERE project_id = ? AND is_deleted = false',
+        [id]
+      )) as any[]
+
+      const taskIds = projectTasks.map((t: any) => t.id)
+
+      if (taskIds.length > 0) {
+        /**
+         * Delete task_tags for all tasks in the project
+         *
+         * @author Thang Truong
+         * @date 2025-11-25
+         */
+        const taskPlaceholders = taskIds.map(() => '?').join(',')
+        await db.query(`DELETE FROM task_tags WHERE task_id IN (${taskPlaceholders})`, taskIds)
+
+        /**
+         * Delete task_likes for all tasks in the project
+         *
+         * @author Thang Truong
+         * @date 2025-11-25
+         */
+        await db.query(`DELETE FROM task_likes WHERE task_id IN (${taskPlaceholders})`, taskIds)
+
+        /**
+         * Get all comment IDs for tasks in this project
+         *
+         * @author Thang Truong
+         * @date 2025-11-25
+         */
+        const taskComments = (await db.query(
+          `SELECT id FROM comments WHERE task_id IN (${taskPlaceholders}) AND is_deleted = false`,
+          taskIds
+        )) as any[]
+
+        const commentIds = taskComments.map((c: any) => c.id)
+
+        if (commentIds.length > 0) {
+          /**
+           * Delete comment_likes for all comments on tasks in the project
+           *
+           * @author Thang Truong
+           * @date 2025-11-25
+           */
+          const commentPlaceholders = commentIds.map(() => '?').join(',')
+          await db.query(`DELETE FROM comment_likes WHERE comment_id IN (${commentPlaceholders})`, commentIds)
+        }
+      }
+
+      /**
+       * Delete project_likes before soft-deleting the project
+       *
+       * @author Thang Truong
+       * @date 2025-11-25
+       */
+      await db.query('DELETE FROM project_likes WHERE project_id = ?', [id])
+
+      /**
+       * Soft delete the project
+       * Triggers will cascade soft-delete tasks, project_members, and comments
+       *
+       * @author Thang Truong
+       * @date 2025-11-25
+       */
       const result = (await db.query(
         'UPDATE projects SET is_deleted = true, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND is_deleted = false',
         [id]
       )) as any
+
       if (result.affectedRows === 0) {
         throw new Error('Project not found or already deleted')
       }
+
       return true
     },
     /**
@@ -3417,6 +3495,21 @@ export const resolvers = {
       }
 
       try {
+        /**
+         * Delete associated comment_likes before soft-deleting the comment
+         * This cleans up likes to prevent orphaned records
+         *
+         * @author Thang Truong
+         * @date 2025-11-25
+         */
+        await db.query('DELETE FROM comment_likes WHERE comment_id = ?', [commentId])
+
+        /**
+         * Soft delete the comment
+         *
+         * @author Thang Truong
+         * @date 2025-11-25
+         */
         await db.query('UPDATE comments SET is_deleted = true WHERE id = ? AND user_id = ?', [commentId, userId])
 
         /**
@@ -3818,7 +3911,7 @@ export const resolvers = {
       if (!actorUserId) {
         throw new Error('Authentication required. Please login to create tasks.')
       }
-      const { title, description, status, priority, dueDate, projectId, assignedTo } = input
+      const { title, description, status, priority, dueDate, projectId, assignedTo, tagIds } = input
       
       // Generate UUID for task
       const taskUuid = uuidv4()
@@ -3827,9 +3920,28 @@ export const resolvers = {
         'INSERT INTO tasks (uuid, title, description, status, priority, due_date, project_id, assigned_to) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [taskUuid, title, description, status, priority || 'MEDIUM', dueDate || null, projectId, assignedTo || null]
       )) as any
+      
+      const taskId = result.insertId
+      
+      /**
+       * Insert tag associations if tagIds provided
+       *
+       * @author Thang Truong
+       * @date 2025-11-25
+       */
+      if (tagIds && Array.isArray(tagIds) && tagIds.length > 0) {
+        const tagValues = tagIds.map((tagId: string) => [taskId, Number(tagId)])
+        for (const [tId, tagId] of tagValues) {
+          await db.query(
+            'INSERT INTO task_tags (task_id, tag_id) VALUES (?, ?)',
+            [tId, tagId]
+          )
+        }
+      }
+      
       const tasks = (await db.query(
         'SELECT id, uuid, title, description, status, priority, due_date, project_id, assigned_to, created_at, updated_at FROM tasks WHERE id = ?',
-        [result.insertId]
+        [taskId]
       )) as any[]
       if (tasks.length === 0) {
         throw new Error('Failed to retrieve created task')
@@ -3966,15 +4078,39 @@ export const resolvers = {
         values.push(input.assignedTo || null)
       }
 
-      if (updates.length === 0) {
+      /**
+       * Handle tag associations update
+       * Replace existing tags with new tag selection
+       *
+       * @author Thang Truong
+       * @date 2025-11-25
+       */
+      if (input.tagIds !== undefined) {
+        // Delete existing tag associations
+        await db.query('DELETE FROM task_tags WHERE task_id = ?', [id])
+        
+        // Insert new tag associations if provided
+        if (Array.isArray(input.tagIds) && input.tagIds.length > 0) {
+          for (const tagId of input.tagIds) {
+            await db.query(
+              'INSERT INTO task_tags (task_id, tag_id) VALUES (?, ?)',
+              [Number(id), Number(tagId)]
+            )
+          }
+        }
+      }
+
+      if (updates.length === 0 && input.tagIds === undefined) {
         throw new Error('No fields to update')
       }
 
-      values.push(id)
-      await db.query(
-        `UPDATE tasks SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND is_deleted = false`,
-        values
-      )
+      if (updates.length > 0) {
+        values.push(id)
+        await db.query(
+          `UPDATE tasks SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND is_deleted = false`,
+          values
+        )
+      }
 
       const tasks = (await db.query(
         'SELECT id, uuid, title, description, status, priority, due_date, project_id, assigned_to, created_at, updated_at FROM tasks WHERE id = ? AND is_deleted = false',
@@ -4092,6 +4228,30 @@ export const resolvers = {
         throw new Error('Task not found or already deleted')
       }
 
+      /**
+       * Delete associated task_tags records before soft-deleting the task
+       * This cleans up the junction table to prevent orphaned records
+       *
+       * @author Thang Truong
+       * @date 2025-11-25
+       */
+      await db.query('DELETE FROM task_tags WHERE task_id = ?', [id])
+
+      /**
+       * Delete associated task_likes records before soft-deleting the task
+       * This cleans up likes to prevent orphaned records
+       *
+       * @author Thang Truong
+       * @date 2025-11-25
+       */
+      await db.query('DELETE FROM task_likes WHERE task_id = ?', [id])
+
+      /**
+       * Soft delete the task by setting is_deleted flag
+       *
+       * @author Thang Truong
+       * @date 2025-11-25
+       */
       await db.query(
         'UPDATE tasks SET is_deleted = true, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND is_deleted = false',
         [id]
@@ -4599,6 +4759,74 @@ export const resolvers = {
       resolve: (payload: any) => {
         return payload.notificationCreated
       },
+    },
+  },
+  /**
+   * Task Type Resolver
+   * Resolves additional fields for Task type
+   *
+   * @author Thang Truong
+   * @date 2025-11-25
+   */
+  Task: {
+    /**
+     * Resolve tags for a task
+     * Fetches all tags associated with the task via task_tags junction table
+     *
+     * @author Thang Truong
+     * @date 2025-11-25
+     * @param parent - Parent task object containing the task id
+     * @returns Array of tag objects
+     */
+    tags: async (parent: { id: string }) => {
+      try {
+        const taskId = Number(parent.id)
+        const tags = (await db.query(
+          `SELECT t.id, t.name, t.description, t.title, t.type, t.category, t.created_at, t.updated_at
+           FROM tags t
+           INNER JOIN task_tags tt ON t.id = tt.tag_id
+           WHERE tt.task_id = ?
+           ORDER BY t.name ASC`,
+          [taskId]
+        )) as any[]
+
+        /**
+         * Convert MySQL DATETIME to ISO string for proper serialization
+         *
+         * @author Thang Truong
+         * @date 2025-11-25
+         */
+        const formatDateToISO = (dateValue: any): string => {
+          try {
+            if (!dateValue) {
+              return new Date().toISOString()
+            }
+            if (dateValue instanceof Date) {
+              return dateValue.toISOString()
+            }
+            if (typeof dateValue === 'string') {
+              const date = new Date(dateValue)
+              return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
+            }
+            return new Date().toISOString()
+          } catch {
+            return new Date().toISOString()
+          }
+        }
+
+        return tags.map((tag: any) => ({
+          id: tag.id.toString(),
+          name: tag.name,
+          description: tag.description || null,
+          title: tag.title || null,
+          type: tag.type || null,
+          category: tag.category || null,
+          createdAt: formatDateToISO(tag.created_at),
+          updatedAt: formatDateToISO(tag.updated_at),
+        }))
+      } catch {
+        return []
+      }
     },
   },
 }

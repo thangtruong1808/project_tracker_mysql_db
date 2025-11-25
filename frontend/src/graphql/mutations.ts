@@ -244,9 +244,55 @@ export const CREATE_COMMENT_MUTATION = gql`
         lastName
         email
       }
+      likesCount
+      isLiked
       createdAt
       updatedAt
     }
+  }
+`
+
+/**
+ * Update comment mutation
+ * Updates an existing comment
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ * @param commentId - Comment ID to update
+ * @param content - New comment content
+ */
+export const UPDATE_COMMENT_MUTATION = gql`
+  mutation UpdateComment($commentId: ID!, $content: String!) {
+    updateComment(commentId: $commentId, content: $content) {
+      id
+      uuid
+      content
+      taskId
+      user {
+        id
+        firstName
+        lastName
+        email
+      }
+      likesCount
+      isLiked
+      createdAt
+      updatedAt
+    }
+  }
+`
+
+/**
+ * Delete comment mutation
+ * Deletes a comment
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ * @param commentId - Comment ID to delete
+ */
+export const DELETE_COMMENT_MUTATION = gql`
+  mutation DeleteComment($commentId: ID!) {
+    deleteComment(commentId: $commentId)
   }
 `
 
@@ -304,8 +350,11 @@ export const DELETE_TAG_MUTATION = gql`
 
 /**
  * Create task mutation
- * Creates a new task
- * @param input - Task creation input fields
+ * Creates a new task with optional tag associations
+ *
+ * @author Thang Truong
+ * @date 2025-11-25
+ * @param input - Task creation input fields including tagIds
  */
 export const CREATE_TASK_MUTATION = gql`
   mutation CreateTask($input: CreateTaskInput!) {
@@ -319,6 +368,12 @@ export const CREATE_TASK_MUTATION = gql`
       dueDate
       projectId
       assignedTo
+      tags {
+        id
+        name
+        description
+        category
+      }
       createdAt
       updatedAt
     }
@@ -327,9 +382,12 @@ export const CREATE_TASK_MUTATION = gql`
 
 /**
  * Update task mutation
- * Updates task information
+ * Updates task information including tag associations
+ *
+ * @author Thang Truong
+ * @date 2025-11-25
  * @param id - Task ID to update
- * @param input - Task update input fields
+ * @param input - Task update input fields including tagIds
  */
 export const UPDATE_TASK_MUTATION = gql`
   mutation UpdateTask($id: ID!, $input: UpdateTaskInput!) {
@@ -343,6 +401,12 @@ export const UPDATE_TASK_MUTATION = gql`
       dueDate
       projectId
       assignedTo
+      tags {
+        id
+        name
+        description
+        category
+      }
       createdAt
       updatedAt
     }

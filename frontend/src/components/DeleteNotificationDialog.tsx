@@ -66,15 +66,13 @@ const DeleteNotificationDialog = ({ notification, isOpen, onClose, onSuccess }: 
         },
       })
 
-      await showToast('Notification deleted successfully', 'success', 3000)
+      await showToast('Notification deleted successfully', 'success', 7000)
       onSuccess()
       onClose()
-    } catch (error: any) {
-      await showToast(
-        error.message || 'Failed to delete notification. Please try again.',
-        'error',
-        5000
-      )
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to delete notification. Please try again.'
+      await showToast(errorMessage, 'error', 7000)
     } finally {
       setIsDeleting(false)
     }

@@ -94,12 +94,13 @@ const CreateTagModal = ({ isOpen, onClose, onSuccess }: CreateTagModalProps) => 
         },
       })
 
-      await showToast('Tag created successfully', 'success', 3000)
+      await showToast('Tag created successfully', 'success', 7000)
       reset()
       onSuccess()
       onClose()
-    } catch (err: any) {
-      setError(err.message || 'Failed to create tag. Please try again.')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create tag. Please try again.'
+      setError(errorMessage)
     }
   }
 

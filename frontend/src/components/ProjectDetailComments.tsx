@@ -7,55 +7,18 @@
  * @date 2025-01-27
  */
 
-import { useState, useMemo, useEffect, useRef } from 'react'
-import { useMutation, useSubscription } from '@apollo/client'
+import { useState, useMemo, useEffect } from 'react'
+import { useMutation } from '@apollo/client'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../hooks/useToast'
 import { CREATE_COMMENT_MUTATION } from '../graphql/mutations'
 import { PROJECT_QUERY } from '../graphql/queries'
-import { COMMENT_CREATED_SUBSCRIPTION } from '../graphql/subscriptions'
+import { ProjectComment, ProjectMember, ProjectOwner } from '../types/comments'
+import { useProjectCommentRealtime } from '../hooks/useProjectCommentRealtime'
 import CommentItem from './CommentItem'
 import ProjectDetailCommentsRestricted from './ProjectDetailCommentsRestricted'
 import ProjectDetailCommentForm from './ProjectDetailCommentForm'
-
-interface CommentUser {
-  id: string
-  firstName: string
-  lastName: string
-  email: string
-}
-
-interface ProjectComment {
-  id: string
-  uuid: string
-  content: string
-  taskId: string
-  user: CommentUser
-  likesCount: number
-  isLiked: boolean
-  createdAt: string
-  updatedAt: string
-}
-
-interface ProjectMember {
-  id: string
-  projectId: string
-  projectName: string
-  userId: string
-  memberName: string
-  memberEmail: string
-  role: string
-  createdAt: string
-  updatedAt: string
-}
-
-interface ProjectOwner {
-  id: string
-  firstName: string
-  lastName: string
-  email: string
-}
 
 interface ProjectDetailCommentsProps {
   comments: ProjectComment[]
@@ -78,7 +41,7 @@ const ProjectDetailComments = ({ comments, projectId, members, owner, onRefetch 
   const { isAuthenticated, user } = useAuth()
   const { showToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const processedCommentIds = useRef<Set<string>>(new Set())
+  const [deleteNotice, setDeleteNotice] = useState('')
 
   /**
    * Check if authenticated user is a project member or owner
@@ -96,74 +59,26 @@ const ProjectDetailComments = ({ comments, projectId, members, owner, onRefetch 
     return isOwner || isMember
   }, [isAuthenticated, user, owner, members])
 
-
-  /**
-   * Subscribe to real-time comment updates
-   * Receives new comments immediately when posted by other members
-   * Subscription is optional - page works even if WebSocket is unavailable
-   *
-   * @author Thang Truong
-   * @date 2025-01-27
-   */
-  const { data: subscriptionData, error: subscriptionError } = useSubscription(COMMENT_CREATED_SUBSCRIPTION, {
-    variables: { projectId },
-    skip: !isProjectMember || !projectId,
-    errorPolicy: 'ignore', // Don't treat subscription errors as fatal
-    shouldResubscribe: true, // Retry subscription on reconnect
+  useProjectCommentRealtime({
+    projectId,
+    isProjectMember,
+    onRefetch,
+    showToast,
+    onCommentDeleted: (message) => setDeleteNotice(message),
   })
 
-  /**
-   * Handle new comments received via subscription
-   * Triggers refetch to get latest comments from server when new comment is received
-   * Prevents duplicate toast messages for the same comment
-   *
-   * @author Thang Truong
-   * @date 2025-01-27
-   */
   useEffect(() => {
-    const handleNewComment = async (): Promise<void> => {
-      if (subscriptionData?.commentCreated && onRefetch) {
-        const newComment = subscriptionData.commentCreated
-        const commentId = newComment.id || newComment.uuid
-        
-        // Check if this comment has already been processed (prevent duplicate toasts)
-        if (!commentId || processedCommentIds.current.has(commentId)) {
-          return
-        }
-        
-        // Mark comment as processed
-        processedCommentIds.current.add(commentId)
-        
-        // Show toast notification for new comment
-        await showToast('New comment received!', 'info', 3000)
-        // Refetch comments from server to get latest data
-        await onRefetch()
-      }
-    }
-    handleNewComment()
-  }, [subscriptionData, showToast, onRefetch])
-
-  /**
-   * Handle subscription errors silently
-   * Real-time updates are optional - comments still work via polling/refetch
-   *
-   * @author Thang Truong
-   * @date 2025-01-27
-   */
-  useEffect(() => {
-    // Log subscription errors but don't show toast to user
-    // Real-time updates are a nice-to-have, not required
-    if (subscriptionError && isProjectMember && projectId) {
-      // Silent failure - comments will still update via refetchQueries after mutations
-    }
-  }, [subscriptionError, isProjectMember, projectId])
+    if (!deleteNotice) return
+    const timer = setTimeout(() => setDeleteNotice(''), 6000)
+    return () => clearTimeout(timer)
+  }, [deleteNotice])
 
   const [createComment] = useMutation(CREATE_COMMENT_MUTATION, {
     refetchQueries: [{ query: PROJECT_QUERY, variables: { id } }],
     awaitRefetchQueries: true, // Wait for refetch to complete to ensure comments list updates
     onError: async (error) => {
       setIsSubmitting(false)
-      await showToast(error.message || 'Failed to post comment. Please try again.', 'error', 5000)
+      await showToast(error.message || 'Failed to post comment. Please try again.', 'error', 7000)
     },
   })
 
@@ -185,9 +100,10 @@ const ProjectDetailComments = ({ comments, projectId, members, owner, onRefetch 
           content,
         },
       })
-      await showToast('Comment posted successfully!', 'success', 3000)
-    } catch (error: any) {
-      await showToast(error.message || 'Failed to post comment. Please try again.', 'error', 5000)
+      await showToast('Comment posted successfully!', 'success', 7000)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to post comment. Please try again.'
+      await showToast(errorMessage, 'error', 7000)
     } finally {
       setIsSubmitting(false)
     }
@@ -201,6 +117,12 @@ const ProjectDetailComments = ({ comments, projectId, members, owner, onRefetch 
     <div className="bg-gray-50 rounded-lg p-4">
       {/* Comments section container */}
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Comments ({comments.length})</h2>
+      {/* Comment delete notice */}
+      {deleteNotice && (
+        <div className="mb-3 rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+          {deleteNotice}
+        </div>
+      )}
       {/* Comment form component */}
       <ProjectDetailCommentForm onSubmit={handleCommentSubmit} isSubmitting={isSubmitting} />
       {/* Comments list container */}
@@ -217,6 +139,7 @@ const ProjectDetailComments = ({ comments, projectId, members, owner, onRefetch 
               likesCount={comment.likesCount}
               isLiked={comment.isLiked}
               createdAt={comment.createdAt}
+              updatedAt={comment.updatedAt}
               projectId={projectId}
             />
           ))

@@ -43,6 +43,7 @@ export const PROJECTS_QUERY = gql`
         firstName
         lastName
         email
+        role
       }
       likesCount
       commentsCount
@@ -73,6 +74,7 @@ export const PROJECT_QUERY = gql`
         firstName
         lastName
         email
+        role
       }
       likesCount
       commentsCount
@@ -92,6 +94,13 @@ export const PROJECT_QUERY = gql`
           firstName
           lastName
           email
+          role
+        }
+        tags {
+          id
+          name
+          description
+          category
         }
         likesCount
         commentsCount
@@ -175,7 +184,10 @@ export const TAGS_QUERY = gql`
 /**
  * Tasks query
  * Fetches all tasks from the database
- * Returns list of tasks with id, uuid, title, description, status, priority, dueDate, projectId, assignedTo, and timestamps
+ * Returns list of tasks with id, uuid, title, description, status, priority, dueDate, projectId, assignedTo, tags, and timestamps
+ *
+ * @author Thang Truong
+ * @date 2025-11-25
  */
 export const TASKS_QUERY = gql`
   query Tasks {
@@ -189,6 +201,12 @@ export const TASKS_QUERY = gql`
       dueDate
       projectId
       assignedTo
+      tags {
+        id
+        name
+        description
+        category
+      }
       createdAt
       updatedAt
     }
@@ -295,6 +313,7 @@ export const SEARCH_DASHBOARD_QUERY = gql`
           firstName
           lastName
           email
+          role
         }
         likesCount
         commentsCount
@@ -312,6 +331,7 @@ export const SEARCH_DASHBOARD_QUERY = gql`
           firstName
           lastName
           email
+          role
         }
         likesCount
         commentsCount

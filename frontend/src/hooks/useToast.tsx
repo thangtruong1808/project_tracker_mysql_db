@@ -64,7 +64,8 @@ export const ToastProvider = ({ children }: ToastProviderProps) => {
   const showToast = useCallback(
     (message: string, type: 'success' | 'error' | 'info' = 'success', duration: number = 7000) => {
       const id = generateToastId()
-      setToasts((prevToasts) => [...prevToasts, { id, message, type, duration }])
+      const normalizedDuration = Math.max(duration ?? 7000, 7000)
+      setToasts((prevToasts) => [...prevToasts, { id, message, type, duration: normalizedDuration }])
     },
     []
   )

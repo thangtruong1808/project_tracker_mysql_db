@@ -18,62 +18,15 @@ import ProjectDetailMembers from '../components/ProjectDetailMembers'
 import ProjectDetailComments from '../components/ProjectDetailComments'
 import ProjectDetailLoading from '../components/ProjectDetailLoading'
 import ProjectDetailError from '../components/ProjectDetailError'
-
-interface User {
-  id: string
-  firstName: string
-  lastName: string
-  email: string
-}
-
-interface ProjectTask {
-  id: string
-  uuid: string
-  title: string
-  description: string
-  status: string
-  priority: string
-  dueDate: string | null
-  projectId: string
-  assignedTo: string | null
-  owner: User | null
-  likesCount: number
-  commentsCount: number
-  isLiked: boolean
-  createdAt: string
-  updatedAt: string
-}
-
-interface ProjectMember {
-  id: string
-  projectId: string
-  projectName: string
-  userId: string
-  memberName: string
-  memberEmail: string
-  role: string
-  createdAt: string
-  updatedAt: string
-}
-
-interface ProjectComment {
-  id: string
-  uuid: string
-  content: string
-  taskId: string
-  user: User
-  likesCount: number
-  isLiked: boolean
-  createdAt: string
-  updatedAt: string
-}
+import { ProjectTask, ProjectMember, ProjectOwner } from '../types/project'
+import { ProjectComment } from '../types/comments'
 
 interface Project {
   id: string
   name: string
   description: string | null
   status: string
-  owner: User | null
+  owner: ProjectOwner | null
   likesCount: number
   commentsCount: number
   isLiked: boolean
@@ -127,7 +80,7 @@ const ProjectDetail = () => {
     refetchQueries: [{ query: PROJECT_QUERY, variables: { id } }],
     onError: async (error) => {
       setIsSubmitting(false)
-      await showToast(error.message || 'Failed to like project. Please try again.', 'error', 5000)
+      await showToast(error.message || 'Failed to like project. Please try again.', 'error', 7000)
     },
   })
 
@@ -151,7 +104,7 @@ const ProjectDetail = () => {
       await showToast(
         'Please log in to like projects. Authentication is required to show your appreciation!',
         'info',
-        5000
+        7000
       )
       return
     }
@@ -162,13 +115,14 @@ const ProjectDetail = () => {
     try {
       const result = await likeProject({ variables: { projectId: id } })
       if (result.data?.likeProject?.success) {
-        await showToast(result.data.likeProject.message || 'Project liked successfully!', 'success', 3000)
+        await showToast(result.data.likeProject.message || 'Project liked successfully!', 'success', 7000)
         await refetch()
       } else {
-        await showToast(result.data?.likeProject?.message || 'Unable to like project. Please try again.', 'info', 3000)
+        await showToast(result.data?.likeProject?.message || 'Unable to like project. Please try again.', 'info', 7000)
       }
-    } catch (error: any) {
-      await showToast(error.message || 'Failed to like project. Please try again.', 'error', 5000)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to like project. Please try again.'
+      await showToast(errorMessage, 'error', 7000)
     } finally {
       setIsSubmitting(false)
     }
@@ -219,7 +173,7 @@ const ProjectDetail = () => {
           />
           {project.description && <p className="text-gray-700 leading-relaxed mb-6">{project.description}</p>}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <ProjectDetailTasks tasks={project.tasks} />
+            <ProjectDetailTasks tasks={project.tasks} members={project.members} owner={project.owner} />
             <ProjectDetailMembers members={project.members} />
           </div>
           <ProjectDetailComments comments={project.comments} projectId={project.id} members={project.members} owner={project.owner} onRefetch={async () => { await refetch() }} />

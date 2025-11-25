@@ -1,12 +1,12 @@
 /**
  * ProjectDetailTasks Component
- * Displays list of tasks associated with a project with like functionality
+ * Displays list of tasks associated with a project with like functionality and tags
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-11-25
  */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation } from '@apollo/client'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../hooks/useToast'
@@ -14,34 +14,12 @@ import { LIKE_TASK_MUTATION } from '../graphql/mutations'
 import { PROJECT_QUERY } from '../graphql/queries'
 import { useParams } from 'react-router-dom'
 import StatusBadge from './StatusBadge'
-
-interface TaskOwner {
-  id: string
-  firstName: string
-  lastName: string
-  email: string
-}
-
-interface ProjectTask {
-  id: string
-  uuid: string
-  title: string
-  description: string
-  status: string
-  priority: string
-  dueDate: string | null
-  projectId: string
-  assignedTo: string | null
-  owner: TaskOwner | null
-  likesCount: number
-  commentsCount: number
-  isLiked: boolean
-  createdAt: string
-  updatedAt: string
-}
+import { ProjectMember, ProjectOwner, ProjectTask, ProjectTag } from '../types/project'
 
 interface ProjectDetailTasksProps {
   tasks: ProjectTask[]
+  members: ProjectMember[]
+  owner: ProjectOwner | null
 }
 
 /**
@@ -51,16 +29,30 @@ interface ProjectDetailTasksProps {
  * @author Thang Truong
  * @date 2025-01-27
  */
-const ProjectDetailTasks = ({ tasks }: ProjectDetailTasksProps) => {
+const ProjectDetailTasks = ({ tasks, members, owner }: ProjectDetailTasksProps) => {
   const { id: projectId } = useParams<{ id: string }>()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const { showToast } = useToast()
   const [submittingTasks, setSubmittingTasks] = useState<Set<string>>(new Set())
+
+  /**
+   * Determine if authenticated user is a project member or owner
+   *
+   * @author Thang Truong
+   * @date 2025-11-26
+   */
+  const isProjectMember = useMemo(() => {
+    if (!isAuthenticated || !user) return false
+    const userId = user.id
+    const isOwner = owner?.id === userId
+    const isMember = members.some((member) => member.userId === userId)
+    return Boolean(isOwner || isMember)
+  }, [isAuthenticated, user, owner, members])
 
   const [likeTask] = useMutation(LIKE_TASK_MUTATION, {
     refetchQueries: [{ query: PROJECT_QUERY, variables: { id: projectId } }],
     onError: async (error) => {
-      await showToast(error.message || 'Failed to like task. Please try again.', 'error', 5000)
+      await showToast(error.message || 'Failed to like task. Please try again.', 'error', 7000)
     },
   })
 
@@ -103,18 +95,23 @@ const ProjectDetailTasks = ({ tasks }: ProjectDetailTasksProps) => {
       )
       return
     }
+    if (!isProjectMember) {
+      await showToast('Only project members can like tasks. Please join this project first.', 'info', 7000)
+      return
+    }
     if (submittingTasks.has(taskId)) return
 
     setSubmittingTasks((prev) => new Set(prev).add(taskId))
     try {
       const result = await likeTask({ variables: { taskId } })
       if (result.data?.likeTask?.success) {
-        await showToast(result.data.likeTask.message || 'Task liked successfully!', 'success', 3000)
+        await showToast(result.data.likeTask.message || 'Task liked successfully!', 'success', 7000)
       } else {
-        await showToast(result.data?.likeTask?.message || 'Unable to like task. Please try again.', 'info', 3000)
+        await showToast(result.data?.likeTask?.message || 'Unable to like task. Please try again.', 'info', 7000)
       }
-    } catch (error: any) {
-      await showToast(error.message || 'Failed to like task. Please try again.', 'error', 5000)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to like task. Please try again.'
+      await showToast(errorMessage, 'error', 7000)
     } finally {
       setSubmittingTasks((prev) => {
         const next = new Set(prev)
@@ -126,9 +123,16 @@ const ProjectDetailTasks = ({ tasks }: ProjectDetailTasksProps) => {
 
   return (
     <div className="bg-gray-50 rounded-lg p-4">
+      {/* Tasks section container */}
       <h2 className="text-lg font-semibold text-gray-900 mb-4">
         Tasks ({tasks.length})
       </h2>
+      {/* Membership notice */}
+      {!isProjectMember && isAuthenticated && (
+        <div className="mb-3 rounded-md border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Only project members can like tasks. Join the team to show support!
+        </div>
+      )}
       {tasks.length === 0 ? (
         <p className="text-sm text-gray-500">No tasks found for this project.</p>
       ) : (
@@ -159,9 +163,27 @@ const ProjectDetailTasks = ({ tasks }: ProjectDetailTasksProps) => {
                       d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                     />
                   </svg>
-                  <span className="truncate">
-                    {task.owner.firstName} {task.owner.lastName}
-                  </span>
+                  <div className="flex flex-col leading-tight min-w-0">
+                    <span className="truncate">
+                      {task.owner.firstName} {task.owner.lastName}
+                    </span>
+                    <span className="text-[11px] text-gray-500">{task.owner.role || 'Role unavailable'}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Task Tags Display */}
+              {task.tags && task.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {task.tags.map((tag: ProjectTag) => (
+                    <span
+                      key={tag.id}
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-800"
+                      title={tag.description || tag.name}
+                    >
+                      {tag.name}
+                    </span>
+                  ))}
                 </div>
               )}
 
