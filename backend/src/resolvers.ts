@@ -32,6 +32,110 @@ const DEFAULT_TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE']
 const DEFAULT_PAGE_SIZE = 12
 const MAX_PAGE_SIZE = 50
 
+const userNameCache = new Map<number, string>()
+
+const tryGetUserIdFromRequest = (req: any): number | null => {
+  try {
+    const authHeader = req?.headers?.authorization || ''
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return null
+    }
+    const token = authHeader.replace('Bearer ', '')
+    const decoded = verifyAccessToken(token)
+    if (!decoded || !decoded.userId) {
+      return null
+    }
+    return Number(decoded.userId)
+  } catch {
+    return null
+  }
+}
+
+const getUserDisplayName = async (userId: number): Promise<string> => {
+  if (userNameCache.has(userId)) {
+    return userNameCache.get(userId) as string
+  }
+  const users = (await db.query(
+    'SELECT first_name, last_name FROM users WHERE id = ?',
+    [userId]
+  )) as any[]
+  const displayName = users.length
+    ? `${users[0].first_name || ''} ${users[0].last_name || ''}`.trim() || 'A team member'
+    : 'A team member'
+  userNameCache.set(userId, displayName)
+  return displayName
+}
+
+const createNotificationRecord = async (userId: number, message: string, isRead = false) => {
+  const result = (await db.query(
+    'INSERT INTO notifications (user_id, message, is_read) VALUES (?, ?, ?)',
+    [userId, message, isRead]
+  )) as any
+  const notifications = (await db.query(
+    'SELECT id, user_id, message, is_read, created_at, updated_at FROM notifications WHERE id = ?',
+    [result.insertId]
+  )) as any[]
+  if (notifications.length === 0) {
+    throw new Error('Failed to retrieve created notification')
+  }
+  const notification = notifications[0]
+  const payload = {
+    id: notification.id.toString(),
+    userId: notification.user_id.toString(),
+    message: notification.message,
+    isRead: Boolean(notification.is_read),
+    createdAt: notification.created_at instanceof Date ? notification.created_at.toISOString() : new Date(notification.created_at).toISOString(),
+    updatedAt: notification.updated_at instanceof Date ? notification.updated_at.toISOString() : new Date(notification.updated_at).toISOString(),
+  }
+  await pubsub.publish(`NOTIFICATION_CREATED_${payload.userId}`, {
+    notificationCreated: payload,
+  })
+  return payload
+}
+
+const notifyProjectParticipants = async ({
+  projectId,
+  actorUserId,
+  message,
+}: {
+  projectId: number | string
+  actorUserId?: number | null
+  message: string
+}) => {
+  const projectIdNumber = Number(projectId)
+  if (Number.isNaN(projectIdNumber)) {
+    return
+  }
+  const projects = (await db.query(
+    'SELECT owner_id FROM projects WHERE id = ? AND is_deleted = false',
+    [projectIdNumber]
+  )) as any[]
+  if (projects.length === 0) {
+    return
+  }
+  const ownerId = projects[0].owner_id ? Number(projects[0].owner_id) : null
+  const members = (await db.query(
+    'SELECT user_id FROM project_members WHERE project_id = ? AND is_deleted = false',
+    [projectIdNumber]
+  )) as any[]
+  const recipientIds = new Set<number>()
+  if (ownerId) {
+    recipientIds.add(ownerId)
+  }
+  members.forEach((member: any) => {
+    if (member.user_id) {
+      recipientIds.add(Number(member.user_id))
+    }
+  })
+  if (actorUserId) {
+    recipientIds.delete(Number(actorUserId))
+  }
+  if (recipientIds.size === 0) {
+    return
+  }
+  await Promise.all([...recipientIds].map((recipientId) => createNotificationRecord(recipientId, message)))
+}
+
 /**
  * Build SQL status filter clause based on selected statuses.
  *
@@ -2046,7 +2150,8 @@ export const resolvers = {
      * @param input - Project update input fields
      * @returns Updated project object
      */
-    updateProject: async (_: any, { id, input }: { id: string; input: any }) => {
+    updateProject: async (_: any, { id, input }: { id: string; input: any }, context: { req: any }) => {
+      const actorUserId = tryGetUserIdFromRequest(context.req)
       const updates: string[] = []
       const values: any[] = []
 
@@ -2101,7 +2206,7 @@ export const resolvers = {
           return new Date().toISOString()
         }
       }
-      return {
+      const updatedProject = {
         id: project.id.toString(),
         name: project.name,
         description: project.description,
@@ -2109,6 +2214,15 @@ export const resolvers = {
         createdAt: formatDateToISO(project.created_at),
         updatedAt: formatDateToISO(project.updated_at),
       }
+      if (actorUserId) {
+        const actorName = await getUserDisplayName(actorUserId)
+        await notifyProjectParticipants({
+          projectId: Number(project.id),
+          actorUserId,
+          message: `${actorName} updated project "${project.name}".`,
+        })
+      }
+      return updatedProject
     },
     /**
      * Delete project mutation
@@ -2168,7 +2282,7 @@ export const resolvers = {
        * @date 2025-01-27
        */
       const projects = (await db.query(
-        'SELECT id FROM projects WHERE id = ? AND is_deleted = false',
+        'SELECT id, name FROM projects WHERE id = ? AND is_deleted = false',
         [projectId]
       )) as any[]
 
@@ -2212,6 +2326,8 @@ export const resolvers = {
         }
       }
 
+      const projectName = projects[0].name || 'this project'
+
       /**
        * User hasn't liked - insert new like into database
        *
@@ -2235,12 +2351,19 @@ export const resolvers = {
           [projectId]
         )) as any[]
 
-        return {
+        const response = {
           success: true,
           message: 'Project liked successfully',
           likesCount: Number(likesCountResult[0]?.count || 0),
           isLiked: true,
         }
+        const actorName = await getUserDisplayName(userId)
+        await notifyProjectParticipants({
+          projectId: Number(projectId),
+          actorUserId: userId,
+          message: `${actorName} liked project "${projectName}".`,
+        })
+        return response
       } catch (error: any) {
         /**
          * Handle duplicate like error (should not happen due to check above, but safe fallback)
@@ -2254,12 +2377,19 @@ export const resolvers = {
             [projectId]
           )) as any[]
 
-          return {
+          const response = {
             success: true,
             message: 'Project liked successfully',
             likesCount: Number(likesCountResult[0]?.count || 0),
             isLiked: true,
           }
+          const actorName = await getUserDisplayName(userId)
+          await notifyProjectParticipants({
+            projectId: Number(projectId),
+            actorUserId: userId,
+            message: `${actorName} liked project "${projectName}".`,
+          })
+          return response
         }
         throw new Error('Failed to like project. Please try again.')
       }
@@ -2305,6 +2435,7 @@ export const resolvers = {
       const tasks = (await db.query(
         `SELECT 
           t.id,
+          t.title,
           t.project_id,
           p.owner_id
         FROM tasks t
@@ -2396,12 +2527,19 @@ export const resolvers = {
           [taskId]
         )) as any[]
 
-        return {
+        const response = {
           success: true,
           message: 'Task liked successfully',
           likesCount: Number(likesCountResult[0]?.count || 0),
           isLiked: true,
         }
+        const actorName = await getUserDisplayName(userId)
+        await notifyProjectParticipants({
+          projectId: Number(task.project_id),
+          actorUserId: userId,
+          message: `${actorName} liked task "${task.title || 'Untitled task'}".`,
+        })
+        return response
       } catch (error: any) {
         /**
          * Handle duplicate like error (should not happen due to check above, but safe fallback)
@@ -2615,17 +2753,17 @@ export const resolvers = {
         updatedIsLiked = false
         responseMessage = 'Comment unliked successfully'
       } else {
-        /**
-         * User hasn't liked - insert new like into database
-         *
-         * @author Thang Truong
-         * @date 2025-01-27
-         */
-        try {
-          await db.query(
-            'INSERT INTO comment_likes (user_id, comment_id) VALUES (?, ?)',
-            [userId, commentId]
-          )
+      /**
+       * User hasn't liked - insert new like into database
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      try {
+        await db.query(
+          'INSERT INTO comment_likes (user_id, comment_id) VALUES (?, ?)',
+          [userId, commentId]
+        )
         } catch (error: any) {
           if (error.code !== 'ER_DUP_ENTRY') {
             throw new Error('Failed to like comment. Please try again.')
@@ -2650,12 +2788,21 @@ export const resolvers = {
         })
       }
 
-      return {
+      const response = {
         success: true,
         message: responseMessage,
         likesCount: updatedLikesCount,
         isLiked: updatedIsLiked,
       }
+      if (updatedIsLiked) {
+        const actorName = await getUserDisplayName(userId)
+        await notifyProjectParticipants({
+          projectId: Number(projectIdForComment),
+          actorUserId: userId,
+          message: `${actorName} liked a comment on this project.`,
+        })
+      }
+      return response
     },
     /**
      * Create comment mutation
@@ -2894,6 +3041,14 @@ export const resolvers = {
           commentCreated: formattedComment,
         })
 
+        const actorName = await getUserDisplayName(userId)
+        const previewContent = trimmedContent.length > 80 ? `${trimmedContent.slice(0, 77)}...` : trimmedContent
+        await notifyProjectParticipants({
+          projectId: Number(projectId),
+          actorUserId: userId,
+          message: `${actorName} commented: "${previewContent}".`,
+        })
+
         return formattedComment
       } catch (error: any) {
         throw new Error(error.message || 'Failed to create comment. Please try again.')
@@ -3093,6 +3248,13 @@ export const resolvers = {
           await pubsub.publish(`COMMENT_UPDATED_${updatedComment.project_id}`, {
             commentUpdated: formattedComment,
           })
+          const actorName = await getUserDisplayName(userId)
+          const updatedPreview = content.trim().length > 80 ? `${content.trim().slice(0, 77)}...` : content.trim()
+          await notifyProjectParticipants({
+            projectId: Number(updatedComment.project_id),
+            actorUserId: userId,
+            message: `${actorName} updated a comment: "${updatedPreview}".`,
+          })
         }
 
         return formattedComment
@@ -3267,6 +3429,12 @@ export const resolvers = {
         if (comment.project_id) {
           await pubsub.publish(`COMMENT_DELETED_${comment.project_id}`, {
             commentDeleted: formattedDeletedComment,
+          })
+          const actorName = await getUserDisplayName(userId)
+          await notifyProjectParticipants({
+            projectId: Number(comment.project_id),
+            actorUserId: userId,
+            message: `${actorName} deleted a comment from the project.`,
           })
         }
 
@@ -3645,7 +3813,11 @@ export const resolvers = {
      * @param input - Task creation input fields
      * @returns Created task object
      */
-    createTask: async (_: any, { input }: { input: any }) => {
+    createTask: async (_: any, { input }: { input: any }, context: { req: any }) => {
+      const actorUserId = tryGetUserIdFromRequest(context.req)
+      if (!actorUserId) {
+        throw new Error('Authentication required. Please login to create tasks.')
+      }
       const { title, description, status, priority, dueDate, projectId, assignedTo } = input
       
       // Generate UUID for task
@@ -3726,7 +3898,7 @@ export const resolvers = {
           return null
         }
       }
-      return {
+      const formattedTask = {
         id: task.id.toString(),
         uuid: task.uuid,
         title: task.title,
@@ -3739,6 +3911,13 @@ export const resolvers = {
         createdAt: formatDateToISO(task.created_at),
         updatedAt: formatDateToISO(task.updated_at),
       }
+      const actorName = await getUserDisplayName(actorUserId)
+      await notifyProjectParticipants({
+        projectId: Number(projectId),
+        actorUserId,
+        message: `${actorName} created task "${task.title}".`,
+      })
+      return formattedTask
     },
     /**
      * Update task mutation
@@ -3750,7 +3929,11 @@ export const resolvers = {
      * @param input - Task update input fields
      * @returns Updated task object
      */
-    updateTask: async (_: any, { id, input }: { id: string; input: any }) => {
+    updateTask: async (_: any, { id, input }: { id: string; input: any }, context: { req: any }) => {
+      const actorUserId = tryGetUserIdFromRequest(context.req)
+      if (!actorUserId) {
+        throw new Error('Authentication required. Please login to update tasks.')
+      }
       const updates: string[] = []
       const values: any[] = []
 
@@ -3864,7 +4047,7 @@ export const resolvers = {
           return null
         }
       }
-      return {
+      const updatedTask = {
         id: task.id.toString(),
         uuid: task.uuid,
         title: task.title,
@@ -3877,6 +4060,13 @@ export const resolvers = {
         createdAt: formatDateToISO(task.created_at),
         updatedAt: formatDateToISO(task.updated_at),
       }
+      const actorName = await getUserDisplayName(actorUserId)
+      await notifyProjectParticipants({
+        projectId: Number(task.project_id),
+        actorUserId,
+        message: `${actorName} updated task "${task.title}".`,
+      })
+      return updatedTask
     },
     /**
      * Delete task mutation
@@ -3887,15 +4077,32 @@ export const resolvers = {
      * @param id - Task ID to delete
      * @returns Boolean indicating success
      */
-    deleteTask: async (_: any, { id }: { id: string }) => {
-      const result = (await db.query(
-        'UPDATE tasks SET is_deleted = true, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND is_deleted = false',
-        [id]
-      )) as any
+    deleteTask: async (_: any, { id }: { id: string }, context: { req: any }) => {
+      const actorUserId = tryGetUserIdFromRequest(context.req)
+      if (!actorUserId) {
+        throw new Error('Authentication required. Please login to delete tasks.')
+      }
 
-      if (result.affectedRows === 0) {
+      const tasks = (await db.query(
+        'SELECT id, title, project_id FROM tasks WHERE id = ? AND is_deleted = false',
+        [id]
+      )) as any[]
+
+      if (tasks.length === 0) {
         throw new Error('Task not found or already deleted')
       }
+
+      await db.query(
+        'UPDATE tasks SET is_deleted = true, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND is_deleted = false',
+        [id]
+      )
+
+      const actorName = await getUserDisplayName(actorUserId)
+      await notifyProjectParticipants({
+        projectId: Number(tasks[0].project_id),
+        actorUserId,
+        message: `${actorName} deleted task "${tasks[0].title}".`,
+      })
 
       return true
     },
@@ -3910,47 +4117,7 @@ export const resolvers = {
      */
     createNotification: async (_: any, { input }: { input: any }) => {
       const { userId, message, isRead } = input
-
-      const result = (await db.query(
-        'INSERT INTO notifications (user_id, message, is_read) VALUES (?, ?, ?)',
-        [userId, message, isRead || false]
-      )) as any
-      const notifications = (await db.query(
-        'SELECT id, user_id, message, is_read, created_at, updated_at FROM notifications WHERE id = ?',
-        [result.insertId]
-      )) as any[]
-      if (notifications.length === 0) {
-        throw new Error('Failed to retrieve created notification')
-      }
-      const notification = notifications[0]
-      /**
-       * Convert MySQL DATETIME to ISO string for proper serialization
-       */
-      const formatDateToISO = (dateValue: any): string => {
-        try {
-          if (!dateValue) {
-            return new Date().toISOString()
-          }
-          if (dateValue instanceof Date) {
-            return dateValue.toISOString()
-          }
-          if (typeof dateValue === 'string') {
-            const date = new Date(dateValue)
-            return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
-          }
-          return new Date().toISOString()
-        } catch (error) {
-          return new Date().toISOString()
-        }
-      }
-      return {
-        id: notification.id.toString(),
-        userId: notification.user_id.toString(),
-        message: notification.message,
-        isRead: Boolean(notification.is_read),
-        createdAt: formatDateToISO(notification.created_at),
-        updatedAt: formatDateToISO(notification.updated_at),
-      }
+      return createNotificationRecord(Number(userId), message, Boolean(isRead))
     },
     /**
      * Update notification mutation
@@ -4286,7 +4453,8 @@ export const resolvers = {
      * Create team member mutation
      * Adds a user to a project team (reactivates if previously removed)
      */
-    createTeamMember: async (_: any, { input }: { input: { projectId: string; userId: string; role?: string } }) => {
+    createTeamMember: async (_: any, { input }: { input: { projectId: string; userId: string; role?: string } }, context: { req: any }) => {
+      const actorUserId = tryGetUserIdFromRequest(context.req)
       const { projectId, userId, role } = input
       const members = (await db.query(
         'SELECT is_deleted FROM project_members WHERE project_id = ? AND user_id = ?',
@@ -4309,7 +4477,16 @@ export const resolvers = {
         )
       }
 
-      return fetchTeamMemberRecord(projectId, userId)
+      const createdMember = await fetchTeamMemberRecord(projectId, userId)
+      if (actorUserId) {
+        const actorName = await getUserDisplayName(actorUserId)
+        await notifyProjectParticipants({
+          projectId: Number(projectId),
+          actorUserId,
+          message: `${actorName} added ${createdMember.memberName || 'a new teammate'} to the project.`,
+        })
+      }
+      return createdMember
     },
     /**
      * Update team member mutation
@@ -4406,6 +4583,21 @@ export const resolvers = {
       },
       resolve: (payload: any) => {
         return payload.commentDeleted
+      },
+    },
+    /**
+     * Notification created subscription
+     * Delivers newly created notifications to subscribed users
+     *
+     * @author Thang Truong
+     * @date 2025-11-26
+     */
+    notificationCreated: {
+      subscribe: (_: any, { userId }: { userId: string }) => {
+        return pubsub.asyncIterator(`NOTIFICATION_CREATED_${userId}`)
+      },
+      resolve: (payload: any) => {
+        return payload.notificationCreated
       },
     },
   },

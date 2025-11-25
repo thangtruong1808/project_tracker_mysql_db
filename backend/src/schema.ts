@@ -359,6 +359,7 @@ export const typeDefs = gql`
     commentLikeUpdated(projectId: ID!): Comment!
     commentUpdated(projectId: ID!): Comment!
     commentDeleted(projectId: ID!): Comment!
+  notificationCreated(userId: ID!): Notification!
   }
 `
 
