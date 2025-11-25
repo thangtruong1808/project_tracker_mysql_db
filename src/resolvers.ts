@@ -1836,25 +1836,31 @@ export const resolvers = {
 
       if (existingLikes.length > 0) {
         /**
-         * User already liked - get current likes count
+         * User already liked - delete the like (unlike)
          *
          * @author Thang Truong
          * @date 2025-01-27
          */
+        await db.query(
+          'DELETE FROM project_likes WHERE user_id = ? AND project_id = ?',
+          [userId, projectId]
+        )
+
         const likesCountResult = (await db.query(
           'SELECT COUNT(*) as count FROM project_likes WHERE project_id = ?',
           [projectId]
         )) as any[]
 
         return {
-          success: false,
-          message: 'You have already liked this project',
+          success: true,
+          message: 'Project unliked successfully',
           likesCount: Number(likesCountResult[0]?.count || 0),
+          isLiked: false,
         }
       }
 
       /**
-       * Insert new like into database
+       * User hasn't liked - insert new like into database
        *
        * @author Thang Truong
        * @date 2025-01-27
@@ -1880,6 +1886,7 @@ export const resolvers = {
           success: true,
           message: 'Project liked successfully',
           likesCount: Number(likesCountResult[0]?.count || 0),
+          isLiked: true,
         }
       } catch (error: any) {
         /**
@@ -1895,9 +1902,10 @@ export const resolvers = {
           )) as any[]
 
           return {
-            success: false,
-            message: 'You have already liked this project',
+            success: true,
+            message: 'Project liked successfully',
             likesCount: Number(likesCountResult[0]?.count || 0),
+            isLiked: true,
           }
         }
         throw new Error('Failed to like project. Please try again.')

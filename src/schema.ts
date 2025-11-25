@@ -65,6 +65,7 @@ export const typeDefs = gql`
     success: Boolean!
     message: String!
     likesCount: Int!
+    isLiked: Boolean!
   }
 
   type LoginResponse {
