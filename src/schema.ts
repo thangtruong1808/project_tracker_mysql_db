@@ -41,6 +41,8 @@ export const typeDefs = gql`
     updateProject(id: ID!, input: UpdateProjectInput!): Project!
     deleteProject(id: ID!): Boolean!
     likeProject(projectId: ID!): LikeProjectResponse!
+    likeTask(taskId: ID!): LikeTaskResponse!
+    createComment(projectId: ID!, content: String!): Comment!
     createUser(input: CreateUserInput!): User!
     updateUser(id: ID!, input: UpdateUserInput!): User!
     deleteUser(id: ID!): Boolean!
@@ -62,6 +64,13 @@ export const typeDefs = gql`
   }
   
   type LikeProjectResponse {
+    success: Boolean!
+    message: String!
+    likesCount: Int!
+    isLiked: Boolean!
+  }
+
+  type LikeTaskResponse {
     success: Boolean!
     message: String!
     likesCount: Int!
@@ -99,6 +108,7 @@ export const typeDefs = gql`
     isLiked: Boolean!
     tasks: [Task!]!
     members: [TeamMember!]!
+    comments: [Comment!]!
     createdAt: String!
     updatedAt: String!
   }
@@ -174,6 +184,10 @@ export const typeDefs = gql`
     dueDate: String
     projectId: String!
     assignedTo: String
+    owner: User
+    likesCount: Int!
+    commentsCount: Int!
+    isLiked: Boolean!
     createdAt: String!
     updatedAt: String!
   }
@@ -281,6 +295,10 @@ export const typeDefs = gql`
     name: String!
     status: String!
     description: String
+    owner: User
+    likesCount: Int!
+    commentsCount: Int!
+    isLiked: Boolean!
     updatedAt: String!
   }
 
@@ -290,6 +308,10 @@ export const typeDefs = gql`
     status: String!
     projectId: String!
     description: String
+    owner: User
+    likesCount: Int!
+    commentsCount: Int!
+    isLiked: Boolean!
     updatedAt: String!
   }
 
@@ -308,6 +330,20 @@ export const typeDefs = gql`
     projectPageSize: Int
     taskPage: Int
     taskPageSize: Int
+  }
+
+  type Comment {
+    id: ID!
+    uuid: String!
+    content: String!
+    user: User!
+    taskId: String!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type Subscription {
+    commentCreated(projectId: ID!): Comment!
   }
 `
 

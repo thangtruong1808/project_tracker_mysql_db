@@ -25,6 +25,7 @@ import {
   verifyRefreshToken,
   verifyAccessToken
 } from './utils/auth'
+import { pubsub } from './utils/pubsub'
 
 const DEFAULT_PROJECT_STATUSES = ['PLANNING', 'IN_PROGRESS', 'COMPLETED']
 const DEFAULT_TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE']
@@ -386,7 +387,8 @@ export const resolvers = {
           taskPage?: number
           taskPageSize?: number
         }
-      }
+      },
+      context: { req: any }
     ) => {
       const searchTerm = input?.query?.trim() || ''
       const projectStatuses = Array.isArray(input?.projectStatuses)
@@ -402,16 +404,96 @@ export const resolvers = {
       const shouldSearchProjects = Boolean(searchTerm) || projectStatuses.length > 0
       const shouldSearchTasks = Boolean(searchTerm) || taskStatuses.length > 0
 
+      /**
+       * Get authenticated user ID from JWT token for isLiked check
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      let userId: number | null = null
+      try {
+        const authHeader = context.req?.headers?.authorization || ''
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          const token = authHeader.replace('Bearer ', '')
+          const decoded = verifyAccessToken(token)
+          if (decoded && decoded.userId) {
+            userId = Number(decoded.userId)
+          }
+        }
+      } catch {
+        userId = null
+      }
+
+      /**
+       * Get user's liked projects and tasks if authenticated
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      let userLikedProjects: Set<number> = new Set()
+      let userLikedTasks: Set<number> = new Set()
+      if (userId) {
+        try {
+          const userProjectLikes = (await db.query(
+            'SELECT project_id FROM project_likes WHERE user_id = ?',
+            [userId]
+          )) as any[]
+          userLikedProjects = new Set(userProjectLikes.map((like: any) => Number(like.project_id)))
+
+          const userTaskLikes = (await db.query(
+            'SELECT task_id FROM task_likes WHERE user_id = ?',
+            [userId]
+          )) as any[]
+          userLikedTasks = new Set(userTaskLikes.map((like: any) => Number(like.task_id)))
+        } catch {
+          userLikedProjects = new Set()
+          userLikedTasks = new Set()
+        }
+      }
+
       const projectValues: any[] = []
+      const baseProjectSql = `SELECT 
+        p.id, 
+        p.name, 
+        p.description, 
+        p.status, 
+        p.owner_id,
+        p.updated_at,
+        u.id as owner_user_id,
+        u.first_name as owner_first_name,
+        u.last_name as owner_last_name,
+        u.email as owner_email,
+        u.role as owner_role,
+        u.uuid as owner_uuid,
+        u.created_at as owner_created_at,
+        u.updated_at as owner_updated_at,
+        COALESCE(pl.likes_count, 0) as likes_count,
+        COALESCE(pc.comments_count, 0) as comments_count
+      FROM projects p
+      LEFT JOIN users u ON p.owner_id = u.id AND u.is_deleted = false
+      LEFT JOIN (
+        SELECT project_id, COUNT(*) as likes_count
+        FROM project_likes
+        GROUP BY project_id
+      ) pl ON p.id = pl.project_id
+      LEFT JOIN (
+        SELECT t.project_id, COUNT(*) as comments_count
+        FROM comments c
+        INNER JOIN tasks t ON c.task_id = t.id
+        WHERE c.is_deleted = false AND t.is_deleted = false
+        GROUP BY t.project_id
+      ) pc ON p.id = pc.project_id
+      WHERE p.is_deleted = false`
+      
       let projectSql = applySearchFilters(
-        'SELECT id, name, description, status, updated_at FROM projects WHERE is_deleted = false',
+        baseProjectSql,
         searchTerm,
         projectStatuses,
         projectValues,
-        ['name', 'description']
+        ['p.name', 'p.description']
       )
       const projectOffset = (projectPage - 1) * projectPageSize
-      projectSql += ` ORDER BY updated_at DESC LIMIT ${projectPageSize} OFFSET ${projectOffset}`
+      projectSql += ` ORDER BY p.updated_at DESC LIMIT ${projectPageSize} OFFSET ${projectOffset}`
 
       const projectCountValues: any[] = []
       const projectCountSql = applySearchFilters(
@@ -423,15 +505,48 @@ export const resolvers = {
       )
 
       const taskValues: any[] = []
+      const baseTaskSql = `SELECT 
+        t.id, 
+        t.title, 
+        t.description, 
+        t.status, 
+        t.project_id,
+        t.assigned_to,
+        t.updated_at,
+        u.id as owner_user_id,
+        u.first_name as owner_first_name,
+        u.last_name as owner_last_name,
+        u.email as owner_email,
+        u.role as owner_role,
+        u.uuid as owner_uuid,
+        u.created_at as owner_created_at,
+        u.updated_at as owner_updated_at,
+        COALESCE(tl.likes_count, 0) as likes_count,
+        COALESCE(tc.comments_count, 0) as comments_count
+      FROM tasks t
+      LEFT JOIN users u ON t.assigned_to = u.id AND u.is_deleted = false
+      LEFT JOIN (
+        SELECT task_id, COUNT(*) as likes_count
+        FROM task_likes
+        GROUP BY task_id
+      ) tl ON t.id = tl.task_id
+      LEFT JOIN (
+        SELECT task_id, COUNT(*) as comments_count
+        FROM comments
+        WHERE is_deleted = false
+        GROUP BY task_id
+      ) tc ON t.id = tc.task_id
+      WHERE t.is_deleted = false`
+
       let taskSql = applySearchFilters(
-        'SELECT id, title, description, status, project_id, updated_at FROM tasks WHERE is_deleted = false',
+        baseTaskSql,
         searchTerm,
         taskStatuses,
         taskValues,
-        ['title', 'description']
+        ['t.title', 't.description']
       )
       const taskOffset = (taskPage - 1) * taskPageSize
-      taskSql += ` ORDER BY updated_at DESC LIMIT ${taskPageSize} OFFSET ${taskOffset}`
+      taskSql += ` ORDER BY t.updated_at DESC LIMIT ${taskPageSize} OFFSET ${taskOffset}`
 
       const taskCountValues: any[] = []
       const taskCountSql = applySearchFilters(
@@ -451,6 +566,12 @@ export const resolvers = {
         shouldSearchTasks ? (db.query(taskCountSql, taskCountValues) as Promise<any[]>) : Promise.resolve([{ total: 0 }]),
       ])
 
+      /**
+       * Convert MySQL DATETIME to ISO string for proper serialization
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
       const formatDateToISO = (dateValue: any): string => {
         try {
           if (!dateValue) {
@@ -469,12 +590,60 @@ export const resolvers = {
         }
       }
 
+      /**
+       * Format user object for GraphQL response
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const formatUser = (project: any) => {
+        if (!project.owner_user_id) {
+          return null
+        }
+        return {
+          id: project.owner_user_id.toString(),
+          uuid: project.owner_uuid || '',
+          firstName: project.owner_first_name || '',
+          lastName: project.owner_last_name || '',
+          email: project.owner_email || '',
+          role: project.owner_role || '',
+          createdAt: formatDateToISO(project.owner_created_at),
+          updatedAt: formatDateToISO(project.owner_updated_at),
+        }
+      }
+
+      /**
+       * Format user object for task (from assigned_to)
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const formatTaskUser = (task: any) => {
+        if (!task.owner_user_id) {
+          return null
+        }
+        return {
+          id: task.owner_user_id.toString(),
+          uuid: task.owner_uuid || '',
+          firstName: task.owner_first_name || '',
+          lastName: task.owner_last_name || '',
+          email: task.owner_email || '',
+          role: task.owner_role || '',
+          createdAt: formatDateToISO(task.owner_created_at),
+          updatedAt: formatDateToISO(task.owner_updated_at),
+        }
+      }
+
       return {
         projects: projects.map((project) => ({
           id: project.id.toString(),
           name: project.name,
           status: project.status,
           description: project.description,
+          owner: formatUser(project),
+          likesCount: Number(project.likes_count || 0),
+          commentsCount: Number(project.comments_count || 0),
+          isLiked: userId ? userLikedProjects.has(Number(project.id)) : false,
           updatedAt: formatDateToISO(project.updated_at),
         })),
         tasks: tasks.map((task) => ({
@@ -483,6 +652,10 @@ export const resolvers = {
           status: task.status,
           projectId: task.project_id ? task.project_id.toString() : '',
           description: task.description,
+          owner: formatTaskUser(task),
+          likesCount: Number(task.likes_count || 0),
+          commentsCount: Number(task.comments_count || 0),
+          isLiked: userId ? userLikedTasks.has(Number(task.id)) : false,
           updatedAt: formatDateToISO(task.updated_at),
         })),
         projectTotal: Number(projectCountResult[0]?.total || 0),
@@ -591,7 +764,7 @@ export const resolvers = {
       }
 
       /**
-       * Fetch tasks for this project
+       * Fetch tasks for this project with owner, likes, and comments
        *
        * @author Thang Truong
        * @date 2025-01-27
@@ -599,12 +772,90 @@ export const resolvers = {
       const fetchTasks = async () => {
         try {
           const tasks = (await db.query(
-            `SELECT id, uuid, title, description, status, priority, due_date, project_id, assigned_to, created_at, updated_at 
-             FROM tasks 
-             WHERE project_id = ? AND is_deleted = false 
-             ORDER BY created_at DESC`,
+            `SELECT 
+              t.id, 
+              t.uuid, 
+              t.title, 
+              t.description, 
+              t.status, 
+              t.priority, 
+              t.due_date, 
+              t.project_id, 
+              t.assigned_to, 
+              t.created_at, 
+              t.updated_at,
+              u.id as owner_user_id,
+              u.first_name as owner_first_name,
+              u.last_name as owner_last_name,
+              u.email as owner_email,
+              u.role as owner_role,
+              u.uuid as owner_uuid,
+              u.created_at as owner_created_at,
+              u.updated_at as owner_updated_at,
+              COALESCE(tl.likes_count, 0) as likes_count,
+              COALESCE(tc.comments_count, 0) as comments_count
+            FROM tasks t
+            LEFT JOIN users u ON t.assigned_to = u.id AND u.is_deleted = false
+            LEFT JOIN (
+              SELECT task_id, COUNT(*) as likes_count
+              FROM task_likes
+              GROUP BY task_id
+            ) tl ON t.id = tl.task_id
+            LEFT JOIN (
+              SELECT task_id, COUNT(*) as comments_count
+              FROM comments
+              WHERE is_deleted = false
+              GROUP BY task_id
+            ) tc ON t.id = tc.task_id
+            WHERE t.project_id = ? AND t.is_deleted = false 
+            ORDER BY t.created_at DESC`,
             [projectId]
           )) as any[]
+
+          /**
+           * Get user's liked tasks if authenticated
+           *
+           * @author Thang Truong
+           * @date 2025-01-27
+           */
+          let userLikedTasks: Set<number> = new Set()
+          if (userId) {
+            try {
+              const taskIds = tasks.map((t: any) => t.id)
+              if (taskIds.length > 0) {
+                const placeholders = taskIds.map(() => '?').join(',')
+                const userTaskLikes = (await db.query(
+                  `SELECT task_id FROM task_likes WHERE user_id = ? AND task_id IN (${placeholders})`,
+                  [userId, ...taskIds]
+                )) as any[]
+                userLikedTasks = new Set(userTaskLikes.map((like: any) => Number(like.task_id)))
+              }
+            } catch {
+              userLikedTasks = new Set()
+            }
+          }
+
+          /**
+           * Format user object for task (from assigned_to)
+           *
+           * @author Thang Truong
+           * @date 2025-01-27
+           */
+          const formatTaskUser = (task: any) => {
+            if (!task.owner_user_id) {
+              return null
+            }
+            return {
+              id: task.owner_user_id.toString(),
+              uuid: task.owner_uuid || '',
+              firstName: task.owner_first_name || '',
+              lastName: task.owner_last_name || '',
+              email: task.owner_email || '',
+              role: task.owner_role || '',
+              createdAt: formatDateToISO(task.owner_created_at),
+              updatedAt: formatDateToISO(task.owner_updated_at),
+            }
+          }
           
           return tasks.map((task: any) => ({
             id: task.id.toString(),
@@ -616,6 +867,10 @@ export const resolvers = {
             dueDate: task.due_date ? formatDateToISO(task.due_date) : null,
             projectId: task.project_id.toString(),
             assignedTo: task.assigned_to ? task.assigned_to.toString() : null,
+            owner: formatTaskUser(task),
+            likesCount: Number(task.likes_count || 0),
+            commentsCount: Number(task.comments_count || 0),
+            isLiked: userId ? userLikedTasks.has(Number(task.id)) : false,
             createdAt: formatDateToISO(task.created_at),
             updatedAt: formatDateToISO(task.updated_at),
           }))
@@ -696,7 +951,75 @@ export const resolvers = {
         }
       }
 
-      const [tasks, members] = await Promise.all([fetchTasks(), fetchMembers()])
+      /**
+       * Fetch comments from all tasks in this project
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const fetchComments = async () => {
+        try {
+          const comments = (await db.query(
+            `SELECT 
+              c.id, 
+              c.uuid, 
+              c.content, 
+              c.task_id,
+              c.created_at, 
+              c.updated_at,
+              u.id as user_id,
+              u.first_name as user_first_name,
+              u.last_name as user_last_name,
+              u.email as user_email,
+              u.role as user_role,
+              u.uuid as user_uuid,
+              u.created_at as user_created_at,
+              u.updated_at as user_updated_at
+            FROM comments c
+            INNER JOIN tasks t ON c.task_id = t.id
+            LEFT JOIN users u ON c.user_id = u.id AND u.is_deleted = false
+            WHERE t.project_id = ? AND c.is_deleted = false AND t.is_deleted = false
+            ORDER BY c.created_at DESC`,
+            [projectId]
+          )) as any[]
+
+          /**
+           * Format user object for comment author
+           *
+           * @author Thang Truong
+           * @date 2025-01-27
+           */
+          const formatCommentUser = (comment: any) => {
+            if (!comment.user_id) {
+              return null
+            }
+            return {
+              id: comment.user_id.toString(),
+              uuid: comment.user_uuid || '',
+              firstName: comment.user_first_name || '',
+              lastName: comment.user_last_name || '',
+              email: comment.user_email || '',
+              role: comment.user_role || '',
+              createdAt: formatDateToISO(comment.user_created_at),
+              updatedAt: formatDateToISO(comment.user_updated_at),
+            }
+          }
+
+          return comments.map((comment: any) => ({
+            id: comment.id.toString(),
+            uuid: comment.uuid || '',
+            content: comment.content,
+            taskId: comment.task_id.toString(),
+            user: formatCommentUser(comment),
+            createdAt: formatDateToISO(comment.created_at),
+            updatedAt: formatDateToISO(comment.updated_at),
+          }))
+        } catch {
+          return []
+        }
+      }
+
+      const [tasks, members, comments] = await Promise.all([fetchTasks(), fetchMembers(), fetchComments()])
 
       return {
         id: project.id.toString(),
@@ -709,6 +1032,7 @@ export const resolvers = {
         isLiked,
         tasks,
         members,
+        comments,
         createdAt: formatDateToISO(project.created_at),
         updatedAt: formatDateToISO(project.updated_at),
       }
@@ -1912,6 +2236,359 @@ export const resolvers = {
       }
     },
     /**
+     * Like task mutation
+     * Allows authenticated users to like a task
+     * Requires authentication via JWT token
+     *
+     * @author Thang Truong
+     * @date 2025-01-27
+     * @param taskId - Task ID to like
+     * @param context - GraphQL context containing request headers
+     * @returns LikeTaskResponse with success status and updated likes count
+     */
+    likeTask: async (_: any, { taskId }: { taskId: string }, context: { req: any }) => {
+      /**
+       * Extract and verify JWT token from Authorization header
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const authHeader = context.req?.headers?.authorization || ''
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        throw new Error('Authentication required. Please login to like tasks.')
+      }
+
+      const token = authHeader.replace('Bearer ', '')
+      const decoded = verifyAccessToken(token)
+
+      if (!decoded || !decoded.userId) {
+        throw new Error('Invalid or expired token. Please login again.')
+      }
+
+      const userId = decoded.userId
+
+      /**
+       * Verify task exists and is not deleted
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const tasks = (await db.query(
+        'SELECT id FROM tasks WHERE id = ? AND is_deleted = false',
+        [taskId]
+      )) as any[]
+
+      if (tasks.length === 0) {
+        throw new Error('Task not found or has been deleted')
+      }
+
+      /**
+       * Check if user already liked this task
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const existingLikes = (await db.query(
+        'SELECT id FROM task_likes WHERE user_id = ? AND task_id = ?',
+        [userId, taskId]
+      )) as any[]
+
+      if (existingLikes.length > 0) {
+        /**
+         * User already liked - delete the like (unlike)
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        await db.query(
+          'DELETE FROM task_likes WHERE user_id = ? AND task_id = ?',
+          [userId, taskId]
+        )
+
+        const likesCountResult = (await db.query(
+          'SELECT COUNT(*) as count FROM task_likes WHERE task_id = ?',
+          [taskId]
+        )) as any[]
+
+        return {
+          success: true,
+          message: 'Task unliked successfully',
+          likesCount: Number(likesCountResult[0]?.count || 0),
+          isLiked: false,
+        }
+      }
+
+      /**
+       * User hasn't liked - insert new like into database
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      try {
+        await db.query(
+          'INSERT INTO task_likes (user_id, task_id) VALUES (?, ?)',
+          [userId, taskId]
+        )
+
+        /**
+         * Get updated likes count
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        const likesCountResult = (await db.query(
+          'SELECT COUNT(*) as count FROM task_likes WHERE task_id = ?',
+          [taskId]
+        )) as any[]
+
+        return {
+          success: true,
+          message: 'Task liked successfully',
+          likesCount: Number(likesCountResult[0]?.count || 0),
+          isLiked: true,
+        }
+      } catch (error: any) {
+        /**
+         * Handle duplicate like error (should not happen due to check above, but safe fallback)
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        if (error.code === 'ER_DUP_ENTRY') {
+          const likesCountResult = (await db.query(
+            'SELECT COUNT(*) as count FROM task_likes WHERE task_id = ?',
+            [taskId]
+          )) as any[]
+
+          return {
+            success: true,
+            message: 'Task liked successfully',
+            likesCount: Number(likesCountResult[0]?.count || 0),
+            isLiked: true,
+          }
+        }
+        throw new Error('Failed to like task. Please try again.')
+      }
+    },
+    /**
+     * Create comment mutation
+     * Allows authenticated users to create comments for a project
+     * Comments are stored linked to the first task in the project
+     * Requires authentication via JWT token
+     *
+     * @author Thang Truong
+     * @date 2025-01-27
+     * @param projectId - Project ID to comment on
+     * @param content - Comment content
+     * @param context - GraphQL context containing request headers
+     * @returns Created comment object
+     */
+    createComment: async (_: any, { projectId, content }: { projectId: string; content: string }, context: { req: any }) => {
+      /**
+       * Extract and verify JWT token from Authorization header
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const authHeader = context.req?.headers?.authorization || ''
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        throw new Error('Authentication required. Please login to post comments.')
+      }
+
+      const token = authHeader.replace('Bearer ', '')
+      const decoded = verifyAccessToken(token)
+
+      if (!decoded || !decoded.userId) {
+        throw new Error('Invalid or expired token. Please login again.')
+      }
+
+      const userId = decoded.userId
+
+      /**
+       * Verify project exists and is not deleted, and check if user is a member
+       * Only project members (or owner) can post comments
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const projects = (await db.query(
+        'SELECT id, owner_id FROM projects WHERE id = ? AND is_deleted = false',
+        [projectId]
+      )) as any[]
+
+      if (projects.length === 0) {
+        throw new Error('Project not found or has been deleted')
+      }
+
+      const project = projects[0]
+      const isOwner = project.owner_id === userId
+
+      /**
+       * Check if user is a project member (if not the owner)
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      if (!isOwner) {
+        const members = (await db.query(
+          'SELECT user_id FROM project_members WHERE project_id = ? AND user_id = ? AND is_deleted = false',
+          [projectId, userId]
+        )) as any[]
+
+        if (members.length === 0) {
+          throw new Error('Only project members can view and post comments. Please join this project first.')
+        }
+      }
+
+      /**
+       * Get first task from project to link comment
+       * Comments require a task_id in the database structure
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const tasks = (await db.query(
+        'SELECT id FROM tasks WHERE project_id = ? AND is_deleted = false ORDER BY id LIMIT 1',
+        [projectId]
+      )) as any[]
+
+      if (tasks.length === 0) {
+        throw new Error('Cannot post comments. Project must have at least one task.')
+      }
+
+      const taskId = tasks[0].id
+
+      /**
+       * Validate comment content
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const trimmedContent = content.trim()
+      if (!trimmedContent) {
+        throw new Error('Comment content cannot be empty')
+      }
+
+      /**
+       * Create comment in database
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      try {
+        const commentUuid = uuidv4()
+        const result = (await db.query(
+          'INSERT INTO comments (uuid, task_id, user_id, content) VALUES (?, ?, ?, ?)',
+          [commentUuid, taskId, userId, trimmedContent]
+        )) as any
+
+        /**
+         * Fetch created comment with user information
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        const comments = (await db.query(
+          `SELECT 
+            c.id, 
+            c.uuid, 
+            c.content, 
+            c.task_id,
+            c.created_at, 
+            c.updated_at,
+            u.id as user_id,
+            u.first_name as user_first_name,
+            u.last_name as user_last_name,
+            u.email as user_email,
+            u.role as user_role,
+            u.uuid as user_uuid,
+            u.created_at as user_created_at,
+            u.updated_at as user_updated_at
+          FROM comments c
+          LEFT JOIN users u ON c.user_id = u.id AND u.is_deleted = false
+          WHERE c.id = ?`,
+          [result.insertId]
+        )) as any[]
+
+        if (comments.length === 0) {
+          throw new Error('Failed to retrieve created comment')
+        }
+
+        const comment = comments[0]
+
+        /**
+         * Convert MySQL DATETIME to ISO string for proper serialization
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        const formatDateToISO = (dateValue: any): string => {
+          try {
+            if (!dateValue) {
+              return new Date().toISOString()
+            }
+            if (dateValue instanceof Date) {
+              return dateValue.toISOString()
+            }
+            if (typeof dateValue === 'string') {
+              const date = new Date(dateValue)
+              return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
+            }
+            return new Date().toISOString()
+          } catch (error) {
+            return new Date().toISOString()
+          }
+        }
+
+        /**
+         * Format user object for comment author
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        const formatCommentUser = (comment: any) => {
+          if (!comment.user_id) {
+            throw new Error('User information not found for comment')
+          }
+          return {
+            id: comment.user_id.toString(),
+            uuid: comment.user_uuid || '',
+            firstName: comment.user_first_name || '',
+            lastName: comment.user_last_name || '',
+            email: comment.user_email || '',
+            role: comment.user_role || '',
+            createdAt: formatDateToISO(comment.user_created_at),
+            updatedAt: formatDateToISO(comment.user_updated_at),
+          }
+        }
+
+        const formattedComment = {
+          id: comment.id.toString(),
+          uuid: comment.uuid || '',
+          content: comment.content,
+          taskId: comment.task_id.toString(),
+          user: formatCommentUser(comment),
+          createdAt: formatDateToISO(comment.created_at),
+          updatedAt: formatDateToISO(comment.updated_at),
+        }
+
+        /**
+         * Publish comment created event for real-time subscriptions
+         * Only project members (or owner) will receive the update
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        await pubsub.publish(`COMMENT_CREATED_${projectId}`, {
+          commentCreated: formattedComment,
+        })
+
+        return formattedComment
+      } catch (error: any) {
+        throw new Error(error.message || 'Failed to create comment. Please try again.')
+      }
+    },
+    /**
      * Create user mutation
      * Creates a new user account (admin function)
      * Does not generate tokens - user must login separately
@@ -2979,6 +3656,25 @@ export const resolvers = {
       }
 
       return true
+    },
+  },
+  Subscription: {
+    /**
+     * Comment created subscription
+     * Real-time subscription for new comments on a project
+     * Only project members (or owner) can subscribe
+     *
+     * @author Thang Truong
+     * @date 2025-01-27
+     */
+    commentCreated: {
+      subscribe: (_: any, { projectId }: { projectId: string }) => {
+        return pubsub.asyncIterator(`COMMENT_CREATED_${projectId}`)
+      },
+      resolve: (payload: any) => {
+        // Extract commentCreated from payload published by createComment mutation
+        return payload.commentCreated
+      },
     },
   },
 }
