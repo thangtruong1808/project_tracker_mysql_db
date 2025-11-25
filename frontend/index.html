@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Project Tracker</title>
+    <!-- Suppress WebSocket connection errors before app loads -->
+    <script>
+      (function() {
+        const originalConsoleError = console.error;
+        const originalConsoleWarn = console.warn;
+        const originalWindowError = window.onerror;
+        const suppressWS = function(msg) {
+          const m = String(msg || '').toLowerCase();
+          return (m.includes('websocket') || m.includes('ws://localhost:4000') || m.includes('graphql-ws')) &&
+                 (m.includes('failed') || m.includes('error') || m.includes('warning') || m.includes('connection'));
+        };
+        window.onerror = function(msg, source, lineno, colno, error) {
+          if (suppressWS(String(msg || ''))) return true;
+          if (originalWindowError) return originalWindowError.call(window, msg, source, lineno, colno, error) || false;
+          return false;
+        };
+        console.error = function() {
+          const msg = Array.from(arguments).map(a => String(a || '')).join(' ');
+          if (suppressWS(msg)) return;
+          originalConsoleError.apply(console, arguments);
+        };
+        console.warn = function() {
+          const msg = Array.from(arguments).map(a => String(a || '')).join(' ');
+          if (suppressWS(msg)) return;
+          originalConsoleWarn.apply(console, arguments);
+        };
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
