@@ -6,25 +6,25 @@
  * @date 2024-12-24
  */
 
-import { db } from './db'
-import {
-  comparePassword,
-  generateAccessToken,
-  generateRefreshToken,
-  generateRefreshTokenId,
-  hashRefreshToken,
-  hashPassword,
-  verifyRefreshToken,
-  calculateRefreshTokenExpiry,
-  setRefreshTokenCookie,
-  clearRefreshTokenCookie,
-  parseTimeStringToSeconds,
-} from './utils/auth'
+import { v4 as uuidv4 } from 'uuid'
 import {
   REFRESH_TOKEN_DIALOG_THRESHOLD_SECONDS,
   REFRESH_TOKEN_EXPIRY,
 } from './constants/auth'
-import { v4 as uuidv4 } from 'uuid'
+import { db } from './db'
+import {
+  calculateRefreshTokenExpiry,
+  comparePassword,
+  generateAccessToken,
+  generateRefreshToken,
+  generateRefreshTokenId,
+  hashPassword,
+  hashRefreshToken,
+  parseTimeStringToSeconds,
+  setRefreshTokenCookie,
+  verifyRefreshToken,
+  verifyAccessToken
+} from './utils/auth'
 
 const DEFAULT_PROJECT_STATUSES = ['PLANNING', 'IN_PROGRESS', 'COMPLETED']
 const DEFAULT_TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE']
@@ -194,18 +194,95 @@ export const resolvers = {
     /**
      * Projects query
      * Fetches all projects from the database (excluding deleted projects)
-     * Returns list of projects with formatted dates
+     * Returns list of projects with owner, likes count, comments count, and isLiked status
      *
      * @author Thang Truong
-     * @date 2024-12-24
+     * @date 2025-01-27
+     * @param context - GraphQL context containing request headers
      * @returns Array of project objects
      */
-    projects: async () => {
+    projects: async (_: any, __: any, context: { req: any }) => {
       const projects = (await db.query(
-        'SELECT id, name, description, status, created_at, updated_at FROM projects WHERE is_deleted = false ORDER BY created_at DESC'
+        `SELECT 
+          p.id, 
+          p.name, 
+          p.description, 
+          p.status, 
+          p.owner_id,
+          p.created_at, 
+          p.updated_at,
+          u.id as owner_user_id,
+          u.first_name as owner_first_name,
+          u.last_name as owner_last_name,
+          u.email as owner_email,
+          u.role as owner_role,
+          u.uuid as owner_uuid,
+          u.created_at as owner_created_at,
+          u.updated_at as owner_updated_at,
+          COALESCE(pl.likes_count, 0) as likes_count,
+          COALESCE(pc.comments_count, 0) as comments_count
+        FROM projects p
+        LEFT JOIN users u ON p.owner_id = u.id AND u.is_deleted = false
+        LEFT JOIN (
+          SELECT project_id, COUNT(*) as likes_count
+          FROM project_likes
+          GROUP BY project_id
+        ) pl ON p.id = pl.project_id
+        LEFT JOIN (
+          SELECT t.project_id, COUNT(*) as comments_count
+          FROM comments c
+          INNER JOIN tasks t ON c.task_id = t.id
+          WHERE c.is_deleted = false AND t.is_deleted = false
+          GROUP BY t.project_id
+        ) pc ON p.id = pc.project_id
+        WHERE p.is_deleted = false 
+        ORDER BY p.created_at DESC`
       )) as any[]
+      
+      /**
+       * Get authenticated user ID from JWT token
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      let userId: number | null = null
+      try {
+        const authHeader = context.req?.headers?.authorization || ''
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          const token = authHeader.replace('Bearer ', '')
+          const decoded = verifyAccessToken(token)
+          if (decoded && decoded.userId) {
+            userId = Number(decoded.userId)
+          }
+        }
+      } catch {
+        userId = null
+      }
+
+      /**
+       * Get user's liked projects if authenticated
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      let userLikedProjects: Set<number> = new Set()
+      if (userId) {
+        try {
+          const userLikes = (await db.query(
+            'SELECT project_id FROM project_likes WHERE user_id = ?',
+            [userId]
+          )) as any[]
+          userLikedProjects = new Set(userLikes.map((like: any) => Number(like.project_id)))
+        } catch {
+          userLikedProjects = new Set()
+        }
+      }
+      
       /**
        * Convert MySQL DATETIME to ISO string for proper serialization
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
        */
       const formatDateToISO = (dateValue: any): string => {
         try {
@@ -224,11 +301,38 @@ export const resolvers = {
           return new Date().toISOString()
         }
       }
+
+      /**
+       * Format user object for GraphQL response
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const formatUser = (project: any) => {
+        if (!project.owner_user_id) {
+          return null
+        }
+        return {
+          id: project.owner_user_id.toString(),
+          uuid: project.owner_uuid || '',
+          firstName: project.owner_first_name || '',
+          lastName: project.owner_last_name || '',
+          email: project.owner_email || '',
+          role: project.owner_role || '',
+          createdAt: formatDateToISO(project.owner_created_at),
+          updatedAt: formatDateToISO(project.owner_updated_at),
+        }
+      }
+
       return projects.map((project: any) => ({
         id: project.id.toString(),
         name: project.name,
         description: project.description,
         status: project.status,
+        owner: formatUser(project),
+        likesCount: Number(project.likes_count || 0),
+        commentsCount: Number(project.comments_count || 0),
+        isLiked: userId ? userLikedProjects.has(Number(project.id)) : false,
         createdAt: formatDateToISO(project.created_at),
         updatedAt: formatDateToISO(project.updated_at),
       }))
@@ -387,24 +491,64 @@ export const resolvers = {
     },
     /**
      * Project query
-     * Fetches a single project by ID
+     * Fetches a single project by ID with owner, tasks, members, likes count, comments count, and isLiked status
      *
      * @author Thang Truong
-     * @date 2024-12-24
+     * @date 2025-01-27
      * @param id - Project ID to fetch
+     * @param context - GraphQL context containing request headers
      * @returns Project object or null
      */
-    project: async (_: any, { id }: { id: string }) => {
+    project: async (_: any, { id }: { id: string }, context: { req: any }) => {
       const projects = (await db.query(
-        'SELECT id, name, description, status, created_at, updated_at FROM projects WHERE id = ? AND is_deleted = false',
+        `SELECT 
+          p.id, 
+          p.name, 
+          p.description, 
+          p.status, 
+          p.owner_id,
+          p.created_at, 
+          p.updated_at,
+          u.id as owner_user_id,
+          u.first_name as owner_first_name,
+          u.last_name as owner_last_name,
+          u.email as owner_email,
+          u.role as owner_role,
+          u.uuid as owner_uuid,
+          u.created_at as owner_created_at,
+          u.updated_at as owner_updated_at,
+          COALESCE(pl.likes_count, 0) as likes_count,
+          COALESCE(pc.comments_count, 0) as comments_count
+        FROM projects p
+        LEFT JOIN users u ON p.owner_id = u.id AND u.is_deleted = false
+        LEFT JOIN (
+          SELECT project_id, COUNT(*) as likes_count
+          FROM project_likes
+          GROUP BY project_id
+        ) pl ON p.id = pl.project_id
+        LEFT JOIN (
+          SELECT t.project_id, COUNT(*) as comments_count
+          FROM comments c
+          INNER JOIN tasks t ON c.task_id = t.id
+          WHERE c.is_deleted = false AND t.is_deleted = false
+          GROUP BY t.project_id
+        ) pc ON p.id = pc.project_id
+        WHERE p.id = ? AND p.is_deleted = false`,
         [id]
       )) as any[]
+      
       if (projects.length === 0) {
         return null
       }
+      
       const project = projects[0]
+      const projectId = project.id
+      
       /**
        * Convert MySQL DATETIME to ISO string for proper serialization
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
        */
       const formatDateToISO = (dateValue: any): string => {
         try {
@@ -423,11 +567,148 @@ export const resolvers = {
           return new Date().toISOString()
         }
       }
+
+      /**
+       * Format user object for GraphQL response
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const formatUser = (project: any) => {
+        if (!project.owner_user_id) {
+          return null
+        }
+        return {
+          id: project.owner_user_id.toString(),
+          uuid: project.owner_uuid || '',
+          firstName: project.owner_first_name || '',
+          lastName: project.owner_last_name || '',
+          email: project.owner_email || '',
+          role: project.owner_role || '',
+          createdAt: formatDateToISO(project.owner_created_at),
+          updatedAt: formatDateToISO(project.owner_updated_at),
+        }
+      }
+
+      /**
+       * Fetch tasks for this project
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const fetchTasks = async () => {
+        try {
+          const tasks = (await db.query(
+            `SELECT id, uuid, title, description, status, priority, due_date, project_id, assigned_to, created_at, updated_at 
+             FROM tasks 
+             WHERE project_id = ? AND is_deleted = false 
+             ORDER BY created_at DESC`,
+            [projectId]
+          )) as any[]
+          
+          return tasks.map((task: any) => ({
+            id: task.id.toString(),
+            uuid: task.uuid || '',
+            title: task.title,
+            description: task.description,
+            status: task.status,
+            priority: task.priority,
+            dueDate: task.due_date ? formatDateToISO(task.due_date) : null,
+            projectId: task.project_id.toString(),
+            assignedTo: task.assigned_to ? task.assigned_to.toString() : null,
+            createdAt: formatDateToISO(task.created_at),
+            updatedAt: formatDateToISO(task.updated_at),
+          }))
+        } catch {
+          return []
+        }
+      }
+
+      /**
+       * Fetch members for this project
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const fetchMembers = async () => {
+        try {
+          const members = (await db.query(
+            `SELECT
+              pm.project_id,
+              pm.user_id,
+              pm.role,
+              pm.created_at,
+              pm.updated_at,
+              p.name AS project_name,
+              u.first_name,
+              u.last_name,
+              u.email
+            FROM project_members pm
+            INNER JOIN projects p ON p.id = pm.project_id
+            INNER JOIN users u ON u.id = pm.user_id
+            WHERE pm.project_id = ? AND pm.is_deleted = false
+            ORDER BY pm.created_at DESC`,
+            [projectId]
+          )) as any[]
+          
+          return members.map((member: any) => mapTeamMemberRecord(member))
+        } catch {
+          return []
+        }
+      }
+
+      /**
+       * Get authenticated user ID from JWT token
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      let userId: number | null = null
+      let isLiked = false
+      try {
+        const authHeader = context.req?.headers?.authorization || ''
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          const token = authHeader.replace('Bearer ', '')
+          const decoded = verifyAccessToken(token)
+          if (decoded && decoded.userId) {
+            userId = Number(decoded.userId)
+          }
+        }
+      } catch {
+        userId = null
+      }
+
+      /**
+       * Check if user has liked this project
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      if (userId) {
+        try {
+          const userLikes = (await db.query(
+            'SELECT id FROM project_likes WHERE user_id = ? AND project_id = ?',
+            [userId, projectId]
+          )) as any[]
+          isLiked = userLikes.length > 0
+        } catch {
+          isLiked = false
+        }
+      }
+
+      const [tasks, members] = await Promise.all([fetchTasks(), fetchMembers()])
+
       return {
         id: project.id.toString(),
         name: project.name,
         description: project.description,
         status: project.status,
+        owner: formatUser(project),
+        likesCount: Number(project.likes_count || 0),
+        commentsCount: Number(project.comments_count || 0),
+        isLiked,
+        tasks,
+        members,
         createdAt: formatDateToISO(project.created_at),
         updatedAt: formatDateToISO(project.updated_at),
       }
@@ -1494,6 +1775,133 @@ export const resolvers = {
         throw new Error('Project not found or already deleted')
       }
       return true
+    },
+    /**
+     * Like project mutation
+     * Allows authenticated users to like a project
+     * Requires authentication via JWT token
+     *
+     * @author Thang Truong
+     * @date 2025-01-27
+     * @param projectId - Project ID to like
+     * @param context - GraphQL context containing request headers
+     * @returns LikeProjectResponse with success status and updated likes count
+     */
+    likeProject: async (_: any, { projectId }: { projectId: string }, context: { req: any }) => {
+      /**
+       * Extract and verify JWT token from Authorization header
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const authHeader = context.req?.headers?.authorization || ''
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        throw new Error('Authentication required. Please login to like projects.')
+      }
+
+      const token = authHeader.replace('Bearer ', '')
+      const decoded = verifyAccessToken(token)
+
+      if (!decoded || !decoded.userId) {
+        throw new Error('Invalid or expired token. Please login again.')
+      }
+
+      const userId = decoded.userId
+
+      /**
+       * Verify project exists and is not deleted
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const projects = (await db.query(
+        'SELECT id FROM projects WHERE id = ? AND is_deleted = false',
+        [projectId]
+      )) as any[]
+
+      if (projects.length === 0) {
+        throw new Error('Project not found or has been deleted')
+      }
+
+      /**
+       * Check if user already liked this project
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      const existingLikes = (await db.query(
+        'SELECT id FROM project_likes WHERE user_id = ? AND project_id = ?',
+        [userId, projectId]
+      )) as any[]
+
+      if (existingLikes.length > 0) {
+        /**
+         * User already liked - get current likes count
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        const likesCountResult = (await db.query(
+          'SELECT COUNT(*) as count FROM project_likes WHERE project_id = ?',
+          [projectId]
+        )) as any[]
+
+        return {
+          success: false,
+          message: 'You have already liked this project',
+          likesCount: Number(likesCountResult[0]?.count || 0),
+        }
+      }
+
+      /**
+       * Insert new like into database
+       *
+       * @author Thang Truong
+       * @date 2025-01-27
+       */
+      try {
+        await db.query(
+          'INSERT INTO project_likes (user_id, project_id) VALUES (?, ?)',
+          [userId, projectId]
+        )
+
+        /**
+         * Get updated likes count
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        const likesCountResult = (await db.query(
+          'SELECT COUNT(*) as count FROM project_likes WHERE project_id = ?',
+          [projectId]
+        )) as any[]
+
+        return {
+          success: true,
+          message: 'Project liked successfully',
+          likesCount: Number(likesCountResult[0]?.count || 0),
+        }
+      } catch (error: any) {
+        /**
+         * Handle duplicate like error (should not happen due to check above, but safe fallback)
+         *
+         * @author Thang Truong
+         * @date 2025-01-27
+         */
+        if (error.code === 'ER_DUP_ENTRY') {
+          const likesCountResult = (await db.query(
+            'SELECT COUNT(*) as count FROM project_likes WHERE project_id = ?',
+            [projectId]
+          )) as any[]
+
+          return {
+            success: false,
+            message: 'You have already liked this project',
+            likesCount: Number(likesCountResult[0]?.count || 0),
+          }
+        }
+        throw new Error('Failed to like project. Please try again.')
+      }
     },
     /**
      * Create user mutation

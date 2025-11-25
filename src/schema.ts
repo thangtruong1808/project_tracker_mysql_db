@@ -40,6 +40,7 @@ export const typeDefs = gql`
     createProject(input: CreateProjectInput!): Project!
     updateProject(id: ID!, input: UpdateProjectInput!): Project!
     deleteProject(id: ID!): Boolean!
+    likeProject(projectId: ID!): LikeProjectResponse!
     createUser(input: CreateUserInput!): User!
     updateUser(id: ID!, input: UpdateUserInput!): User!
     deleteUser(id: ID!): Boolean!
@@ -58,6 +59,12 @@ export const typeDefs = gql`
     createTeamMember(input: CreateTeamMemberInput!): TeamMember!
     updateTeamMember(input: UpdateTeamMemberInput!): TeamMember!
     deleteTeamMember(projectId: ID!, userId: ID!): Boolean!
+  }
+  
+  type LikeProjectResponse {
+    success: Boolean!
+    message: String!
+    likesCount: Int!
   }
 
   type LoginResponse {
@@ -85,6 +92,12 @@ export const typeDefs = gql`
     name: String!
     description: String
     status: String!
+    owner: User
+    likesCount: Int!
+    commentsCount: Int!
+    isLiked: Boolean!
+    tasks: [Task!]!
+    members: [TeamMember!]!
     createdAt: String!
     updatedAt: String!
   }
