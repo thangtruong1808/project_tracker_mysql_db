@@ -182,7 +182,7 @@ export const tasksMutationResolvers = {
     const userId = decoded.userId
 
     const tasks = (await db.query(
-      `SELECT t.id, t.title, t.project_id, p.owner_id FROM tasks t
+      `SELECT t.id, t.title, t.project_id, p.name as project_name, p.owner_id FROM tasks t
       INNER JOIN projects p ON t.project_id = p.id AND p.is_deleted = false
       WHERE t.id = ? AND t.is_deleted = false`,
       [taskId]
@@ -190,11 +190,9 @@ export const tasksMutationResolvers = {
 
     if (tasks.length === 0) throw new Error('Task not found or has been deleted')
     const task = tasks[0]
+    const projectName = task.project_name || 'Unnamed Project'
 
-    const existingLikes = (await db.query(
-      'SELECT id FROM task_likes WHERE user_id = ? AND task_id = ?',
-      [userId, taskId]
-    )) as any[]
+    const existingLikes = (await db.query('SELECT id FROM task_likes WHERE user_id = ? AND task_id = ?', [userId, taskId])) as any[]
 
     if (existingLikes.length > 0) {
       await db.query('DELETE FROM task_likes WHERE user_id = ? AND task_id = ?', [userId, taskId])
@@ -209,7 +207,7 @@ export const tasksMutationResolvers = {
     await notifyProjectParticipants({
       projectId: Number(task.project_id),
       actorUserId: userId,
-      message: `${actorName} liked task "${task.title}".`,
+      message: `${actorName} liked task "${task.title}" in project "${projectName}".`,
     })
 
     return { success: true, message: 'Task liked successfully', likesCount: Number(likesCountResult[0]?.count || 0), isLiked: true }

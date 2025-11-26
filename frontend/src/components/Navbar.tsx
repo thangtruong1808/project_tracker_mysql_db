@@ -111,6 +111,7 @@ const Navbar = () => {
         onClose={closeNotificationsDrawer}
         notifications={userNotifications}
         isLoading={notificationsLoading}
+        userId={user?.id}
       />
     </nav>
   )

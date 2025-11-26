@@ -53,8 +53,9 @@ export const commentsMutationResolvers = {
     const userId = decoded.userId
     const trimmedContent = content.trim()
     if (!trimmedContent) throw new Error('Comment content cannot be empty')
-    const projects = (await db.query('SELECT id, owner_id FROM projects WHERE id = ? AND is_deleted = false', [projectId])) as any[]
+    const projects = (await db.query('SELECT id, name, owner_id FROM projects WHERE id = ? AND is_deleted = false', [projectId])) as any[]
     if (projects.length === 0) throw new Error('Project not found or has been deleted')
+    const projectName = projects[0].name || 'Unnamed Project'
     const tasks = (await db.query('SELECT id FROM tasks WHERE project_id = ? AND is_deleted = false ORDER BY id LIMIT 1', [projectId])) as any[]
     if (tasks.length === 0) throw new Error('Cannot post comments. Project must have at least one task.')
     const commentUuid = uuidv4()
@@ -63,7 +64,7 @@ export const commentsMutationResolvers = {
     if (payload) {
       await pubsub.publish(`COMMENT_CREATED_${projectId}`, { commentCreated: payload })
       const actorName = await getUserDisplayName(userId)
-      await notifyProjectParticipants({ projectId: Number(projectId), actorUserId: userId, message: `${actorName} posted a comment.` })
+      await notifyProjectParticipants({ projectId: Number(projectId), actorUserId: userId, message: `${actorName} posted a comment on project "${projectName}".` })
     }
     return payload
   },

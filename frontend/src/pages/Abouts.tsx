@@ -147,7 +147,7 @@ function Abouts() {
               </p>
               <p className="text-sm text-gray-600">
                 Every decision here showcases the calm, professional experience I aim to deliver on real teams - predictable async flows,
-                approachable UI, and backend code that stays clear under pressure - so potential employers can see my craft in action.
+                approachable UI, and backend code that stays clear under pressure.
               </p>
             </div>
           </div>

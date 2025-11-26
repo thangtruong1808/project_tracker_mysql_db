@@ -28,6 +28,11 @@ export const notificationsTypeDefs = `
     message: String
     isRead: Boolean
   }
+
+  type BulkUpdateResult {
+    success: Boolean!
+    updatedCount: Int!
+  }
 `
 
 export const notificationsQueryDefs = `
@@ -39,9 +44,12 @@ export const notificationsMutationDefs = `
   createNotification(input: CreateNotificationInput!): Notification!
   updateNotification(id: ID!, input: UpdateNotificationInput!): Notification!
   deleteNotification(id: ID!): Boolean!
+  markAllNotificationsAsRead(userId: ID!): BulkUpdateResult!
+  markAllNotificationsAsUnread(userId: ID!): BulkUpdateResult!
+  deleteAllReadNotifications(userId: ID!): BulkUpdateResult!
+  deleteAllUnreadNotifications(userId: ID!): BulkUpdateResult!
 `
 
 export const notificationsSubscriptionDefs = `
   notificationCreated(userId: ID!): Notification!
 `
-

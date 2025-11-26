@@ -3,7 +3,7 @@
  * Displays dashboard-wide search outcomes using query parameters with improved UX
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-11-26
  */
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
@@ -170,6 +170,8 @@ const SearchResultsPage = () => {
           {!isLoading && !error && (
             <SearchResultsPanel
               query={queryValue}
+              projectStatuses={projectStatuses}
+              taskStatuses={taskStatuses}
               projects={results.projects || []}
               tasks={results.tasks || []}
               projectTotal={results.projectTotal || 0}

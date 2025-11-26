@@ -4,12 +4,14 @@
  * Provides task management capabilities with edit and delete actions
  *
  * @author Thang Truong
- * @date 2025-11-25
+ * @date 2025-11-26
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useEffect, useCallback } from 'react'
 import { useQuery } from '@apollo/client'
 import { useToast } from '../hooks/useToast'
+import { usePageDataManager } from '../hooks/usePageDataManager'
+import { useModalState } from '../hooks/useModalState'
 import { TASKS_QUERY } from '../graphql/queries'
 import TasksTable from '../components/TasksTable'
 import TasksSearchInput from '../components/TasksSearchInput'
@@ -41,212 +43,111 @@ interface Task {
 }
 
 type SortField = 'id' | 'title' | 'status' | 'priority' | 'createdAt' | 'updatedAt'
-type SortDirection = 'ASC' | 'DESC'
 
 /**
  * Tasks Component
  * Main tasks page displaying all tasks in a sortable, searchable table
  *
+ * @author Thang Truong
+ * @date 2025-11-26
  * @returns JSX element containing tasks table with search and pagination
  */
 const Tasks = () => {
   const { showToast } = useToast()
-  const [searchTerm, setSearchTerm] = useState('')
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
-  const [sortField, setSortField] = useState<SortField>('id')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('ASC')
-  const [currentPage, setCurrentPage] = useState(1)
-  const [entriesPerPage, setEntriesPerPage] = useState(10)
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-
-  /**
-   * Fetch tasks data from GraphQL API
-   * Uses Apollo Client's useQuery hook with error handling
-   */
   const { data, loading, error, refetch } = useQuery<{ tasks: Task[] }>(TASKS_QUERY, {
     fetchPolicy: 'cache-and-network',
     errorPolicy: 'all',
   })
 
-  /**
-   * Debounce search input with 500ms delay
-   * Updates debouncedSearchTerm after user stops typing for 500ms
-   */
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm)
-      setCurrentPage(1) // Reset to first page when search changes
-    }, 500)
+  const dataManager = usePageDataManager<Task, SortField>({
+    data: data?.tasks,
+    defaultSortField: 'id',
+    searchFields: ['title', 'description', 'status', 'priority'],
+    getFieldValue: (item, field) => {
+      if (field === 'id') return Number(item[field])
+      if (field === 'createdAt' || field === 'updatedAt') {
+        return new Date(item[field] as string).getTime()
+      }
+      return (item[field] as string) || ''
+    },
+  })
 
-    return () => clearTimeout(timer)
-  }, [searchTerm])
+  const modalState = useModalState<Task>()
 
   /**
    * Handle data fetching errors
-   * Displays error toast notification to user
+   *
+   * @author Thang Truong
+   * @date 2025-11-26
    */
   useEffect(() => {
     const handleError = async () => {
       if (error) {
-        await showToast(
-          'Failed to load tasks. Please try again later.',
-          'error',
-          5000
-        )
+        await showToast('Failed to load tasks. Please try again later.', 'error', 5000)
       }
     }
     handleError()
   }, [error, showToast])
 
   /**
-   * Refetch tasks data when component mounts
-   * Ensures fresh data is loaded on page access
+   * Refetch data on component mount
+   *
+   * @author Thang Truong
+   * @date 2025-11-26
    */
   useEffect(() => {
     const loadData = async () => {
       try {
         await refetch()
-      } catch (err) {
-        // Error handling is done in the error effect above
+      } catch {
+        // Error handled in error effect
       }
     }
     loadData()
   }, [refetch])
 
   /**
-   * Filter and sort tasks based on search term and sort settings
-   * Searches across title, description, status, and priority
-   */
-  const sortedTasks = useMemo(() => {
-    const tasks = data?.tasks || []
-
-    // Filter tasks
-    let filtered = tasks
-    if (debouncedSearchTerm.trim()) {
-      const searchLower = debouncedSearchTerm.toLowerCase()
-      filtered = tasks.filter(
-        (task) =>
-          task.title.toLowerCase().includes(searchLower) ||
-          task.description.toLowerCase().includes(searchLower) ||
-          task.status.toLowerCase().includes(searchLower) ||
-          task.priority.toLowerCase().includes(searchLower)
-      )
-    }
-
-    // Sort tasks
-    const sorted = [...filtered]
-    sorted.sort((a, b) => {
-      let aValue: string | number = a[sortField] || ''
-      let bValue: string | number = b[sortField] || ''
-
-      if (sortField === 'id') {
-        aValue = Number(aValue)
-        bValue = Number(bValue)
-      } else if (sortField === 'createdAt' || sortField === 'updatedAt') {
-        aValue = new Date(aValue as string).getTime()
-        bValue = new Date(bValue as string).getTime()
-      } else {
-        aValue = (aValue as string).toLowerCase()
-        bValue = (bValue as string).toLowerCase()
-      }
-
-      return sortDirection === 'ASC'
-        ? (aValue > bValue ? 1 : -1)
-        : (aValue < bValue ? 1 : -1)
-    })
-    return sorted
-  }, [data?.tasks, debouncedSearchTerm, sortField, sortDirection])
-
-  /**
-   * Calculate pagination values
-   */
-  const totalPages = Math.ceil(sortedTasks.length / entriesPerPage)
-  const startIndex = (currentPage - 1) * entriesPerPage
-  const endIndex = startIndex + entriesPerPage
-  const paginatedTasks = sortedTasks.slice(startIndex, endIndex)
-
-  /**
-   * Handle column header click for sorting
-   * Toggles between ASC and DESC, or sets new sort field
+   * Handle edit task action by finding task and opening modal
    *
-   * @param field - The field to sort by
-   */
-  const handleSort = useCallback((field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'ASC' ? 'DESC' : 'ASC')
-    } else {
-      setSortField(field)
-      setSortDirection('ASC')
-    }
-  }, [sortField, sortDirection])
-
-  /**
-   * Handle edit task action
-   * Opens edit modal with selected task data
-   *
-   * @param taskId - The ID of the task to edit
+   * @author Thang Truong
+   * @date 2025-11-26
    */
   const handleEdit = useCallback((taskId: string) => {
-    const task = sortedTasks.find((t) => t.id === taskId)
-    if (task) {
-      setSelectedTask(task)
-      setIsEditModalOpen(true)
-    }
-  }, [sortedTasks])
+    const task = dataManager.sortedData.find((t) => t.id === taskId)
+    if (task) modalState.openEditModal(task)
+  }, [dataManager.sortedData, modalState])
 
   /**
-   * Handle delete task action
-   * Opens delete confirmation dialog with selected task data
+   * Handle delete task action by finding task and opening dialog
    *
-   * @param taskId - The ID of the task to delete
+   * @author Thang Truong
+   * @date 2025-11-26
    */
   const handleDelete = useCallback((taskId: string) => {
-    const task = sortedTasks.find((t) => t.id === taskId)
-    if (task) {
-      setSelectedTask(task)
-      setIsDeleteDialogOpen(true)
-    }
-  }, [sortedTasks])
+    const task = dataManager.sortedData.find((t) => t.id === taskId)
+    if (task) modalState.openDeleteDialog(task)
+  }, [dataManager.sortedData, modalState])
 
   /**
-   * Handle successful create, edit or delete
-   * Resets selected task and closes modals
+   * Handle successful CRUD operation
+   *
+   * @author Thang Truong
+   * @date 2025-11-26
    */
   const handleSuccess = useCallback(() => {
-    setSelectedTask(null)
-    setIsEditModalOpen(false)
-    setIsDeleteDialogOpen(false)
-    setIsCreateModalOpen(false)
-  }, [])
-
-  /**
-   * Handle create task action
-   * Opens create task modal
-   */
-  const handleCreate = useCallback(() => {
-    setIsCreateModalOpen(true)
-  }, [])
-
-  /**
-   * Clear search input
-   */
-  const handleClearSearch = () => {
-    setSearchTerm('')
-    setDebouncedSearchTerm('')
-  }
+    modalState.handleSuccess()
+  }, [modalState])
 
   return (
+    /* Tasks Page Container */
     <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4">
       {/* Header Section with Description and Create Button */}
       <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
-          Manage your tasks efficiently. View, search, and organize all tasks with advanced filtering and sorting capabilities.
+          Manage your tasks efficiently. View, search, and organize all tasks with advanced filtering.
         </p>
         <button
-          onClick={handleCreate}
+          onClick={modalState.openCreateModal}
           className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base whitespace-nowrap"
           aria-label="Create new task"
         >
@@ -257,72 +158,64 @@ const Tasks = () => {
         </button>
       </div>
 
-      {/* Search Input - Full Width */}
+      {/* Search Input Section */}
       <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 mb-3 sm:mb-4">
         <TasksSearchInput
-          value={searchTerm}
-          onChange={setSearchTerm}
-          onClear={handleClearSearch}
+          value={dataManager.searchTerm}
+          onChange={dataManager.setSearchTerm}
+          onClear={dataManager.handleClearSearch}
           placeholder="Search tasks by title, description, status, or priority..."
         />
       </div>
 
-      {/* Tasks Table */}
+      {/* Tasks Data Table */}
       <TasksTable
-        tasks={paginatedTasks}
-        sortField={sortField}
-        sortDirection={sortDirection}
-        onSort={handleSort}
+        tasks={dataManager.paginatedData}
+        sortField={dataManager.sortField}
+        sortDirection={dataManager.sortDirection}
+        onSort={dataManager.handleSort}
         onEdit={handleEdit}
         onDelete={handleDelete}
         isLoading={loading}
       />
 
-      {/* Pagination - Only show when not loading and has data */}
+      {/* Pagination Controls */}
       {!loading && (
         <TasksPagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalEntries={sortedTasks.length}
-          startIndex={startIndex}
-          endIndex={endIndex}
-          entriesPerPage={entriesPerPage}
-          onPageChange={setCurrentPage}
+          currentPage={dataManager.currentPage}
+          totalPages={dataManager.totalPages}
+          totalEntries={dataManager.sortedData.length}
+          startIndex={dataManager.startIndex}
+          endIndex={dataManager.endIndex}
+          entriesPerPage={dataManager.entriesPerPage}
+          onPageChange={dataManager.setCurrentPage}
           onEntriesPerPageChange={(value) => {
-            setEntriesPerPage(value)
-            setCurrentPage(1)
+            dataManager.setEntriesPerPage(value)
+            dataManager.setCurrentPage(1)
           }}
         />
       )}
 
       {/* Edit Task Modal */}
       <EditTaskModal
-        task={selectedTask}
-        isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false)
-          setSelectedTask(null)
-        }}
+        task={modalState.selectedItem}
+        isOpen={modalState.isEditModalOpen}
+        onClose={modalState.closeEditModal}
         onSuccess={handleSuccess}
       />
 
-      {/* Delete Task Dialog */}
+      {/* Delete Task Confirmation Dialog */}
       <DeleteTaskDialog
-        task={selectedTask}
-        isOpen={isDeleteDialogOpen}
-        onClose={() => {
-          setIsDeleteDialogOpen(false)
-          setSelectedTask(null)
-        }}
+        task={modalState.selectedItem}
+        isOpen={modalState.isDeleteDialogOpen}
+        onClose={modalState.closeDeleteDialog}
         onSuccess={handleSuccess}
       />
 
       {/* Create Task Modal */}
       <CreateTaskModal
-        isOpen={isCreateModalOpen}
-        onClose={() => {
-          setIsCreateModalOpen(false)
-        }}
+        isOpen={modalState.isCreateModalOpen}
+        onClose={modalState.closeCreateModal}
         onSuccess={handleSuccess}
       />
     </div>
@@ -330,4 +223,3 @@ const Tasks = () => {
 }
 
 export default Tasks
-

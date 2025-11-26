@@ -3,7 +3,7 @@
  * Main application component with routing and providers
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-26
  */
 
 import { ApolloProvider } from '@apollo/client'

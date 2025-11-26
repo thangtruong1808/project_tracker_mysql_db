@@ -59,3 +59,62 @@ export const DELETE_NOTIFICATION_MUTATION = gql`
   }
 `
 
+/**
+ * Mark all notifications as read for a user
+ *
+ * @author Thang Truong
+ * @date 2025-11-26
+ */
+export const MARK_ALL_NOTIFICATIONS_READ_MUTATION = gql`
+  mutation MarkAllNotificationsAsRead($userId: ID!) {
+    markAllNotificationsAsRead(userId: $userId) {
+      success
+      updatedCount
+    }
+  }
+`
+
+/**
+ * Mark all notifications as unread for a user
+ *
+ * @author Thang Truong
+ * @date 2025-11-26
+ */
+export const MARK_ALL_NOTIFICATIONS_UNREAD_MUTATION = gql`
+  mutation MarkAllNotificationsAsUnread($userId: ID!) {
+    markAllNotificationsAsUnread(userId: $userId) {
+      success
+      updatedCount
+    }
+  }
+`
+
+/**
+ * Delete all read notifications for a user
+ *
+ * @author Thang Truong
+ * @date 2025-11-26
+ */
+export const DELETE_ALL_READ_NOTIFICATIONS_MUTATION = gql`
+  mutation DeleteAllReadNotifications($userId: ID!) {
+    deleteAllReadNotifications(userId: $userId) {
+      success
+      updatedCount
+    }
+  }
+`
+
+/**
+ * Delete all unread notifications for a user
+ *
+ * @author Thang Truong
+ * @date 2025-11-26
+ */
+export const DELETE_ALL_UNREAD_NOTIFICATIONS_MUTATION = gql`
+  mutation DeleteAllUnreadNotifications($userId: ID!) {
+    deleteAllUnreadNotifications(userId: $userId) {
+      success
+      updatedCount
+    }
+  }
+`

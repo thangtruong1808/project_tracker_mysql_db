@@ -4,7 +4,7 @@
  * Backend checks DB for user likes and returns isLiked status
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-11-26
  */
 
 import { useState } from 'react'
@@ -26,6 +26,7 @@ interface ProjectSearchCardProps {
   likesCount: number
   commentsCount: number
   isLiked: boolean
+  updatedAt: string
 }
 
 /**
@@ -34,7 +35,7 @@ interface ProjectSearchCardProps {
  * Backend checks DB and returns isLiked status
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-11-26
  */
 const ProjectSearchCard = ({
   id,
@@ -44,8 +45,10 @@ const ProjectSearchCard = ({
   owner,
   likesCount,
   commentsCount,
-  isLiked
+  isLiked,
+  updatedAt: _updatedAt
 }: ProjectSearchCardProps) => {
+  void _updatedAt
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
   const { showToast } = useToast()

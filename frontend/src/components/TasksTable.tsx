@@ -1,15 +1,16 @@
 /**
  * TasksTable Component
- * Displays tasks in a sortable table with action buttons
+ * Displays tasks in a sortable table with responsive layouts
+ * Delegates to desktop, tablet, and mobile sub-components
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-26
  */
 
+import TasksTableDesktop from './TasksTableDesktop'
 import TasksTableMobile from './TasksTableMobile'
 import TasksTableTablet from './TasksTableTablet'
 import TasksTableLoading from './TasksTableLoading'
-import { formatDateToMelbourne, getStatusBadge, getStatusLabel, getPriorityBadge, getPriorityLabel } from '../utils/taskUtils'
 
 interface Task {
   id: string
@@ -40,27 +41,25 @@ interface TasksTableProps {
 
 /**
  * TasksTable Component
- * Renders a sortable table of tasks with edit and delete actions
+ * Renders a responsive tasks table with edit and delete actions
+ *
+ * @author Thang Truong
+ * @date 2025-11-26
  * @param tasks - Array of task objects to display
  * @param sortField - Currently active sort field
  * @param sortDirection - Current sort direction (ASC or DESC)
- * @param onSort - Callback function when column header is clicked
- * @param onEdit - Callback function when edit button is clicked
- * @param onDelete - Callback function when delete button is clicked
- * @param isLoading - Whether data is currently loading
- * @returns JSX element containing tasks table
+ * @param onSort - Callback when column header is clicked
+ * @param onEdit - Callback when edit button is clicked
+ * @param onDelete - Callback when delete button is clicked
+ * @param isLoading - Whether data is loading
+ * @returns JSX element containing responsive tasks table
  */
-const TasksTable = ({
-  tasks,
-  sortField,
-  sortDirection,
-  onSort,
-  onEdit,
-  onDelete,
-  isLoading = false,
-}: TasksTableProps) => {
+const TasksTable = ({ tasks, sortField, sortDirection, onSort, onEdit, onDelete, isLoading = false }: TasksTableProps) => {
   /**
    * Get sort icon for column header
+   *
+   * @author Thang Truong
+   * @date 2025-11-26
    * @param field - The field to check
    * @returns JSX element with sort icon
    */
@@ -83,12 +82,11 @@ const TasksTable = ({
     )
   }
 
-  if (isLoading) {
-    return <TasksTableLoading />
-  }
+  if (isLoading) return <TasksTableLoading />
 
   if (tasks.length === 0) {
     return (
+      /* Empty State Display */
       <div className="bg-white rounded-lg shadow-md p-8 sm:p-12 text-center">
         <svg className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -100,145 +98,14 @@ const TasksTable = ({
   }
 
   return (
+    /* Responsive Tasks Table Container */
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
       {/* Desktop Table View */}
-      <div className="hidden lg:block overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th
-                onClick={() => onSort('id')}
-                className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  ID
-                  {getSortIcon('id')}
-                </div>
-              </th>
-              <th
-                onClick={() => onSort('title')}
-                className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  Title
-                  {getSortIcon('title')}
-                </div>
-              </th>
-              <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Description
-              </th>
-              <th
-                onClick={() => onSort('status')}
-                className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  Status
-                  {getSortIcon('status')}
-                </div>
-              </th>
-              <th
-                onClick={() => onSort('priority')}
-                className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  Priority
-                  {getSortIcon('priority')}
-                </div>
-              </th>
-              <th
-                onClick={() => onSort('createdAt')}
-                className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  Created At
-                  {getSortIcon('createdAt')}
-                </div>
-              </th>
-              <th
-                onClick={() => onSort('updatedAt')}
-                className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  Updated At
-                  {getSortIcon('updatedAt')}
-                </div>
-              </th>
-              <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {tasks.map((task) => (
-              <tr key={task.id} className="hover:bg-gray-100 transition-colors">
-                <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {task.id}
-                </td>
-                <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {task.title}
-                </td>
-                <td className="px-4 xl:px-6 py-4 text-sm text-gray-700 max-w-xs">
-                  <div className="truncate">{task.description}</div>
-                </td>
-                <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${getStatusBadge(task.status)}`}>
-                    {getStatusLabel(task.status)}
-                  </span>
-                </td>
-                <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${getPriorityBadge(task.priority)}`}>
-                    {getPriorityLabel(task.priority)}
-                  </span>
-                </td>
-                <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatDateToMelbourne(task.createdAt)}
-                </td>
-                <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatDateToMelbourne(task.updatedAt)}
-                </td>
-                <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => onEdit(task.id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-200 text-blue-700 rounded-md hover:bg-blue-100 transition-colors text-xs font-medium"
-                      aria-label="Edit task"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                      <span>Edit</span>
-                    </button>
-                    <button
-                      onClick={() => onDelete(task.id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-red-200 text-red-700 rounded-md hover:bg-red-100 transition-colors text-xs font-medium"
-                      aria-label="Delete task"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      <span>Delete</span>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
+      <TasksTableDesktop tasks={tasks} onSort={onSort} onEdit={onEdit} onDelete={onDelete} getSortIcon={getSortIcon} />
       {/* Tablet Table View */}
       <div className="hidden md:block lg:hidden">
-        <TasksTableTablet
-          tasks={tasks}
-          sortField={sortField}
-          sortDirection={sortDirection}
-          onSort={onSort}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          getSortIcon={getSortIcon}
-        />
+        <TasksTableTablet tasks={tasks} sortField={sortField} sortDirection={sortDirection} onSort={onSort} onEdit={onEdit} onDelete={onDelete} getSortIcon={getSortIcon} />
       </div>
-
       {/* Mobile Card View */}
       <div className="md:hidden">
         <TasksTableMobile tasks={tasks} onEdit={onEdit} onDelete={onDelete} />
@@ -248,4 +115,3 @@ const TasksTable = ({
 }
 
 export default TasksTable
-
