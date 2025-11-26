@@ -7,7 +7,7 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery, useMutation } from '@apollo/client'
+import { useQuery, useMutation, NetworkStatus } from '@apollo/client'
 import { PROJECT_QUERY } from '../graphql/queries'
 import { LIKE_PROJECT_MUTATION } from '../graphql/mutations'
 import { useAuth } from '../context/AuthContext'
@@ -44,13 +44,20 @@ const ProjectDetail = () => {
   const { isAuthenticated, accessToken } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const { data, loading, error, refetch } = useQuery<{ project: Project }>(PROJECT_QUERY, {
+  const { data, loading, error, refetch, networkStatus } = useQuery<{ project: Project }>(PROJECT_QUERY, {
     variables: { id },
     skip: !id,
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'network-only',
     errorPolicy: 'all',
     notifyOnNetworkStatusChange: true,
   })
+
+  /**
+   * Check if query is still loading (initial load or refetching)
+   * @author Thang Truong
+   * @date 2025-11-26
+   */
+  const isLoading = loading || networkStatus === NetworkStatus.loading || networkStatus === NetworkStatus.refetch
 
   /**
    * Refetch project when authentication token becomes available
@@ -128,12 +135,22 @@ const ProjectDetail = () => {
     }
   }
 
-  if (error) {
-    return <ProjectDetailError onBack={handleBack} />
+  /**
+   * Show loading state while data is being fetched
+   * @author Thang Truong
+   * @date 2025-11-26
+   */
+  if (isLoading) {
+    return <ProjectDetailLoading />
   }
 
-  if (loading || !data?.project) {
-    return <ProjectDetailLoading />
+  /**
+   * Show error state if query failed or project not found after loading completes
+   * @author Thang Truong
+   * @date 2025-11-26
+   */
+  if (error || !data?.project) {
+    return <ProjectDetailError onBack={handleBack} />
   }
 
   const project = data.project

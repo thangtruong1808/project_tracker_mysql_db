@@ -11,25 +11,25 @@
  * Access token expiration time (must match backend constant)
  * Format: '20s', '1m', '1h', '7d', etc.
  */
-export const ACCESS_TOKEN_EXPIRY = '1m'
+export const ACCESS_TOKEN_EXPIRY = '10m'
 
 /**
  * Refresh token expiration time (must match backend constant)
  * Format: '40s', '1h', '7d', etc.
  */
-export const REFRESH_TOKEN_EXPIRY = '20m'
+export const REFRESH_TOKEN_EXPIRY = '60m'
 
 /**
  * Countdown time (in seconds) for expiration dialog
  * Dialog shows countdown from this value down to 0
  */
-export const DIALOG_COUNTDOWN_SECONDS = 10
+export const DIALOG_COUNTDOWN_SECONDS = 30
 
 /**
  * Threshold (in seconds) for showing expiration dialog
  * Dialog appears when refresh token has this many seconds remaining
  */
-export const REFRESH_TOKEN_DIALOG_THRESHOLD_SECONDS = 10
+export const REFRESH_TOKEN_DIALOG_THRESHOLD_SECONDS = 30
 
 /**
  * Safety margin (in seconds) for rotation threshold calculation
@@ -37,4 +37,4 @@ export const REFRESH_TOKEN_DIALOG_THRESHOLD_SECONDS = 10
  * This ensures the refresh token can reach the dialog threshold without being rotated
  * Formula: REFRESH_TOKEN_DIALOG_THRESHOLD_SECONDS + ACCESS_TOKEN_EXPIRY (in seconds) + ROTATION_SAFETY_MARGIN_SECONDS
  */
-export const ROTATION_SAFETY_MARGIN_SECONDS = 10
+export const ROTATION_SAFETY_MARGIN_SECONDS = 30
