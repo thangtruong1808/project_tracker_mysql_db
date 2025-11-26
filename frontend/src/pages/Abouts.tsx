@@ -9,33 +9,52 @@ interface TechHighlight {
 /**
  * Abouts Page
  * Public-facing about page highlighting technical implementation
+ * Displays the hero section, technology stack, philosophy, and developer info
  *
  * @author Thang Truong
- * @date 2025-01-27
- */
-/**
- * Abouts Component
- * Renders the about page hero, tech stack, and philosophy sections
- *
- * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-11-26
  */
 function Abouts() {
+  /**
+   * Technology highlights data
+   * Defines the three main technology areas: Frontend, Backend, and Dev Experience
+   *
+   * @author Thang Truong
+   * @date 2025-11-26
+   */
   const techHighlights: TechHighlight[] = [
     {
       area: 'Frontend',
       summary: 'Composable React 18 experience powered by TypeScript and Apollo Client.',
-      items: ['React 18 + Vite for rapid development', 'Apollo Client with GraphQL subscriptions', 'Tailwind CSS utility-first styling', 'React Hook Form for reliable validation'],
+      items: [
+        'React 18 + Vite for rapid development',
+        'TypeScript for type-safe, maintainable code',
+        'Apollo Client with GraphQL subscriptions',
+        'Tailwind CSS utility-first styling',
+        'React Hook Form for reliable validation'
+      ],
     },
     {
       area: 'Backend',
       summary: 'Node.js GraphQL API delivering secure, real-time data.',
-      items: ['Apollo Server 4 with executable schema', 'MySQL relational data with optimized queries', 'JWT authentication with refresh token rotation', 'Custom PubSub over graphql-ws for live comments'],
+      items: [
+        'Apollo Server 4 with executable schema',
+        'MySQL relational data with optimized queries',
+        'JWT authentication with refresh token rotation',
+        'Custom PubSub over graphql-ws for live comments'
+      ],
     },
     {
       area: 'Dev Experience',
       summary: 'Tooling crafted to keep iteration fast and safe.',
-      items: ['ESLint + TypeScript strict mode', 'Reusable UI components < 250 lines', 'Toast-driven UX feedback patterns', 'Async/await enforced for every client action'],
+      items: [
+        'ESLint + TypeScript strict mode',
+        'Deployed to Vercel with serverless architecture',
+        'MySQL database hosted on Hostinger',
+        'Reusable UI components < 250 lines',
+        'Toast-driven UX feedback patterns',
+        'Async/await enforced for every client action'
+      ],
     },
   ]
 

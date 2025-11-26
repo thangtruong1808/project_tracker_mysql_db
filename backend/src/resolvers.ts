@@ -22,8 +22,8 @@ import {
   hashRefreshToken,
   parseTimeStringToSeconds,
   setRefreshTokenCookie,
-  verifyRefreshToken,
-  verifyAccessToken
+  verifyAccessToken,
+  verifyRefreshToken
 } from './utils/auth'
 import { pubsub } from './utils/pubsub'
 
