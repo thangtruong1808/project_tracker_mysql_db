@@ -11,7 +11,7 @@
  * Access token expiration time (must match backend constant)
  * Format: '20s', '1m', '1h', '7d', etc.
  */
-export const ACCESS_TOKEN_EXPIRY = '10m'
+export const ACCESS_TOKEN_EXPIRY = '5m'
 
 /**
  * Refresh token expiration time (must match backend constant)

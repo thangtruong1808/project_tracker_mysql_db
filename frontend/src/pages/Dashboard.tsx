@@ -69,7 +69,9 @@ const Dashboard = () => {
     const loadData = async () => {
       try {
         await Promise.all([refetchProjects(), refetchTasks(), refetchUsers(), refetchActivities()])
-      } catch { /* Errors handled above */ }
+      } catch { /* Errors handled above */
+        await showToast('Failed to load data. Please try again later.', 'error', 5000)
+      }
     }
     loadData()
   }, [refetchProjects, refetchTasks, refetchUsers, refetchActivities])

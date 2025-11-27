@@ -39,5 +39,6 @@ export const authMutationDefs = `
   login(email: String!, password: String!): LoginResponse!
   register(input: RegisterInput!): LoginResponse!
   refreshToken(extendSession: Boolean): RefreshTokenResponse!
+  resetPassword(email: String!, newPassword: String!): Boolean!
 `
 

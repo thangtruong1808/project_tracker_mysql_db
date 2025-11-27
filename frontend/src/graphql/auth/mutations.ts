@@ -70,3 +70,16 @@ export const REFRESH_TOKEN_MUTATION = gql`
   }
 `
 
+/**
+ * Reset password mutation
+ * Updates user password by email address
+ *
+ * @author Thang Truong
+ * @date 2025-11-27
+ */
+export const RESET_PASSWORD_MUTATION = gql`
+  mutation ResetPassword($email: String!, $newPassword: String!) {
+    resetPassword(email: $email, newPassword: $newPassword)
+  }
+`
+

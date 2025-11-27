@@ -178,5 +178,21 @@ export const authMutationResolvers = {
       throw new Error(error.message || 'Failed to refresh token')
     }
   },
+
+  /**
+   * Reset password mutation - updates user password by email
+   *
+   * @author Thang Truong
+   * @date 2025-11-27
+   */
+  resetPassword: async (_: any, { email, newPassword }: { email: string; newPassword: string }) => {
+    const users = (await db.query('SELECT * FROM users WHERE email = ? AND is_deleted = false', [email])) as any[]
+    if (users.length === 0) throw new Error('No account found with this email address')
+
+    const hashedPassword = await hashPassword(newPassword)
+    await db.query('UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP(3) WHERE email = ?', [hashedPassword, email])
+
+    return true
+  },
 }
 
