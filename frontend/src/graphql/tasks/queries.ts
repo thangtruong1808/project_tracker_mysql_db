@@ -3,16 +3,16 @@
  * GraphQL queries for task data
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
 import { gql } from '@apollo/client'
 
 /**
- * Tasks query - fetch all tasks
+ * Tasks query - fetch all tasks with likes and comments count
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 export const TASKS_QUERY = gql`
   query Tasks {
@@ -32,9 +32,11 @@ export const TASKS_QUERY = gql`
         description
         category
       }
+      likesCount
+      commentsCount
+      isLiked
       createdAt
       updatedAt
     }
   }
 `
-

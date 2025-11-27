@@ -1,122 +1,106 @@
 /**
  * Dashboard Page
- * Main dashboard for authenticated users with statistics, recent projects, and quick actions
- * Displays project overview, status distribution, and provides quick access to common tasks
- * 
+ * Main dashboard with 4-row layout fetching real-time data from database
+ *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-27
  */
 
 import { useEffect } from 'react'
 import { useQuery } from '@apollo/client'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../hooks/useToast'
-import { PROJECTS_QUERY } from '../graphql/queries'
+import { PROJECTS_QUERY, TASKS_QUERY, USERS_QUERY, ACTIVITIES_QUERY } from '../graphql/queries'
+import HeaderDescriptionDashboard from '../components/HeaderDescriptionDashboard'
 import DashboardStatsCards from '../components/DashboardStatsCards'
-import RecentProjects from '../components/RecentProjects'
-import QuickActions from '../components/QuickActions'
-import ProjectStatusChart from '../components/ProjectStatusChart'
+import DashboardTasksOverview from '../components/DashboardTasksOverview'
+import DashboardRecentProjects from '../components/DashboardRecentProjects'
+import DashboardRecentActivity from '../components/DashboardRecentActivity'
+import DashboardEngagement from '../components/DashboardEngagement'
 
 interface Project {
-  id: string
-  name: string
-  description: string | null
-  status: string
-  createdAt: string
-  updatedAt: string
+  id: string; name: string; description: string | null; status: string
+  likesCount: number; commentsCount: number; createdAt: string; updatedAt: string
 }
+interface Task {
+  id: string; title: string; status: string; priority: string; projectId: string
+  likesCount: number; commentsCount: number; createdAt: string; updatedAt: string
+}
+interface User { id: string; firstName: string; lastName: string; email: string; role: string }
+interface Activity { id: string; action: string; type: string; projectId: string | null; taskId: string | null; createdAt: string }
 
 /**
- * Dashboard Component
- * Main dashboard page displaying project statistics and overview
- * 
- * @returns JSX element containing the dashboard layout
+ * Dashboard Component - 4-row layout with real-time database data
+ * @author Thang Truong
+ * @date 2025-11-27
  */
 const Dashboard = () => {
   const { user } = useAuth()
   const { showToast } = useToast()
 
-  /**
-   * Fetch projects data from GraphQL API
-   * Uses Apollo Client's useQuery hook with error handling
-   */
-  const { data, loading, error, refetch } = useQuery<{ projects: Project[] }>(PROJECTS_QUERY, {
-    fetchPolicy: 'cache-and-network',
-    errorPolicy: 'all',
-  })
+  /** Fetch projects from database */
+  const { data: projectsData, loading: projectsLoading, error: projectsError, refetch: refetchProjects } =
+    useQuery<{ projects: Project[] }>(PROJECTS_QUERY, { fetchPolicy: 'cache-and-network', errorPolicy: 'all' })
 
-  /**
-   * Handle data fetching errors
-   * Displays error toast notification to user
-   */
+  /** Fetch tasks from database */
+  const { data: tasksData, loading: tasksLoading, error: tasksError, refetch: refetchTasks } =
+    useQuery<{ tasks: Task[] }>(TASKS_QUERY, { fetchPolicy: 'cache-and-network', errorPolicy: 'all' })
+
+  /** Fetch users from database */
+  const { data: usersData, loading: usersLoading, error: usersError, refetch: refetchUsers } =
+    useQuery<{ users: User[] }>(USERS_QUERY, { fetchPolicy: 'cache-and-network', errorPolicy: 'all' })
+
+  /** Fetch activities from database */
+  const { data: activitiesData, loading: activitiesLoading, refetch: refetchActivities } =
+    useQuery<{ activities: Activity[] }>(ACTIVITIES_QUERY, { fetchPolicy: 'cache-and-network', errorPolicy: 'all' })
+
+  /** Handle errors with toast notifications - @author Thang Truong @date 2025-11-27 */
   useEffect(() => {
-    const handleError = async () => {
-      if (error) {
-        await showToast(
-          'Failed to load projects. Please try again later.',
-          'error',
-          5000
-        )
-      }
+    const handleErrors = async () => {
+      if (projectsError) await showToast('Failed to load projects.', 'error', 5000)
+      if (tasksError) await showToast('Failed to load tasks.', 'error', 5000)
+      if (usersError) await showToast('Failed to load users.', 'error', 5000)
     }
-    handleError()
-  }, [error, showToast])
+    handleErrors()
+  }, [projectsError, tasksError, usersError, showToast])
 
-  /**
-   * Refetch projects data when component mounts or user changes
-   * Ensures fresh data is loaded on dashboard access
-   */
+  /** Refetch all data on mount - @author Thang Truong @date 2025-11-27 */
   useEffect(() => {
     const loadData = async () => {
       try {
-        await refetch()
-      } catch (err) {
-        // Error handling is done in the error effect above
-      }
+        await Promise.all([refetchProjects(), refetchTasks(), refetchUsers(), refetchActivities()])
+      } catch { /* Errors handled above */ }
     }
     loadData()
-  }, [refetch])
+  }, [refetchProjects, refetchTasks, refetchUsers, refetchActivities])
 
-  /**
-   * Get projects array from query data
-   * Returns empty array if data is not available
-   */
-  const projects = data?.projects || []
+  const projects = projectsData?.projects || []
+  const tasks = tasksData?.tasks || []
+  const users = usersData?.users || []
+  const activities = activitiesData?.activities || []
+  const isLoading = projectsLoading || tasksLoading || usersLoading
+  const displayName = user?.firstName || user?.email?.split('@')[0] || 'User'
 
   return (
-    <div className="p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Dashboard
-          </h1>
-          <p className="text-gray-600">
-            Welcome back, {user?.name || 'User'}! Here's an overview of your projects.
-          </p>
+    /* Dashboard page container with 4-row layout */
+    <div className="p-4 lg:p-6 bg-gray-50 min-h-full">
+      <div className="w-full mx-auto space-y-6">
+        {/* Row 1: Header with personalized greeting and description */}
+        <HeaderDescriptionDashboard userName={displayName} isLoading={isLoading} />
+
+        {/* Row 2: Statistics Cards with percentages */}
+        <DashboardStatsCards projects={projects} tasks={tasks} users={users} isLoading={isLoading} />
+
+        {/* Row 3: Tasks Overview (left) + Recent Projects (right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <DashboardTasksOverview tasks={tasks} isLoading={tasksLoading} />
+          <DashboardRecentProjects projects={projects} isLoading={projectsLoading} />
         </div>
 
-        {/* Statistics Cards */}
-        <div className="mb-8">
-          <DashboardStatsCards projects={projects} isLoading={loading} />
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Recent Projects - Takes 2 columns on large screens */}
-          <div className="lg:col-span-2">
-            <RecentProjects projects={projects} isLoading={loading} />
-          </div>
-
-          {/* Quick Actions - Takes 1 column on large screens */}
-          <div>
-            <QuickActions />
-          </div>
-        </div>
-
-        {/* Project Status Chart */}
-        <div className="mb-8">
-          <ProjectStatusChart projects={projects} isLoading={loading} />
+        {/* Row 4: Recent Activity (left) + Engagement Overview (right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <DashboardRecentActivity activities={activities} isLoading={activitiesLoading} />
+          <DashboardEngagement projects={projects} tasks={tasks} isLoading={isLoading} />
         </div>
       </div>
     </div>

@@ -12,6 +12,7 @@ import { client } from './lib/apollo'
 import { AuthProvider } from './context/AuthContext'
 import { ToastProvider } from './hooks/useToast'
 import Navbar from './components/Navbar'
+import Footer from './components/Footer'
 import DashboardProtectedRoute from './components/DashboardProtectedRoute'
 import Home from './pages/Home'
 import Login from './pages/Login'
@@ -67,68 +68,75 @@ function App() {
                   <Route path="notifications" element={<Notifications />} />
                 </Route>
 
-                {/* Routes with navbar */}
+                {/* Routes with navbar and footer */}
                 <Route
                   path="/"
                   element={
-                    <>
+                    <div className="flex flex-col min-h-screen">
                       <Navbar />
-                      <Home />
-                    </>
+                      <main className="flex-grow"><Home /></main>
+                      <Footer />
+                    </div>
                   }
                 />
                 <Route
                   path="/projects"
                   element={
-                    <>
+                    <div className="flex flex-col min-h-screen">
                       <Navbar />
-                      <ProjectsPublic />
-                    </>
+                      <main className="flex-grow"><ProjectsPublic /></main>
+                      <Footer />
+                    </div>
                   }
                 />
                 <Route
                   path="/projects/:id"
                   element={
-                    <>
+                    <div className="flex flex-col min-h-screen">
                       <Navbar />
-                      <ProjectDetail />
-                    </>
+                      <main className="flex-grow"><ProjectDetail /></main>
+                      <Footer />
+                    </div>
                   }
                 />
                 <Route
                   path="/about"
                   element={
-                    <>
+                    <div className="flex flex-col min-h-screen">
                       <Navbar />
-                      <Abouts />
-                    </>
+                      <main className="flex-grow"><Abouts /></main>
+                      <Footer />
+                    </div>
                   }
                 />
                 <Route
                   path="/search"
                   element={
-                    <>
+                    <div className="flex flex-col min-h-screen">
                       <Navbar />
-                      <Search />
-                    </>
+                      <main className="flex-grow"><Search /></main>
+                      <Footer />
+                    </div>
                   }
                 />
                 <Route
                   path="/search-results"
                   element={
-                    <>
+                    <div className="flex flex-col min-h-screen">
                       <Navbar />
-                      <SearchResultsPage />
-                    </>
+                      <main className="flex-grow"><SearchResultsPage /></main>
+                      <Footer />
+                    </div>
                   }
                 />
                 <Route
                   path="/abouts"
                   element={
-                    <>
+                    <div className="flex flex-col min-h-screen">
                       <Navbar />
-                      <Abouts />
-                    </>
+                      <main className="flex-grow"><Abouts /></main>
+                      <Footer />
+                    </div>
                   }
                 />
               </Routes>
