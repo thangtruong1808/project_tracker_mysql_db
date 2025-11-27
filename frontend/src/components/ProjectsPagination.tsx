@@ -3,7 +3,7 @@
  * Pagination controls with First, Previous, Next, and Last buttons
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-27
  */
 
 interface ProjectsPaginationProps {
@@ -15,21 +15,15 @@ interface ProjectsPaginationProps {
   entriesPerPage: number
   onPageChange: (page: number) => void
   onEntriesPerPageChange: (value: number) => void
+  isLoading?: boolean
 }
 
 /**
  * ProjectsPagination Component
  * Renders pagination controls with navigation buttons, page numbers, and entries per page selector
  *
- * @param currentPage - Current active page number
- * @param totalPages - Total number of pages
- * @param totalEntries - Total number of entries
- * @param startIndex - Starting index of current page entries
- * @param endIndex - Ending index of current page entries
- * @param entriesPerPage - Current entries per page value
- * @param onPageChange - Callback when page changes
- * @param onEntriesPerPageChange - Callback when entries per page changes
- * @returns JSX element containing pagination controls
+ * @author Thang Truong
+ * @date 2025-11-27
  */
 const ProjectsPagination = ({
   currentPage,
@@ -40,54 +34,47 @@ const ProjectsPagination = ({
   entriesPerPage,
   onPageChange,
   onEntriesPerPageChange,
+  isLoading = false
 }: ProjectsPaginationProps) => {
   /**
    * Generate page numbers to display
    * Shows current page and up to 2 pages on each side
+   * @author Thang Truong
+   * @date 2025-11-27
    */
   const getPageNumbers = () => {
     const pages: (number | string)[] = []
     const maxVisible = 5
 
     if (totalPages <= maxVisible) {
-      // Show all pages if total pages is less than max visible
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i)
       }
     } else {
-      // Always show first page
       pages.push(1)
-
-      // Calculate start and end of visible range
       let start = Math.max(2, currentPage - 1)
       let end = Math.min(totalPages - 1, currentPage + 1)
 
-      // Adjust if we're near the start
       if (currentPage <= 3) {
         end = Math.min(4, totalPages - 1)
       }
 
-      // Adjust if we're near the end
       if (currentPage >= totalPages - 2) {
         start = Math.max(2, totalPages - 3)
       }
 
-      // Add ellipsis if needed
       if (start > 2) {
         pages.push('...')
       }
 
-      // Add visible page numbers
       for (let i = start; i <= end; i++) {
         pages.push(i)
       }
 
-      // Add ellipsis if needed
       if (end < totalPages - 1) {
         pages.push('...')
       }
 
-      // Always show last page
       if (totalPages > 1) {
         pages.push(totalPages)
       }
@@ -96,7 +83,31 @@ const ProjectsPagination = ({
     return pages
   }
 
+  if (isLoading) {
+    return (
+      /* Loading skeleton for pagination */
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 mt-3 sm:mt-4 animate-pulse">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
+            <div className="h-4 bg-gray-200 rounded w-48"></div>
+            <div className="flex items-center gap-2">
+              <div className="h-4 bg-gray-200 rounded w-12"></div>
+              <div className="h-8 bg-gray-200 rounded w-16"></div>
+              <div className="h-4 bg-gray-200 rounded w-16"></div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="h-8 w-8 bg-gray-200 rounded-lg"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
+    /* Pagination container */
     <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 mt-3 sm:mt-4">
       <div className="flex flex-col lg:flex-row items-center justify-between gap-3 sm:gap-4">
         {/* Entries Info and Selector */}
@@ -208,4 +219,3 @@ const ProjectsPagination = ({
 }
 
 export default ProjectsPagination
-

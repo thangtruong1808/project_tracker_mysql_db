@@ -3,7 +3,7 @@
  * Pagination controls with entries-per-page selector and navigation buttons
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-27
  */
 
 interface ActivityLogsPaginationProps {
@@ -15,13 +15,15 @@ interface ActivityLogsPaginationProps {
   entriesPerPage: number
   onPageChange: (page: number) => void
   onEntriesPerPageChange: (value: number) => void
+  isLoading?: boolean
 }
 
 /**
  * ActivityLogsPagination Component
  * Renders pagination controls with icons and responsive layout
  *
- * @returns JSX element containing pagination controls
+ * @author Thang Truong
+ * @date 2025-11-27
  */
 const ActivityLogsPagination = ({
   currentPage,
@@ -32,7 +34,14 @@ const ActivityLogsPagination = ({
   entriesPerPage,
   onPageChange,
   onEntriesPerPageChange,
+  isLoading = false
 }: ActivityLogsPaginationProps) => {
+  /**
+   * Generate page numbers to display
+   * Shows current page and up to 2 pages on each side
+   * @author Thang Truong
+   * @date 2025-11-27
+   */
   const getPageNumbers = () => {
     const pages: (number | string)[] = []
     const maxVisible = 5
@@ -74,7 +83,31 @@ const ActivityLogsPagination = ({
     return pages
   }
 
+  if (isLoading) {
+    return (
+      /* Loading skeleton for pagination */
+      <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 mt-3 sm:mt-4 animate-pulse">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
+            <div className="h-4 bg-gray-200 rounded w-48"></div>
+            <div className="flex items-center gap-2">
+              <div className="h-4 bg-gray-200 rounded w-12"></div>
+              <div className="h-8 bg-gray-200 rounded w-16"></div>
+              <div className="h-4 bg-gray-200 rounded w-16"></div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="h-8 w-8 bg-gray-200 rounded-lg"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
+    /* Pagination container */
     <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 mt-3 sm:mt-4">
       <div className="flex flex-col lg:flex-row items-center justify-between gap-3 sm:gap-4">
         <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">

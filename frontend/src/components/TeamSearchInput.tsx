@@ -3,7 +3,7 @@
  * Search input with clear button for team members page
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-27
  */
 
 interface TeamSearchInputProps {
@@ -11,10 +11,34 @@ interface TeamSearchInputProps {
   onChange: (value: string) => void
   onClear: () => void
   placeholder?: string
+  isLoading?: boolean
 }
 
-const TeamSearchInput = ({ value, onChange, onClear, placeholder = 'Search team members by name, email, or project...' }: TeamSearchInputProps) => {
+/**
+ * TeamSearchInput Component
+ * Renders a search input with search icon and clear button
+ *
+ * @author Thang Truong
+ * @date 2025-11-27
+ */
+const TeamSearchInput = ({
+  value,
+  onChange,
+  onClear,
+  placeholder = 'Search team members by name, email, or project...',
+  isLoading = false
+}: TeamSearchInputProps) => {
+  if (isLoading) {
+    return (
+      /* Loading skeleton for search input */
+      <div className="relative w-full animate-pulse">
+        <div className="h-10 bg-gray-200 rounded-lg"></div>
+      </div>
+    )
+  }
+
   return (
+    /* Search input container */
     <div className="relative w-full">
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
         <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -3,7 +3,7 @@
  * Header section with description and create button
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-11-27
  */
 
 import ProjectsSearchInput from './ProjectsSearchInput'
@@ -13,6 +13,7 @@ interface ProjectsTableHeaderProps {
   onSearchChange: (value: string) => void
   onClearSearch: () => Promise<void>
   onCreateClick: () => Promise<void>
+  isLoading?: boolean
 }
 
 /**
@@ -20,16 +21,39 @@ interface ProjectsTableHeaderProps {
  * Renders header with description, create button, and search input
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-11-27
  */
 const ProjectsTableHeader = ({
   searchTerm,
   onSearchChange,
   onClearSearch,
-  onCreateClick
+  onCreateClick,
+  isLoading = false
 }: ProjectsTableHeaderProps) => {
+  if (isLoading) {
+    return (
+      /* Loading skeleton for header section */
+      <div className="animate-pulse">
+        <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="h-5 bg-gray-200 rounded w-3/4 sm:w-2/3"></div>
+          <div className="h-10 bg-gray-200 rounded-lg w-32 sm:w-40"></div>
+        </div>
+        <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 mb-3 sm:mb-4">
+          <ProjectsSearchInput
+            value=""
+            onChange={() => {}}
+            onClear={() => {}}
+            placeholder="Search projects by name, description, or status..."
+            isLoading={true}
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
+      {/* Header with description and create button */}
       <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
           Manage your projects efficiently. View, search, and organize all system projects with advanced filtering and sorting capabilities.
@@ -45,12 +69,14 @@ const ProjectsTableHeader = ({
           <span>Create Project</span>
         </button>
       </div>
+      {/* Search input container */}
       <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 mb-3 sm:mb-4">
         <ProjectsSearchInput
           value={searchTerm}
           onChange={onSearchChange}
           onClear={onClearSearch}
           placeholder="Search projects by name, description, or status..."
+          isLoading={isLoading}
         />
       </div>
     </>
@@ -58,4 +84,3 @@ const ProjectsTableHeader = ({
 }
 
 export default ProjectsTableHeader
-

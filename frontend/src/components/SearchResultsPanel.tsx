@@ -4,7 +4,7 @@
  * Hides sections based on filter selection (project-only or task-only searches)
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
 import ProjectSearchCard from './ProjectSearchCard'
@@ -46,15 +46,47 @@ interface SearchResultsPanelProps {
   taskPage: number
   onProjectPageChange: (page: number) => Promise<void>
   onTaskPageChange: (page: number) => Promise<void>
+  isLoading?: boolean
 }
+
+/**
+ * Loading skeleton for search result cards
+ * @author Thang Truong
+ * @date 2025-11-27
+ */
+const SearchResultCardSkeleton = () => (
+  <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+    <div className="h-5 bg-gray-200 rounded w-3/4 mb-3"></div>
+    <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+    <div className="h-4 bg-gray-200 rounded w-2/3 mb-4"></div>
+    <div className="flex items-center justify-between">
+      <div className="h-6 bg-gray-200 rounded w-16"></div>
+      <div className="h-6 bg-gray-200 rounded w-20"></div>
+    </div>
+  </div>
+)
+
+/**
+ * Section header skeleton
+ * @author Thang Truong
+ * @date 2025-11-27
+ */
+const SectionHeaderSkeleton = () => (
+  <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
+    <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
+    <div>
+      <div className="h-6 bg-gray-200 rounded w-24 mb-2"></div>
+      <div className="h-4 bg-gray-200 rounded w-32"></div>
+    </div>
+  </div>
+)
 
 /**
  * SearchResultsPanel Component
  * Renders sections for projects and tasks based on filter selections
- * Hides irrelevant sections when user filters by specific type only
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 const SearchResultsPanel = ({
   query,
@@ -68,34 +100,19 @@ const SearchResultsPanel = ({
   taskPage,
   onProjectPageChange,
   onTaskPageChange,
+  isLoading = false
 }: SearchResultsPanelProps) => {
   const desiredPageSize = 12
   const hasProjects = projects.length > 0
   const hasTasks = tasks.length > 0
   const hasResults = hasProjects || hasTasks
-
-  /**
-   * Determine section visibility based on filter selections
-   * Show projects section only if user didn't exclusively filter by task statuses
-   * Show tasks section only if user didn't exclusively filter by project statuses
-   *
-   * @author Thang Truong
-   * @date 2025-11-26
-   */
   const hasProjectFilters = projectStatuses.length > 0
   const hasTaskFilters = taskStatuses.length > 0
   const showProjectsSection = !(hasTaskFilters && !hasProjectFilters)
   const showTasksSection = !(hasProjectFilters && !hasTaskFilters)
 
-  /**
-   * Handle empty state when no search criteria provided
-   *
-   * @author Thang Truong
-   * @date 2025-11-26
-   */
   if (!hasResults && query === '' && !hasProjectFilters && !hasTaskFilters) {
     return (
-      /* Empty search criteria message */
       <div className="mt-8">
         <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center">
           <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,10 +125,31 @@ const SearchResultsPanel = ({
     )
   }
 
+  if (isLoading) {
+    return (
+      <div className="mt-6 space-y-8 animate-pulse">
+        {showProjectsSection && (
+          <section className="space-y-4">
+            <SectionHeaderSkeleton />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map(i => <SearchResultCardSkeleton key={i} />)}
+            </div>
+          </section>
+        )}
+        {showTasksSection && (
+          <section className="space-y-4">
+            <SectionHeaderSkeleton />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map(i => <SearchResultCardSkeleton key={i} />)}
+            </div>
+          </section>
+        )}
+      </div>
+    )
+  }
+
   return (
-    /* Search results container with conditional sections */
     <div className="mt-6 space-y-8">
-      {/* Projects Section - Hidden when filtering by task status only */}
       {showProjectsSection && (
         <section className="space-y-4">
           <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-gray-200">
@@ -129,10 +167,8 @@ const SearchResultsPanel = ({
               </div>
             </div>
           </header>
-
           {hasProjects ? (
             <>
-              {/* Projects grid - 4 cards per row on desktop */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {projects.map((project) => (
                   <ProjectSearchCard
@@ -160,8 +196,6 @@ const SearchResultsPanel = ({
           )}
         </section>
       )}
-
-      {/* Tasks Section - Hidden when filtering by project status only */}
       {showTasksSection && (
         <section className="space-y-4">
           <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-gray-200">
@@ -179,10 +213,8 @@ const SearchResultsPanel = ({
               </div>
             </div>
           </header>
-
           {hasTasks ? (
             <>
-              {/* Tasks grid - 4 cards per row on desktop */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {tasks.map((task) => (
                   <TaskSearchCard

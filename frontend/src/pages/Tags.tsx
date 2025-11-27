@@ -4,7 +4,7 @@
  * Provides tag management capabilities with edit and delete actions
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
 import { useEffect, useCallback } from 'react'
@@ -95,57 +95,49 @@ const Tags = () => {
     loadData()
   }, [refetch])
 
-  /**
-   * Handle edit tag action by finding tag and opening modal
-   *
-   * @author Thang Truong
-   * @date 2025-11-26
-   */
-  const handleEdit = useCallback((tagId: string) => {
+  /** Handle edit tag action - @author Thang Truong @date 2025-11-27 */
+  const handleEdit = useCallback(async (tagId: string): Promise<void> => {
     const tag = dataManager.sortedData.find((t) => t.id === tagId)
     if (tag) modalState.openEditModal(tag)
   }, [dataManager.sortedData, modalState])
 
-  /**
-   * Handle delete tag action by finding tag and opening dialog
-   *
-   * @author Thang Truong
-   * @date 2025-11-26
-   */
-  const handleDelete = useCallback((tagId: string) => {
+  /** Handle delete tag action - @author Thang Truong @date 2025-11-27 */
+  const handleDelete = useCallback(async (tagId: string): Promise<void> => {
     const tag = dataManager.sortedData.find((t) => t.id === tagId)
     if (tag) modalState.openDeleteDialog(tag)
   }, [dataManager.sortedData, modalState])
 
-  /**
-   * Handle successful CRUD operation
-   *
-   * @author Thang Truong
-   * @date 2025-11-26
-   */
-  const handleSuccess = useCallback(() => {
+  /** Handle successful CRUD operation - @author Thang Truong @date 2025-11-27 */
+  const handleSuccess = useCallback(async (): Promise<void> => {
     modalState.handleSuccess()
   }, [modalState])
 
   return (
-    /* Tags Page Container */
+    /* Tags page container */
     <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4">
       {/* Header Section with Description and Create Button */}
-      <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
-          Manage your tags efficiently. View, search, and organize all tags with advanced filtering.
-        </p>
-        <button
-          onClick={modalState.openCreateModal}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base whitespace-nowrap"
-          aria-label="Create new tag"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          <span>Create Tag</span>
-        </button>
-      </div>
+      {loading ? (
+        <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-pulse">
+          <div className="h-4 bg-gray-200 rounded w-3/4 max-w-md"></div>
+          <div className="h-10 bg-blue-200 rounded-lg w-32"></div>
+        </div>
+      ) : (
+        <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
+            Manage your tags efficiently. View, search, and organize all tags with advanced filtering.
+          </p>
+          <button
+            onClick={modalState.openCreateModal}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base whitespace-nowrap"
+            aria-label="Create new tag"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Create Tag</span>
+          </button>
+        </div>
+      )}
 
       {/* Search Input Section */}
       <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 mb-3 sm:mb-4">
@@ -154,6 +146,7 @@ const Tags = () => {
           onChange={dataManager.setSearchTerm}
           onClear={dataManager.handleClearSearch}
           placeholder="Search tags by name, description, title, type, or category..."
+          isLoading={loading}
         />
       </div>
 
@@ -169,21 +162,20 @@ const Tags = () => {
       />
 
       {/* Pagination Controls */}
-      {!loading && (
-        <TagsPagination
-          currentPage={dataManager.currentPage}
-          totalPages={dataManager.totalPages}
-          totalEntries={dataManager.sortedData.length}
-          startIndex={dataManager.startIndex}
-          endIndex={dataManager.endIndex}
-          entriesPerPage={dataManager.entriesPerPage}
-          onPageChange={dataManager.setCurrentPage}
-          onEntriesPerPageChange={(value) => {
-            dataManager.setEntriesPerPage(value)
-            dataManager.setCurrentPage(1)
-          }}
-        />
-      )}
+      <TagsPagination
+        currentPage={dataManager.currentPage}
+        totalPages={dataManager.totalPages}
+        totalEntries={dataManager.sortedData.length}
+        startIndex={dataManager.startIndex}
+        endIndex={dataManager.endIndex}
+        entriesPerPage={dataManager.entriesPerPage}
+        onPageChange={dataManager.setCurrentPage}
+        onEntriesPerPageChange={(value) => {
+          dataManager.setEntriesPerPage(value)
+          dataManager.setCurrentPage(1)
+        }}
+        isLoading={loading}
+      />
 
       {/* Edit Tag Modal */}
       <EditTagModal

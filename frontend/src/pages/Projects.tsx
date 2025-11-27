@@ -4,7 +4,7 @@
  * Provides project management capabilities with edit and delete actions
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-11-27
  */
 
 import { useState, useEffect, useCallback } from 'react'
@@ -44,7 +44,7 @@ type SortDirection = 'ASC' | 'DESC'
  * Main projects page displaying all projects in a sortable, searchable table
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-11-27
  */
 const Projects = () => {
   const { showToast } = useToast()
@@ -64,13 +64,14 @@ const Projects = () => {
    * Uses Apollo Client's useQuery hook with error handling
    *
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-11-27
    */
   const { data, loading, error, refetch } = useQuery<{ projects: Project[] }>(PROJECTS_QUERY, {
     fetchPolicy: 'cache-and-network',
     errorPolicy: 'all',
   })
 
+  /** Debounce search term to improve performance - @author Thang Truong @date 2025-11-27 */
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm)
@@ -79,6 +80,7 @@ const Projects = () => {
     return () => clearTimeout(timer)
   }, [searchTerm])
 
+  /** Handle GraphQL query errors - @author Thang Truong @date 2025-11-27 */
   useEffect(() => {
     const handleError = async (): Promise<void> => {
       if (error) {
@@ -88,6 +90,7 @@ const Projects = () => {
     handleError()
   }, [error, showToast])
 
+  /** Initial data load - @author Thang Truong @date 2025-11-27 */
   useEffect(() => {
     const loadData = async (): Promise<void> => {
       try {
@@ -104,7 +107,7 @@ const Projects = () => {
    * Uses debounced search term for performance
    *
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-11-27
    */
   const sortedProjects = useProjectsFilterSort({
     projects: data?.projects || [],
@@ -116,6 +119,7 @@ const Projects = () => {
   const startIndex = (currentPage - 1) * entriesPerPage
   const paginatedProjects = sortedProjects.slice(startIndex, startIndex + entriesPerPage)
 
+  /** Handle column sorting - @author Thang Truong @date 2025-11-27 */
   const handleSort = useCallback(async (field: SortField): Promise<void> => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'ASC' ? 'DESC' : 'ASC')
@@ -125,6 +129,7 @@ const Projects = () => {
     }
   }, [sortField, sortDirection])
 
+  /** Handle edit project action - @author Thang Truong @date 2025-11-27 */
   const handleEdit = useCallback(async (projectId: string): Promise<void> => {
     const project = sortedProjects.find((p) => p.id === projectId)
     if (project) {
@@ -133,6 +138,7 @@ const Projects = () => {
     }
   }, [sortedProjects])
 
+  /** Handle delete project action - @author Thang Truong @date 2025-11-27 */
   const handleDelete = useCallback(async (projectId: string): Promise<void> => {
     const project = sortedProjects.find((p) => p.id === projectId)
     if (project) {
@@ -141,6 +147,7 @@ const Projects = () => {
     }
   }, [sortedProjects])
 
+  /** Handle successful mutation - @author Thang Truong @date 2025-11-27 */
   const handleSuccess = useCallback(async (): Promise<void> => {
     setSelectedProject(null)
     setIsEditModalOpen(false)
@@ -149,22 +156,27 @@ const Projects = () => {
     await refetch()
   }, [refetch])
 
+  /** Handle create project action - @author Thang Truong @date 2025-11-27 */
   const handleCreate = useCallback(async (): Promise<void> => {
     setIsCreateModalOpen(true)
   }, [])
 
+  /** Handle clear search action - @author Thang Truong @date 2025-11-27 */
   const handleClearSearch = useCallback(async (): Promise<void> => {
     setSearchTerm('')
     setDebouncedSearchTerm('')
   }, [])
 
   return (
+    /* Projects page container */
     <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4">
+      {/* Header with search and create button */}
       <ProjectsTableHeader
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         onClearSearch={handleClearSearch}
         onCreateClick={handleCreate}
+        isLoading={loading}
       />
 
       {/* Projects Table with Pagination */}
@@ -186,6 +198,7 @@ const Projects = () => {
         }}
       />
 
+      {/* Modals for edit, delete, and create */}
       <ProjectsTableModals
         selectedProject={selectedProject}
         isEditModalOpen={isEditModalOpen}

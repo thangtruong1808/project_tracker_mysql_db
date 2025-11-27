@@ -3,14 +3,13 @@
  * Displays dashboard-wide search outcomes using query parameters with improved UX
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useLazyQuery } from '@apollo/client'
 import SearchResultsPanel from '../components/SearchResultsPanel'
-import SearchLoadingState from '../components/SearchLoadingState'
 import SearchErrorState from '../components/SearchErrorState'
 import SearchResultsHeader from '../components/SearchResultsHeader'
 import SearchFilterBadges from '../components/SearchFilterBadges'
@@ -21,7 +20,7 @@ import { SEARCH_DASHBOARD_QUERY } from '../graphql/queries'
  * Returns array of status strings or empty array
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-11-27
  * @param value - Query parameter value
  * @returns Array of status strings
  */
@@ -41,7 +40,7 @@ const TASK_PAGE_SIZE = 12
  * Main component for displaying search results with filtering and pagination
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-11-27
  */
 const SearchResultsPage = () => {
   const [searchParams] = useSearchParams()
@@ -68,7 +67,7 @@ const SearchResultsPage = () => {
    * Resets both project and task pages to 1
    *
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-11-27
    */
   useEffect(() => {
     setProjectPage(1)
@@ -83,7 +82,7 @@ const SearchResultsPage = () => {
    * Constructs input object with query, statuses, and pagination
    *
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-11-27
    */
   const variables = useMemo(
     () => ({
@@ -105,7 +104,7 @@ const SearchResultsPage = () => {
    * Fetches search results asynchronously
    *
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-11-27
    */
   useEffect(() => {
     const executeSearch = async (): Promise<void> => {
@@ -123,7 +122,7 @@ const SearchResultsPage = () => {
    * Updates project page state and triggers new search
    *
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-11-27
    * @param nextPage - Next page number
    */
   const handleProjectPageChange = useCallback(async (nextPage: number): Promise<void> => {
@@ -135,7 +134,7 @@ const SearchResultsPage = () => {
    * Updates task page state and triggers new search
    *
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-11-27
    * @param nextPage - Next page number
    */
   const handleTaskPageChange = useCallback(async (nextPage: number): Promise<void> => {
@@ -152,22 +151,25 @@ const SearchResultsPage = () => {
   const error = queryError?.message || null
 
   return (
+    /* Search results page container */
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
-        <SearchResultsHeader />
+        {/* Header with loading skeleton */}
+        <SearchResultsHeader isLoading={isLoading} />
+        
+        {/* Filter badges with loading skeleton */}
         <SearchFilterBadges
           query={queryValue}
           projectStatuses={projectStatuses}
           taskStatuses={taskStatuses}
+          isLoading={isLoading}
         />
 
         {/* Main Content Card */}
         <div className="rounded-2xl border border-gray-200 bg-white p-6 md:p-8 shadow-lg">
-          {isLoading && <SearchLoadingState />}
-
           {error && <SearchErrorState message={error} />}
 
-          {!isLoading && !error && (
+          {!error && (
             <SearchResultsPanel
               query={queryValue}
               projectStatuses={projectStatuses}
@@ -180,6 +182,7 @@ const SearchResultsPage = () => {
               taskPage={taskPage}
               onProjectPageChange={handleProjectPageChange}
               onTaskPageChange={handleTaskPageChange}
+              isLoading={isLoading}
             />
           )}
         </div>

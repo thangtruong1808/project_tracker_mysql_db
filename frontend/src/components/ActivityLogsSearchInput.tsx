@@ -3,7 +3,7 @@
  * Search input with clear icon and debounce support via parent component
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-27
  */
 
 interface ActivityLogsSearchInputProps {
@@ -11,25 +11,34 @@ interface ActivityLogsSearchInputProps {
   onChange: (value: string) => void
   onClear: () => void
   placeholder?: string
+  isLoading?: boolean
 }
 
 /**
  * ActivityLogsSearchInput Component
  * Renders a search input with leading search icon and trailing clear button
  *
- * @param value - Current search term
- * @param onChange - Callback when search term changes
- * @param onClear - Callback when clear button is clicked
- * @param placeholder - Input placeholder text
- * @returns JSX element containing search input
+ * @author Thang Truong
+ * @date 2025-11-27
  */
 const ActivityLogsSearchInput = ({
   value,
   onChange,
   onClear,
   placeholder = 'Search activity logs by action, type, or metadata...',
+  isLoading = false
 }: ActivityLogsSearchInputProps) => {
+  if (isLoading) {
+    return (
+      /* Loading skeleton for search input */
+      <div className="relative w-full animate-pulse">
+        <div className="h-10 bg-gray-200 rounded-lg"></div>
+      </div>
+    )
+  }
+
   return (
+    /* Search input container */
     <div className="relative w-full">
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
         <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

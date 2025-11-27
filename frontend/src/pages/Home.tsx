@@ -4,9 +4,10 @@
  * Displays personalized content based on authentication status
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import TechStackSection from '../components/TechStackSection'
@@ -16,11 +17,83 @@ import TechStackSection from '../components/TechStackSection'
  * Main landing page showcasing Project Tracker features
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  * @returns JSX element containing home page content
  */
 const Home = () => {
   const { isAuthenticated, user } = useAuth()
+  const [isLoading, setIsLoading] = useState(true)
+
+  /** Simulate initial load for skeleton - @author Thang Truong @date 2025-11-27 */
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 600)
+    return () => clearTimeout(timer)
+  }, [])
+
+  if (isLoading) {
+    return (
+      /* Loading skeleton for slow network */
+      <div className="bg-gradient-to-br from-gray-50 via-white to-blue-50 py-8 px-4 sm:px-6 lg:px-8">
+        {/* Hero section skeleton */}
+        <section className="max-w-6xl mx-auto pt-8 pb-16 animate-pulse">
+          <div className="text-center">
+            <div className="h-8 bg-gray-200 rounded-full w-48 mx-auto mb-6"></div>
+            <div className="h-12 bg-gray-200 rounded w-3/4 mx-auto mb-4"></div>
+            <div className="h-12 bg-gray-200 rounded w-2/3 mx-auto mb-6"></div>
+            <div className="space-y-2 mb-8">
+              <div className="h-4 bg-gray-200 rounded w-2/3 mx-auto"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="h-12 bg-gray-200 rounded-lg w-40"></div>
+              <div className="h-12 bg-gray-200 rounded-lg w-40"></div>
+            </div>
+          </div>
+        </section>
+
+        {/* Features section skeleton */}
+        <section className="max-w-6xl mx-auto py-12 animate-pulse">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 sm:p-10">
+            <div className="text-center mb-10">
+              <div className="h-8 bg-gray-200 rounded w-64 mx-auto mb-3"></div>
+              <div className="h-4 bg-gray-200 rounded w-96 mx-auto"></div>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="bg-gray-50 rounded-xl p-6 border border-gray-100">
+                  <div className="w-12 h-12 bg-gray-200 rounded-xl mb-4"></div>
+                  <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-full"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Tech stack section skeleton */}
+        <section className="max-w-6xl mx-auto py-12 animate-pulse">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 sm:p-10">
+            <div className="text-center mb-10">
+              <div className="h-6 bg-gray-200 rounded-full w-24 mx-auto mb-4"></div>
+              <div className="h-8 bg-gray-200 rounded w-64 mx-auto mb-3"></div>
+              <div className="h-4 bg-gray-200 rounded w-96 mx-auto"></div>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {[1, 2, 3, 4, 5, 6, 7].map(i => (
+                <div key={i} className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8 h-8 bg-gray-200 rounded"></div>
+                    <div className="h-6 bg-gray-200 rounded w-20"></div>
+                  </div>
+                  <div className="h-4 bg-gray-200 rounded w-full"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
+    )
+  }
 
   return (
     /* Home page container - consistent background with other pages */

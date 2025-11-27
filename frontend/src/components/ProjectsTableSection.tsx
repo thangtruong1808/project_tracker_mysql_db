@@ -3,7 +3,7 @@
  * Displays projects table with pagination
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-11-27
  */
 
 import ProjectsTable from './ProjectsTable'
@@ -41,7 +41,7 @@ interface ProjectsTableSectionProps {
  * Renders projects table and pagination controls
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-11-27
  */
 const ProjectsTableSection = ({
   projects,
@@ -63,6 +63,7 @@ const ProjectsTableSection = ({
 
   return (
     <>
+      {/* Projects table with loading state */}
       <ProjectsTable
         projects={projects}
         sortField={sortField}
@@ -72,21 +73,20 @@ const ProjectsTableSection = ({
         onDelete={onDelete}
         isLoading={loading}
       />
-      {!loading && (
-        <ProjectsPagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalEntries={sortedProjects.length}
-          startIndex={startIndex}
-          endIndex={endIndex}
-          entriesPerPage={entriesPerPage}
-          onPageChange={onPageChange}
-          onEntriesPerPageChange={onEntriesPerPageChange}
-        />
-      )}
+      {/* Pagination controls with loading skeleton */}
+      <ProjectsPagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalEntries={sortedProjects.length}
+        startIndex={startIndex}
+        endIndex={endIndex}
+        entriesPerPage={entriesPerPage}
+        onPageChange={onPageChange}
+        onEntriesPerPageChange={onEntriesPerPageChange}
+        isLoading={loading}
+      />
     </>
   )
 }
 
 export default ProjectsTableSection
-

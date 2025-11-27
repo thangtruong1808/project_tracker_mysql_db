@@ -3,7 +3,7 @@
  * Displays project team members with search, sorting, pagination, and CRUD
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-27
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
@@ -50,6 +50,7 @@ const Team = () => {
     errorPolicy: 'all',
   })
 
+  /** Debounce search term to improve performance - @author Thang Truong @date 2025-11-27 */
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm)
@@ -58,45 +59,48 @@ const Team = () => {
     return () => clearTimeout(timer)
   }, [searchTerm])
 
+  /** Handle GraphQL query errors - @author Thang Truong @date 2025-11-27 */
   useEffect(() => {
-    if (error) {
-      showToast('Failed to load team members. Please try again later.', 'error', 7000)
+    const handleError = async (): Promise<void> => {
+      if (error) {
+        await showToast('Failed to load team members. Please try again later.', 'error', 7000)
+      }
     }
+    handleError()
   }, [error, showToast])
 
+  /** Initial data load - @author Thang Truong @date 2025-11-27 */
   useEffect(() => {
-    refetch().catch(() => undefined)
+    const loadData = async (): Promise<void> => {
+      try {
+        await refetch()
+      } catch {
+        // Error handled by error effect
+      }
+    }
+    loadData()
   }, [refetch])
 
+  /** Filter and sort team members - @author Thang Truong @date 2025-11-27 */
   const filteredMembers = useMemo(() => {
     const members = data?.teamMembers || []
     const term = debouncedSearchTerm.trim().toLowerCase()
     const filtered = term
-      ? members.filter((member) => {
-        return (
-          member.memberName.toLowerCase().includes(term) ||
-          member.memberEmail.toLowerCase().includes(term) ||
-          member.projectName.toLowerCase().includes(term) ||
-          member.role.toLowerCase().includes(term)
+      ? members.filter((m) =>
+          m.memberName.toLowerCase().includes(term) ||
+          m.memberEmail.toLowerCase().includes(term) ||
+          m.projectName.toLowerCase().includes(term) ||
+          m.role.toLowerCase().includes(term)
         )
-      })
       : members
-
-    const sorted = [...filtered].sort((a, b) => {
-      const getValue = (member: TeamMember, field: SortField) => {
-        if (field === 'createdAt' || field === 'updatedAt') {
-          return new Date(member[field]).getTime()
-        }
-        return member[field].toLowerCase()
-      }
-      const aValue = getValue(a, sortField)
-      const bValue = getValue(b, sortField)
-      if (aValue === bValue) {
-        return 0
-      }
-      return sortDirection === 'ASC' ? (aValue > bValue ? 1 : -1) : (aValue < bValue ? 1 : -1)
+    const getValue = (m: TeamMember, f: SortField) =>
+      f === 'createdAt' || f === 'updatedAt' ? new Date(m[f]).getTime() : m[f].toLowerCase()
+    return [...filtered].sort((a, b) => {
+      const aVal = getValue(a, sortField)
+      const bVal = getValue(b, sortField)
+      if (aVal === bVal) return 0
+      return sortDirection === 'ASC' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1)
     })
-    return sorted
   }, [data?.teamMembers, debouncedSearchTerm, sortField, sortDirection])
 
   const totalPages = Math.max(1, Math.ceil(filteredMembers.length / entriesPerPage))
@@ -104,8 +108,9 @@ const Team = () => {
   const endIndex = startIndex + entriesPerPage
   const paginatedMembers = filteredMembers.slice(startIndex, endIndex)
 
+  /** Handle column sorting - @author Thang Truong @date 2025-11-27 */
   const handleSort = useCallback(
-    (field: SortField) => {
+    async (field: SortField): Promise<void> => {
       if (sortField === field) {
         setSortDirection((prev) => (prev === 'ASC' ? 'DESC' : 'ASC'))
       } else {
@@ -116,8 +121,9 @@ const Team = () => {
     [sortField]
   )
 
+  /** Handle edit team member action - @author Thang Truong @date 2025-11-27 */
   const handleEdit = useCallback(
-    (teamMemberId: string) => {
+    async (teamMemberId: string): Promise<void> => {
       const member = filteredMembers.find((item) => item.id === teamMemberId)
       if (member) {
         setSelectedMember(member)
@@ -127,8 +133,9 @@ const Team = () => {
     [filteredMembers]
   )
 
+  /** Handle delete team member action - @author Thang Truong @date 2025-11-27 */
   const handleDelete = useCallback(
-    (teamMemberId: string) => {
+    async (teamMemberId: string): Promise<void> => {
       const member = filteredMembers.find((item) => item.id === teamMemberId)
       if (member) {
         setSelectedMember(member)
@@ -138,40 +145,64 @@ const Team = () => {
     [filteredMembers]
   )
 
-  const handleSuccess = useCallback(() => {
+  /** Handle successful CRUD operation - @author Thang Truong @date 2025-11-27 */
+  const handleSuccess = useCallback(async (): Promise<void> => {
     setSelectedMember(null)
     setIsCreateModalOpen(false)
     setIsEditModalOpen(false)
     setIsDeleteDialogOpen(false)
-  }, [])
+    await refetch()
+  }, [refetch])
 
-  const handleClearSearch = () => {
+  /** Handle clear search action - @author Thang Truong @date 2025-11-27 */
+  const handleClearSearch = useCallback(async (): Promise<void> => {
     setSearchTerm('')
     setDebouncedSearchTerm('')
-  }
+  }, [])
+
+  /** Close create modal - @author Thang Truong @date 2025-11-27 */
+  const closeCreateModal = useCallback(async (): Promise<void> => setIsCreateModalOpen(false), [])
+  /** Close edit modal - @author Thang Truong @date 2025-11-27 */
+  const closeEditModal = useCallback(async (): Promise<void> => { setIsEditModalOpen(false); setSelectedMember(null) }, [])
+  /** Close delete dialog - @author Thang Truong @date 2025-11-27 */
+  const closeDeleteDialog = useCallback(async (): Promise<void> => { setIsDeleteDialogOpen(false); setSelectedMember(null) }, [])
 
   return (
+    /* Team page container */
     <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4">
-      <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
-          Manage every teammate across all projects with the same search, sort, and pagination UX used elsewhere. Keep project staffing organized and
-          transparent.
-        </p>
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base whitespace-nowrap"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          <span>Add Team Member</span>
-        </button>
-      </div>
+      {/* Header Section with Description and Create Button */}
+      {loading ? (
+        <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-pulse">
+          <div className="h-4 bg-gray-200 rounded w-3/4 max-w-md"></div>
+          <div className="h-10 bg-blue-200 rounded-lg w-32"></div>
+        </div>
+      ) : (
+        <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <p className="text-gray-600 text-sm sm:text-base leading-relaxed">Manage every teammate across all projects with the same search, sort, and pagination UX used elsewhere. Keep project staffing organized and transparent.</p>
+          <button
+            onClick={async () => setIsCreateModalOpen(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base whitespace-nowrap"
+            aria-label="Add team member"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Add Team Member</span>
+          </button>
+        </div>
+      )}
 
+      {/* Search Input Section */}
       <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 mb-3 sm:mb-4">
-        <TeamSearchInput value={searchTerm} onChange={setSearchTerm} onClear={handleClearSearch} />
+        <TeamSearchInput
+          value={searchTerm}
+          onChange={setSearchTerm}
+          onClear={handleClearSearch}
+          isLoading={loading}
+        />
       </div>
 
+      {/* Team Members Data Table */}
       <TeamTable
         members={paginatedMembers}
         sortField={sortField}
@@ -182,52 +213,29 @@ const Team = () => {
         isLoading={loading}
       />
 
-      {!loading && (
-        <TeamPagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalEntries={filteredMembers.length}
-          startIndex={startIndex}
-          endIndex={endIndex}
-          entriesPerPage={entriesPerPage}
-          onPageChange={setCurrentPage}
-          onEntriesPerPageChange={(value) => {
-            setEntriesPerPage(value)
-            setCurrentPage(1)
-          }}
-        />
-      )}
-
-      <CreateTeamMemberModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSuccess={handleSuccess} />
-
-      <EditTeamMemberModal
-        member={selectedMember}
-        isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false)
-          setSelectedMember(null)
+      {/* Pagination Controls */}
+      <TeamPagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalEntries={filteredMembers.length}
+        startIndex={startIndex}
+        endIndex={endIndex}
+        entriesPerPage={entriesPerPage}
+        onPageChange={setCurrentPage}
+        onEntriesPerPageChange={(value) => {
+          setEntriesPerPage(value)
+          setCurrentPage(1)
         }}
-        onSuccess={handleSuccess}
+        isLoading={loading}
       />
 
+      {/* Modals */}
+      <CreateTeamMemberModal isOpen={isCreateModalOpen} onClose={closeCreateModal} onSuccess={handleSuccess} />
+      <EditTeamMemberModal member={selectedMember} isOpen={isEditModalOpen} onClose={closeEditModal} onSuccess={handleSuccess} />
       <DeleteTeamMemberDialog
-        member={
-          selectedMember
-            ? {
-              id: selectedMember.id,
-              projectId: selectedMember.projectId,
-              userId: selectedMember.userId,
-              memberName: selectedMember.memberName,
-              projectName: selectedMember.projectName,
-              role: selectedMember.role,
-            }
-            : null
-        }
+        member={selectedMember ? { id: selectedMember.id, projectId: selectedMember.projectId, userId: selectedMember.userId, memberName: selectedMember.memberName, projectName: selectedMember.projectName, role: selectedMember.role } : null}
         isOpen={isDeleteDialogOpen}
-        onClose={() => {
-          setIsDeleteDialogOpen(false)
-          setSelectedMember(null)
-        }}
+        onClose={closeDeleteDialog}
         onSuccess={handleSuccess}
       />
     </div>
@@ -235,4 +243,3 @@ const Team = () => {
 }
 
 export default Team
-

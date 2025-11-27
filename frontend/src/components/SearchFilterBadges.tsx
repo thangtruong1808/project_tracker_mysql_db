@@ -3,13 +3,14 @@
  * Displays filter badges showing active search criteria
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-11-27
  */
 
 interface SearchFilterBadgesProps {
   query: string
   projectStatuses: string[]
   taskStatuses: string[]
+  isLoading?: boolean
 }
 
 /**
@@ -17,7 +18,7 @@ interface SearchFilterBadgesProps {
  * Converts status values to readable format
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-11-27
  * @param statuses - Array of status strings
  * @returns Formatted status string
  */
@@ -31,20 +32,33 @@ const formatStatusBadge = (statuses: string[]): string => {
  * Renders badges showing active search filters
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-11-27
  */
 const SearchFilterBadges = ({
   query,
   projectStatuses,
-  taskStatuses
+  taskStatuses,
+  isLoading = false
 }: SearchFilterBadgesProps) => {
   const hasFilters = query || projectStatuses.length > 0 || taskStatuses.length > 0
+
+  if (isLoading) {
+    return (
+      /* Loading skeleton for filter badges */
+      <div className="mb-6 flex flex-wrap gap-3 animate-pulse">
+        <div className="h-8 bg-gray-200 rounded-full w-32"></div>
+        <div className="h-8 bg-gray-200 rounded-full w-40"></div>
+        <div className="h-8 bg-gray-200 rounded-full w-36"></div>
+      </div>
+    )
+  }
 
   if (!hasFilters) {
     return null
   }
 
   return (
+    /* Filter badges container */
     <div className="mb-6 flex flex-wrap gap-3">
       {query && (
         <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 text-blue-800 px-4 py-2 text-sm font-medium border border-blue-200">
@@ -105,4 +119,3 @@ const SearchFilterBadges = ({
 }
 
 export default SearchFilterBadges
-
