@@ -4,11 +4,12 @@
  * CRUD operations for project team members
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
 import { db } from '../../db'
 import { mapTeamMemberRecord, formatDateToISO, formatTeamMemberName } from '../../utils/formatters'
+import { requireAuthentication } from '../../utils/helpers'
 
 /**
  * Fetch team member record from database
@@ -35,16 +36,17 @@ const fetchTeamMemberRecord = async (projectId: string | number, userId: string 
  * Team Query Resolvers
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 export const teamQueryResolvers = {
   /**
-   * Fetch all team members
+   * Fetch all team members - requires authentication
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-11-27
    */
-  teamMembers: async () => {
+  teamMembers: async (_: any, __: any, context: { req: any }) => {
+    requireAuthentication(context, 'Authentication required to fetch team members.')
     const members = (await db.query(
       `SELECT pm.project_id, pm.user_id, pm.role, pm.created_at, pm.updated_at,
         p.name AS project_name, u.first_name, u.last_name, u.email
@@ -63,16 +65,17 @@ export const teamQueryResolvers = {
  * Team Mutation Resolvers
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 export const teamMutationResolvers = {
   /**
-   * Create team member mutation
+   * Create team member mutation - requires authentication
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-11-27
    */
-  createTeamMember: async (_: any, { input }: { input: any }) => {
+  createTeamMember: async (_: any, { input }: { input: any }, context: { req: any }) => {
+    requireAuthentication(context, 'Authentication required to create team members.')
     const { projectId, userId, role } = input
     const memberRole = role || 'VIEWER'
 
@@ -97,12 +100,13 @@ export const teamMutationResolvers = {
   },
 
   /**
-   * Update team member mutation
+   * Update team member mutation - requires authentication
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-11-27
    */
-  updateTeamMember: async (_: any, { input }: { input: any }) => {
+  updateTeamMember: async (_: any, { input }: { input: any }, context: { req: any }) => {
+    requireAuthentication(context, 'Authentication required to update team members.')
     const { projectId, userId, role } = input
 
     await db.query(
@@ -114,12 +118,13 @@ export const teamMutationResolvers = {
   },
 
   /**
-   * Delete team member mutation (soft delete)
+   * Delete team member mutation (soft delete) - requires authentication
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-11-27
    */
-  deleteTeamMember: async (_: any, { projectId, userId }: { projectId: string; userId: string }) => {
+  deleteTeamMember: async (_: any, { projectId, userId }: { projectId: string; userId: string }, context: { req: any }) => {
+    requireAuthentication(context, 'Authentication required to delete team members.')
     const result = (await db.query(
       'UPDATE project_members SET is_deleted = true, updated_at = CURRENT_TIMESTAMP(3) WHERE project_id = ? AND user_id = ? AND is_deleted = false',
       [projectId, userId]

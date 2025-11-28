@@ -4,32 +4,33 @@
  * CRUD operations for user management
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
 import { v4 as uuidv4 } from 'uuid'
 import { db } from '../../db'
 import { hashPassword } from '../../utils/auth'
 import { formatDateToISO } from '../../utils/formatters'
+import { requireAuthentication } from '../../utils/helpers'
 
 /**
  * Users Query Resolvers
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 export const usersQueryResolvers = {
   /**
-   * Fetch all users
+   * Fetch all users - requires authentication
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-11-27
    */
-  users: async () => {
+  users: async (_: any, __: any, context: { req: any }) => {
+    requireAuthentication(context, 'Authentication required to fetch users.')
     const users = (await db.query(
       'SELECT id, uuid, first_name, last_name, email, role, created_at, updated_at FROM users WHERE is_deleted = false ORDER BY created_at DESC'
     )) as any[]
-
     return users.map((user: any) => ({
       id: user.id.toString(),
       uuid: user.uuid,
@@ -47,16 +48,17 @@ export const usersQueryResolvers = {
  * Users Mutation Resolvers
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 export const usersMutationResolvers = {
   /**
-   * Create user mutation
+   * Create user mutation - requires authentication
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-11-27
    */
-  createUser: async (_: any, { input }: { input: any }) => {
+  createUser: async (_: any, { input }: { input: any }, context: { req: any }) => {
+    requireAuthentication(context, 'Authentication required to create users.')
     const existingUsers = (await db.query(
       'SELECT * FROM users WHERE email = ? AND is_deleted = false',
       [input.email]
@@ -101,12 +103,13 @@ export const usersMutationResolvers = {
   },
 
   /**
-   * Update user mutation
+   * Update user mutation - requires authentication
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-11-27
    */
-  updateUser: async (_: any, { id, input }: { id: string; input: any }) => {
+  updateUser: async (_: any, { id, input }: { id: string; input: any }, context: { req: any }) => {
+    requireAuthentication(context, 'Authentication required to update users.')
     const updates: string[] = []
     const values: any[] = []
 
@@ -161,12 +164,13 @@ export const usersMutationResolvers = {
   },
 
   /**
-   * Delete user mutation (soft delete)
+   * Delete user mutation (soft delete) - requires authentication
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-11-27
    */
-  deleteUser: async (_: any, { id }: { id: string }) => {
+  deleteUser: async (_: any, { id }: { id: string }, context: { req: any }) => {
+    requireAuthentication(context, 'Authentication required to delete users.')
     const result = (await db.query(
       'UPDATE users SET is_deleted = true, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND is_deleted = false',
       [id]

@@ -4,7 +4,7 @@
  * Shows sample requests for login, fetching projects, and search
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
 interface FooterApiGuideModalProps {
@@ -17,19 +17,12 @@ interface FooterApiGuideModalProps {
  * Displays comprehensive API testing guide with Postman instructions
  *
  * @author Thang Truong
- * @date 2025-11-26
- * @returns JSX element containing the API guide modal
+ * @date 2025-11-27
  */
 const FooterApiGuideModal = ({ isOpen, onClose }: FooterApiGuideModalProps) => {
   if (!isOpen) return null
 
-  /**
-   * Handle backdrop click to close modal
-   * Closes modal when clicking outside the content area
-   *
-   * @author Thang Truong
-   * @date 2025-11-26
-   */
+  /** Handle backdrop click to close modal - @author Thang Truong @date 2025-11-27 */
   const handleBackdropClick = async (e: React.MouseEvent<HTMLDivElement>): Promise<void> => {
     if (e.target === e.currentTarget) {
       onClose()
@@ -102,9 +95,11 @@ const FooterApiGuideModal = ({ isOpen, onClose }: FooterApiGuideModalProps) => {
               <span className="w-6 h-6 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-sm font-bold">3</span>
               Fetch All Projects
             </h3>
+            <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-700 mb-3">
+              <p className="text-xs text-gray-600">ℹ️ This is a <strong>public endpoint</strong> - no authentication required.</p>
+            </div>
             <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
               <pre className="text-sm text-green-400 whitespace-pre-wrap">{`POST /graphql
-Authorization: Bearer <accessToken>
 
 {
   "query": "query { projects { id name description status owner { id firstName lastName } createdAt updatedAt } }"
@@ -118,9 +113,11 @@ Authorization: Bearer <accessToken>
               <span className="w-6 h-6 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-sm font-bold">4</span>
               Fetch Project by ID
             </h3>
+            <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-700 mb-3">
+              <p className="text-xs text-gray-600">ℹ️ This is a <strong>public endpoint</strong> - no authentication required.</p>
+            </div>
             <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
               <pre className="text-sm text-green-400 whitespace-pre-wrap">{`POST /graphql
-Authorization: Bearer <accessToken>
 
 {
   "query": "query GetProject($id: ID!) { project(id: $id) { id name description status owner { id firstName lastName email } tasks { id title status } createdAt } }",
@@ -137,9 +134,11 @@ Authorization: Bearer <accessToken>
               <span className="w-6 h-6 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center text-sm font-bold">5</span>
               Search by Project Status
             </h3>
+            <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-700 mb-3">
+              <p className="text-xs text-gray-600">ℹ️ This is a <strong>public endpoint</strong> - no authentication required.</p>
+            </div>
             <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
               <pre className="text-sm text-green-400 whitespace-pre-wrap">{`POST /graphql
-Authorization: Bearer <accessToken>
 
 {
   "query": "query Search($query: String, $projectStatuses: [String!]) { search(query: $query, projectStatuses: $projectStatuses) { projects { id name status description } tasks { id title status } } }",
@@ -150,6 +149,40 @@ Authorization: Bearer <accessToken>
 }`}</pre>
             </div>
             <p className="text-xs text-gray-500 mt-2">Available statuses: planning, active, on_hold, completed, cancelled</p>
+          </section>
+
+          {/* Fetch Notifications (Authenticated) Section */}
+          <section>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-sm font-bold">6</span>
+              Fetch Notifications (Requires Authentication)
+            </h3>
+            <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-700 mb-3 space-y-3">
+              <p><strong>Step 6a:</strong> Copy <code className="bg-gray-200 px-1.5 py-0.5 rounded">accessToken</code> from Step 2 login response.</p>
+              <p><strong>Step 6b:</strong> In Postman Headers tab, add: <code className="bg-gray-200 px-1.5 py-0.5 rounded">Authorization: Bearer &lt;your-accessToken&gt;</code></p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
+                <p className="text-xs text-blue-800"><strong>🔐 Note:</strong> refreshToken is set as HTTP-only cookie automatically. Use <code className="bg-blue-100 px-1.5 py-0.5 rounded">Bearer {'{{accessToken}}'}</code> for env vars.</p>
+              </div>
+            </div>
+            <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto mb-3">
+              <pre className="text-sm text-green-400 whitespace-pre-wrap">{`POST /graphql
+Authorization: Bearer <your-accessToken>
+
+{
+  "query": "query { notifications { id userId message isRead createdAt updatedAt } }"
+}`}</pre>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700">
+              <p className="text-xs font-semibold mb-1">Refresh Token (if accessToken expires):</p>
+              <div className="bg-gray-900 rounded-lg p-3 overflow-x-auto">
+                <pre className="text-xs text-green-400 whitespace-pre-wrap">{`POST /graphql
+{
+  "query": "mutation RefreshToken($extendSession: Boolean) { refreshToken(extendSession: $extendSession) { accessToken } }",
+  "variables": { "extendSession": false }
+}`}</pre>
+              </div>
+              <p className="text-xs text-gray-600 mt-2">📝 refreshToken is sent automatically as cookie. Response contains new accessToken.</p>
+            </div>
           </section>
 
           {/* Tips Section */}

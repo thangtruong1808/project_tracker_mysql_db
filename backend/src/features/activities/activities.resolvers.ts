@@ -4,27 +4,28 @@
  * CRUD operations for activity logs
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
 import { db } from '../../db'
 import { formatDateToISO } from '../../utils/formatters'
-import { resolveActivityAction } from '../../utils/helpers'
+import { requireAuthentication, resolveActivityAction } from '../../utils/helpers'
 
 /**
  * Activities Query Resolvers
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 export const activitiesQueryResolvers = {
   /**
-   * Fetch all activity logs
+   * Fetch all activity logs - requires authentication
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-11-27
    */
-  activities: async () => {
+  activities: async (_: any, __: any, context: { req: any }) => {
+    requireAuthentication(context, 'Authentication required to fetch activities.')
     const activities = (await db.query(
       `SELECT id, user_id, target_user_id, project_id, task_id, action, type, metadata, created_at, updated_at
       FROM activity_logs ORDER BY created_at DESC`
@@ -45,12 +46,13 @@ export const activitiesQueryResolvers = {
   },
 
   /**
-   * Fetch single activity by ID
+   * Fetch single activity by ID - requires authentication
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-11-27
    */
-  activity: async (_: any, { id }: { id: string }) => {
+  activity: async (_: any, { id }: { id: string }, context: { req: any }) => {
+    requireAuthentication(context, 'Authentication required to fetch activity.')
     const activities = (await db.query(
       `SELECT id, user_id, target_user_id, project_id, task_id, action, type, metadata, created_at, updated_at
       FROM activity_logs WHERE id = ?`,
@@ -79,16 +81,17 @@ export const activitiesQueryResolvers = {
  * Activities Mutation Resolvers
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 export const activitiesMutationResolvers = {
   /**
-   * Create activity mutation
+   * Create activity mutation - requires authentication
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-11-27
    */
-  createActivity: async (_: any, { input }: { input: any }) => {
+  createActivity: async (_: any, { input }: { input: any }, context: { req: any }) => {
+    requireAuthentication(context, 'Authentication required to create activities.')
     const { userId, targetUserId, projectId, taskId, action, type, metadata } = input
 
     const result = (await db.query(
@@ -120,12 +123,13 @@ export const activitiesMutationResolvers = {
   },
 
   /**
-   * Update activity mutation
+   * Update activity mutation - requires authentication
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-11-27
    */
-  updateActivity: async (_: any, { id, input }: { id: string; input: any }) => {
+  updateActivity: async (_: any, { id, input }: { id: string; input: any }, context: { req: any }) => {
+    requireAuthentication(context, 'Authentication required to update activities.')
     const updates: string[] = []
     const values: any[] = []
 
@@ -168,12 +172,13 @@ export const activitiesMutationResolvers = {
   },
 
   /**
-   * Delete activity mutation
+   * Delete activity mutation - requires authentication
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-11-27
    */
-  deleteActivity: async (_: any, { id }: { id: string }) => {
+  deleteActivity: async (_: any, { id }: { id: string }, context: { req: any }) => {
+    requireAuthentication(context, 'Authentication required to delete activities.')
     const result = (await db.query('DELETE FROM activity_logs WHERE id = ?', [id])) as any
     if (result.affectedRows === 0) throw new Error('Activity not found')
     return true
