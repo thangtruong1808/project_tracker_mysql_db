@@ -3,35 +3,63 @@
  * Tablet layout for team members table
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-27
  */
 
 import { getRoleBadge, getRoleLabel } from '../utils/teamUtils'
 
 interface TeamMember {
   id: string
+  projectId: string
+  userId: string
   projectName: string
   memberName: string
   memberEmail: string
   role: string
+  rowNumber?: number
 }
 
-type SortField = 'projectName' | 'memberName' | 'memberEmail' | 'role'
+type SortField = 'projectId' | 'userId' | 'projectName' | 'memberName' | 'memberEmail' | 'role'
+type SortDirection = 'ASC' | 'DESC'
 
 interface TeamTableTabletProps {
   members: TeamMember[]
+  sortField: SortField
+  sortDirection: SortDirection
   onSort: (field: SortField) => void
   onEdit: (teamMemberId: string) => void
   onDelete: (teamMemberId: string) => void
   getSortIcon: (field: SortField) => JSX.Element
 }
 
-const TeamTableTablet = ({ members, onSort, onEdit, onDelete, getSortIcon }: TeamTableTabletProps) => {
+const TeamTableTablet = ({ members, sortField, sortDirection, onSort, onEdit, onDelete, getSortIcon }: TeamTableTabletProps) => {
   return (
+    /* Tablet table container */
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              ID
+            </th>
+            <th
+              onClick={() => onSort('projectId')}
+              className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                Project ID
+                {getSortIcon('projectId')}
+              </div>
+            </th>
+            <th
+              onClick={() => onSort('userId')}
+              className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                User ID
+                {getSortIcon('userId')}
+              </div>
+            </th>
             <th
               onClick={() => onSort('memberName')}
               className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
@@ -74,6 +102,9 @@ const TeamTableTablet = ({ members, onSort, onEdit, onDelete, getSortIcon }: Tea
         <tbody className="bg-white divide-y divide-gray-200">
           {members.map((member) => (
             <tr key={member.id} className="hover:bg-gray-100 transition-colors">
+              <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{member.rowNumber || ''}</td>
+              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{member.projectId}</td>
+              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{member.userId}</td>
               <td className="px-4 py-4">
                 <div className="text-sm font-medium text-gray-900">{member.memberName}</div>
               </td>

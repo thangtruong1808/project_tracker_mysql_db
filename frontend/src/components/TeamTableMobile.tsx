@@ -3,7 +3,7 @@
  * Mobile-friendly cards for displaying team members
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-27
  */
 
 import { formatDateToMelbourne, getRoleBadge, getRoleLabel } from '../utils/teamUtils'
@@ -33,8 +33,12 @@ const TeamTableMobile = ({ members, onEdit, onDelete }: TeamTableMobileProps) =>
         <div key={member.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0">
+              <p className="text-xs text-gray-500 mb-1">ID: <span className="font-medium">{(member as any).rowNumber || ''}</span></p>
               <p className="text-sm font-semibold text-gray-900">{member.memberName}</p>
               <p className="text-xs text-gray-600">{member.memberEmail}</p>
+              <p className="text-xs text-gray-600 mt-1">
+                Project ID: <span className="font-medium">{member.projectId}</span> | User ID: <span className="font-medium">{member.userId}</span>
+              </p>
               <p className="text-xs text-gray-600 mt-1">
                 Project: <span className="font-medium">{member.projectName}</span>
               </p>

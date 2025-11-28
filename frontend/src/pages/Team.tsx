@@ -27,9 +27,10 @@ interface TeamMember {
   role: string
   createdAt: string
   updatedAt: string
+  rowNumber?: number
 }
 
-type SortField = 'projectName' | 'memberName' | 'memberEmail' | 'role' | 'createdAt' | 'updatedAt'
+type SortField = 'projectId' | 'userId' | 'projectName' | 'memberName' | 'memberEmail' | 'role' | 'createdAt' | 'updatedAt'
 type SortDirection = 'ASC' | 'DESC'
 
 const Team = () => {
@@ -93,8 +94,11 @@ const Team = () => {
           m.role.toLowerCase().includes(term)
         )
       : members
-    const getValue = (m: TeamMember, f: SortField) =>
-      f === 'createdAt' || f === 'updatedAt' ? new Date(m[f]).getTime() : m[f].toLowerCase()
+    const getValue = (m: TeamMember, f: SortField) => {
+      if (f === 'projectId' || f === 'userId') return Number(m[f])
+      if (f === 'createdAt' || f === 'updatedAt') return new Date(m[f]).getTime()
+      return m[f].toLowerCase()
+    }
     return [...filtered].sort((a, b) => {
       const aVal = getValue(a, sortField)
       const bVal = getValue(b, sortField)
@@ -106,7 +110,10 @@ const Team = () => {
   const totalPages = Math.max(1, Math.ceil(filteredMembers.length / entriesPerPage))
   const startIndex = (currentPage - 1) * entriesPerPage
   const endIndex = startIndex + entriesPerPage
-  const paginatedMembers = filteredMembers.slice(startIndex, endIndex)
+  const paginatedMembers = filteredMembers.slice(startIndex, endIndex).map((member, index) => ({
+    ...member,
+    rowNumber: startIndex + index + 1,
+  }))
 
   /** Handle column sorting - @author Thang Truong @date 2025-11-27 */
   const handleSort = useCallback(
@@ -160,11 +167,9 @@ const Team = () => {
     setDebouncedSearchTerm('')
   }, [])
 
-  /** Close create modal - @author Thang Truong @date 2025-11-27 */
+  /** Close modals - @author Thang Truong @date 2025-11-27 */
   const closeCreateModal = useCallback(async (): Promise<void> => setIsCreateModalOpen(false), [])
-  /** Close edit modal - @author Thang Truong @date 2025-11-27 */
   const closeEditModal = useCallback(async (): Promise<void> => { setIsEditModalOpen(false); setSelectedMember(null) }, [])
-  /** Close delete dialog - @author Thang Truong @date 2025-11-27 */
   const closeDeleteDialog = useCallback(async (): Promise<void> => { setIsDeleteDialogOpen(false); setSelectedMember(null) }, [])
 
   return (
@@ -178,7 +183,7 @@ const Team = () => {
         </div>
       ) : (
         <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <p className="text-gray-600 text-sm sm:text-base leading-relaxed">Manage every teammate across all projects with the same search, sort, and pagination UX used elsewhere. Keep project staffing organized and transparent.</p>
+          <p className="text-gray-600 text-sm sm:text-base leading-relaxed">Manage teammates across all projects with search, sort, and pagination.</p>
           <button
             onClick={async () => setIsCreateModalOpen(true)}
             className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base whitespace-nowrap"
@@ -232,12 +237,7 @@ const Team = () => {
       {/* Modals */}
       <CreateTeamMemberModal isOpen={isCreateModalOpen} onClose={closeCreateModal} onSuccess={handleSuccess} />
       <EditTeamMemberModal member={selectedMember} isOpen={isEditModalOpen} onClose={closeEditModal} onSuccess={handleSuccess} />
-      <DeleteTeamMemberDialog
-        member={selectedMember ? { id: selectedMember.id, projectId: selectedMember.projectId, userId: selectedMember.userId, memberName: selectedMember.memberName, projectName: selectedMember.projectName, role: selectedMember.role } : null}
-        isOpen={isDeleteDialogOpen}
-        onClose={closeDeleteDialog}
-        onSuccess={handleSuccess}
-      />
+      <DeleteTeamMemberDialog member={selectedMember ? { id: selectedMember.id, projectId: selectedMember.projectId, userId: selectedMember.userId, memberName: selectedMember.memberName, projectName: selectedMember.projectName, role: selectedMember.role } : null} isOpen={isDeleteDialogOpen} onClose={closeDeleteDialog} onSuccess={handleSuccess} />
     </div>
   )
 }

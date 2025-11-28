@@ -3,7 +3,7 @@
  * Skeleton loader for team members table
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-27
  */
 
 const TeamTableLoading = () => {
@@ -17,7 +17,7 @@ const TeamTableLoading = () => {
         <table className="min-w-full divide-y divide-gray-200 animate-pulse">
           <thead className="bg-gray-50">
             <tr>
-              {Array.from({ length: 7 }).map((_, index) => (
+              {Array.from({ length: 10 }).map((_, index) => (
                 <th key={index} className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="h-4 bg-gray-200 rounded w-1/3"></div>
                 </th>
@@ -27,6 +27,15 @@ const TeamTableLoading = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {desktopRows.map((_, index) => (
               <tr key={index}>
+                <td className="px-4 xl:px-6 py-4">
+                  <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+                </td>
+                <td className="px-4 xl:px-6 py-4">
+                  <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+                </td>
+                <td className="px-4 xl:px-6 py-4">
+                  <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+                </td>
                 <td className="px-4 xl:px-6 py-4">
                   <div className="h-4 bg-gray-100 rounded w-2/3"></div>
                 </td>
@@ -61,7 +70,7 @@ const TeamTableLoading = () => {
         <table className="min-w-full divide-y divide-gray-200 animate-pulse">
           <thead className="bg-gray-50">
             <tr>
-              {Array.from({ length: 4 }).map((_, index) => (
+              {Array.from({ length: 8 }).map((_, index) => (
                 <th key={index} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="h-4 bg-gray-200 rounded w-1/3"></div>
                 </th>
@@ -72,6 +81,15 @@ const TeamTableLoading = () => {
             {tabletRows.map((_, index) => (
               <tr key={index}>
                 <td className="px-4 py-4">
+                  <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+                </td>
+                <td className="px-4 py-4">
+                  <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+                </td>
+                <td className="px-4 py-4">
+                  <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+                </td>
+                <td className="px-4 py-4">
                   <div className="h-4 bg-gray-100 rounded w-2/3"></div>
                 </td>
                 <td className="px-4 py-4">
@@ -79,6 +97,9 @@ const TeamTableLoading = () => {
                 </td>
                 <td className="px-4 py-4">
                   <div className="h-4 bg-gray-100 rounded w-1/2"></div>
+                </td>
+                <td className="px-4 py-4">
+                  <div className="h-6 bg-gray-100 rounded-full w-1/3"></div>
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex gap-2">

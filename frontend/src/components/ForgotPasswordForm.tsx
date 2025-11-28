@@ -109,7 +109,9 @@ const ForgotPasswordForm = () => {
         <div className="bg-white rounded-2xl shadow-xl p-8 sm:p-10 border border-gray-100">
           {/* Header with logo */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center mb-4"><Logo size="large" /></div>
+            <Link to="/" className="inline-flex items-center justify-center mb-4 hover:opacity-80 transition-opacity" aria-label="Navigate to home">
+              <Logo size="large" />
+            </Link>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Reset password</h2>
             <p className="text-gray-600">Enter your email address and create a new password for your account.</p>
           </div>

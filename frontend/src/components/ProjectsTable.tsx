@@ -3,7 +3,7 @@
  * Displays projects in a sortable table with action buttons
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-27
  */
 
 import ProjectsTableMobile from './ProjectsTableMobile'
@@ -82,10 +82,12 @@ const ProjectsTable = ({
   }
 
 
+  /** Show loading skeleton when data is being fetched - @author Thang Truong @date 2025-11-27 */
   if (isLoading) {
     return <ProjectsTableLoading />
   }
 
+  /** Show empty state when no projects are available - @author Thang Truong @date 2025-11-27 */
   if (projects.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-md p-8 sm:p-12 text-center">

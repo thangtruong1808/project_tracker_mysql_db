@@ -4,7 +4,7 @@
  * Uses GraphQL mutation to create new user account in database
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-27
  */
 
 import { useState } from 'react'
@@ -114,9 +114,9 @@ const RegisterForm = ({ onRegisterSuccess }: RegisterFormProps) => {
         <div className="bg-white rounded-2xl shadow-xl p-8 sm:p-10 border border-gray-100">
           {/* Logo & Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center mb-4">
+            <Link to="/" className="inline-flex items-center justify-center mb-4 hover:opacity-80 transition-opacity" aria-label="Navigate to home">
               <Logo size="large" />
-            </div>
+            </Link>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Create your account</h2>
             <p className="text-gray-600">Get started with Project Tracker today</p>
           </div>

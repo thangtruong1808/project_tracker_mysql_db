@@ -62,6 +62,8 @@ const Projects = () => {
   /**
    * Fetch projects data from GraphQL API
    * Uses Apollo Client's useQuery hook with error handling
+   * Uses 'cache-and-network' to show cached data immediately, but also fetches fresh data
+   * Loading state is determined by checking both loading flag and data availability
    *
    * @author Thang Truong
    * @date 2025-11-27
@@ -70,6 +72,9 @@ const Projects = () => {
     fetchPolicy: 'cache-and-network',
     errorPolicy: 'all',
   })
+
+  /** Determine if we should show loading skeleton - show when loading or no data available - @author Thang Truong @date 2025-11-27 */
+  const isLoading = loading || !data?.projects
 
   /** Debounce search term to improve performance - @author Thang Truong @date 2025-11-27 */
   useEffect(() => {
@@ -176,7 +181,7 @@ const Projects = () => {
         onSearchChange={setSearchTerm}
         onClearSearch={handleClearSearch}
         onCreateClick={handleCreate}
-        isLoading={loading}
+        isLoading={isLoading}
       />
 
       {/* Projects Table with Pagination */}
@@ -187,7 +192,7 @@ const Projects = () => {
         sortDirection={sortDirection}
         currentPage={currentPage}
         entriesPerPage={entriesPerPage}
-        loading={loading}
+        loading={isLoading}
         onSort={handleSort}
         onEdit={handleEdit}
         onDelete={handleDelete}

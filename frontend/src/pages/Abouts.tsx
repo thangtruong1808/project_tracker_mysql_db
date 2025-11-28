@@ -17,16 +17,30 @@ interface TechHighlight {
 
 /**
  * Abouts Page Component
+ * Shows loading skeleton only when network is slow, otherwise renders immediately
  * @author Thang Truong
  * @date 2025-11-27
  */
 function Abouts() {
   const [isLoading, setIsLoading] = useState(true)
 
-  /** Simulate initial load for skeleton - @author Thang Truong @date 2025-11-27 */
+  /** Detect slow network and show skeleton only when needed - @author Thang Truong @date 2025-11-27 */
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 600)
-    return () => clearTimeout(timer)
+    const startTime = performance.now()
+    const checkLoadTime = async (): Promise<void> => {
+      // Wait a short time to detect slow network
+      await new Promise(resolve => setTimeout(resolve, 150))
+      const loadTime = performance.now() - startTime
+      
+      // Only show skeleton if network is slow (load time > 200ms)
+      // Otherwise render immediately for fast networks
+      if (loadTime > 200) {
+        // Network is slow, show skeleton briefly
+        await new Promise(resolve => setTimeout(resolve, 300))
+      }
+      setIsLoading(false)
+    }
+    checkLoadTime()
   }, [])
 
   /** Technology highlights data - @author Thang Truong @date 2025-11-27 */

@@ -139,7 +139,7 @@ const LoginForm = ({ onLoginSuccess }: LoginFormProps) => {
                 <div className="text-sm text-blue-800 space-y-1">
                   <p>
                     <span className="font-medium">Email:</span>{' '}
-                    <span className="font-mono bg-blue-100 px-2 py-0.5 rounded">john.doe@example.com</span>
+                    <span className="font-mono bg-blue-100 px-2 py-0.5 rounded">thangtruong1808@gmail.com</span>
                   </p>
                   <p>
                     <span className="font-medium">Password:</span>{' '}

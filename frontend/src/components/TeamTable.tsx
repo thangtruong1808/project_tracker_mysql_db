@@ -3,7 +3,7 @@
  * Desktop/tablet/mobile table for project team members
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-27
  */
 
 import TeamTableMobile from './TeamTableMobile'
@@ -21,9 +21,10 @@ interface TeamMember {
   role: string
   createdAt: string
   updatedAt: string
+  rowNumber?: number
 }
 
-type SortField = 'projectName' | 'memberName' | 'memberEmail' | 'role' | 'createdAt' | 'updatedAt'
+type SortField = 'projectId' | 'userId' | 'projectName' | 'memberName' | 'memberEmail' | 'role' | 'createdAt' | 'updatedAt'
 type SortDirection = 'ASC' | 'DESC'
 
 interface TeamTableProps {
@@ -79,6 +80,9 @@ const TeamTable = ({ members, sortField, sortDirection, onSort, onEdit, onDelete
           <thead className="bg-gray-50">
             <tr>
               {[
+                ['id', 'ID'],
+                ['projectId', 'Project ID'],
+                ['userId', 'User ID'],
                 ['memberName', 'Member'],
                 ['memberEmail', 'Email'],
                 ['projectName', 'Project'],
@@ -88,12 +92,12 @@ const TeamTable = ({ members, sortField, sortDirection, onSort, onEdit, onDelete
               ].map(([field, label]) => (
                 <th
                   key={field}
-                  onClick={() => onSort(field as SortField)}
-                  className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => field !== 'id' && onSort(field as SortField)}
+                  className={`px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${field !== 'id' ? 'cursor-pointer hover:bg-gray-100 transition-colors' : ''}`}
                 >
                   <div className="flex items-center gap-2">
                     {label}
-                    {getSortIcon(field as SortField)}
+                    {field !== 'id' && getSortIcon(field as SortField)}
                   </div>
                 </th>
               ))}
@@ -103,6 +107,9 @@ const TeamTable = ({ members, sortField, sortDirection, onSort, onEdit, onDelete
           <tbody className="bg-white divide-y divide-gray-200">
             {members.map((member) => (
               <tr key={member.id} className="hover:bg-gray-100 transition-colors">
+                <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{member.rowNumber || ''}</td>
+                <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm text-gray-700">{member.projectId}</td>
+                <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm text-gray-700">{member.userId}</td>
                 <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{member.memberName}</td>
                 <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm text-gray-700">{member.memberEmail}</td>
                 <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm text-gray-700">{member.projectName}</td>
@@ -144,7 +151,15 @@ const TeamTable = ({ members, sortField, sortDirection, onSort, onEdit, onDelete
       </div>
 
       <div className="hidden md:block lg:hidden">
-        <TeamTableTablet members={members} onSort={onSort} onEdit={onEdit} onDelete={onDelete} getSortIcon={getSortIcon} />
+        <TeamTableTablet
+          members={members}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSort={onSort}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          getSortIcon={getSortIcon}
+        />
       </div>
 
       <div className="md:hidden">
