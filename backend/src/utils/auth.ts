@@ -3,12 +3,11 @@
  * Handles JWT token generation and password hashing
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-01-27
  */
 
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
-import { v4 as uuidv4 } from 'uuid'
 import crypto from 'crypto'
 
 // Get JWT_SECRET from environment variables
@@ -188,9 +187,13 @@ export const generateAccessToken = (userId: number, email: string): string => {
 
 /**
  * Generate refresh token ID
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
  * @returns Unique refresh token ID
  */
-export const generateRefreshTokenId = (): string => {
+export const generateRefreshTokenId = async (): Promise<string> => {
+  const { v4: uuidv4 } = await import('uuid')
   return uuidv4()
 }
 

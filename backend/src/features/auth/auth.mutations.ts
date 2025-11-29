@@ -43,7 +43,7 @@ export const authMutationResolvers = {
     if (!isValidPassword) throw new Error('Invalid email or password')
 
     const accessToken = generateAccessToken(user.id, user.email)
-    const refreshTokenId = generateRefreshTokenId()
+    const refreshTokenId = await generateRefreshTokenId()
     const refreshToken = generateRefreshToken(user.id, refreshTokenId)
     const tokenHash = hashRefreshToken(refreshToken)
     const expiresAt = calculateRefreshTokenExpiry()
@@ -92,7 +92,7 @@ export const authMutationResolvers = {
 
     const user = users[0]
     const accessToken = generateAccessToken(user.id, user.email)
-    const refreshTokenId = generateRefreshTokenId()
+    const refreshTokenId = await generateRefreshTokenId()
     const refreshToken = generateRefreshToken(user.id, refreshTokenId)
     const tokenHash = hashRefreshToken(refreshToken)
     const expiresAt = calculateRefreshTokenExpiry()
@@ -159,7 +159,7 @@ export const authMutationResolvers = {
       const newAccessToken = generateAccessToken(user.id, user.email)
 
       if (extendSession === true) {
-        const newRefreshTokenId = generateRefreshTokenId()
+        const newRefreshTokenId = await generateRefreshTokenId()
         const newRefreshToken = generateRefreshToken(user.id, newRefreshTokenId)
         const newTokenHash = hashRefreshToken(newRefreshToken)
         const newExpiresAt = calculateRefreshTokenExpiry()

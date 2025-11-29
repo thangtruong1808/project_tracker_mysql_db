@@ -7,7 +7,6 @@
  * @date 2025-11-27
  */
 
-import { v4 as uuidv4 } from 'uuid'
 import { db } from '../../db'
 import { hashPassword } from '../../utils/auth'
 import { formatDateToISO } from '../../utils/formatters'
@@ -69,6 +68,7 @@ export const usersMutationResolvers = {
     }
 
     const hashedPassword = await hashPassword(input.password)
+    const { v4: uuidv4 } = await import('uuid')
     const userUuid = uuidv4()
     const userRole = input.role || 'Frontend Developer'
 

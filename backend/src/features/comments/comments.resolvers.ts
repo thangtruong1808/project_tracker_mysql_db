@@ -9,7 +9,6 @@ import { pubsub } from '../../utils/pubsub'
 import { verifyAccessToken } from '../../utils/auth'
 import { formatDateToISO } from '../../utils/formatters'
 import { getUserDisplayName, notifyProjectParticipants, requireAuthentication, tryGetUserIdFromRequest } from '../../utils/helpers'
-import { v4 as uuidv4 } from 'uuid'
 
 /**
  * Build comment payload for subscription
@@ -110,6 +109,7 @@ export const commentsMutationResolvers = {
     const projects = (await db.query('SELECT id, name, owner_id FROM projects WHERE id = ? AND is_deleted = false', [projectId])) as any[]
     if (projects.length === 0) throw new Error('Project not found or has been deleted')
     const projectName = projects[0].name || 'Unnamed Project'
+    const { v4: uuidv4 } = await import('uuid')
     const commentUuid = uuidv4()
     const result = (await db.query('INSERT INTO comments (uuid, project_id, user_id, content) VALUES (?, ?, ?, ?)', [commentUuid, projectId, userId, trimmedContent])) as any
     const payload = await buildCommentPayload(result.insertId, 0, false)
