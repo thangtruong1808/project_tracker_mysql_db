@@ -10,12 +10,12 @@
 -- =========================
 -- 5 USERS
 -- =========================
-INSERT INTO users (id, first_name, last_name, email, password, role) VALUES
-(1, 'Thang', 'Truong', 'thangtruong1808@gmail.com', 'hashed-password-2', 'Admin'),
-(2, 'Alice', 'Nguyen', 'alice.nguyen@gmail.com', 'hashed-password-1', 'Project Manager'),
-(3, 'Charlie', 'Le', 'charlie.le@gmail.com', 'hashed-password-3', 'Backend Developer'),
-(4, 'Diana', 'Pham', 'diana.pham@gmail.com', 'hashed-password-4', 'Full-Stack Developer'),
-(5, 'Eve', 'Hoang', 'eve.hoang@gmail.com', 'hashed-password-5', 'DevOps Engineer');
+INSERT INTO users (id, uuid, first_name, last_name, email, password, role) VALUES
+(1, UUID(), 'Thang', 'Truong', 'thangtruong1808@gmail.com', 'hashed-password-2', 'Admin'),
+(2, UUID(), 'Alice', 'Nguyen', 'alice.nguyen@gmail.com', 'hashed-password-1', 'Project Manager'),
+(3, UUID(), 'Charlie', 'Le', 'charlie.le@gmail.com', 'hashed-password-3', 'Backend Developer'),
+(4, UUID(), 'Diana', 'Pham', 'diana.pham@gmail.com', 'hashed-password-4', 'Full-Stack Developer'),
+(5, UUID(), 'Eve', 'Hoang', 'eve.hoang@gmail.com', 'hashed-password-5', 'DevOps Engineer');
 
 -- =========================
 -- 20 TAGS
@@ -45,48 +45,48 @@ INSERT INTO tags (id, name, description, title, type, category) VALUES
 -- =========================
 -- 5 PROJECTS
 -- =========================
-INSERT INTO projects (id, name, description, status, owner_id) VALUES
-(1, 'E-Commerce Platform', 'Build online shopping platform with payment integration', 'PLANNING', 1),
-(2, 'Mobile Banking App', 'Secure mobile banking application with biometric auth', 'IN_PROGRESS', 2),
-(3, 'Healthcare Portal', 'Patient management and appointment scheduling system', 'PLANNING', 1),
-(4, 'Learning Management System', 'Online education platform with video courses', 'IN_PROGRESS', 2),
-(5, 'Social Media Dashboard', 'Analytics dashboard for social media metrics', 'COMPLETED', 1);
+INSERT INTO projects (id, uuid, name, description, status, owner_id) VALUES
+(1, UUID(), 'E-Commerce Platform', 'Build online shopping platform with payment integration', 'PLANNING', 1),
+(2, UUID(), 'Mobile Banking App', 'Secure mobile banking application with biometric auth', 'IN_PROGRESS', 2),
+(3, UUID(), 'Healthcare Portal', 'Patient management and appointment scheduling system', 'PLANNING', 1),
+(4, UUID(), 'Learning Management System', 'Online education platform with video courses', 'IN_PROGRESS', 2),
+(5, UUID(), 'Social Media Dashboard', 'Analytics dashboard for social media metrics', 'COMPLETED', 1);
 
 -- =========================
 -- 25 TASKS (5 tasks per project, assigned_to only from project members)
 -- Note: Each task assigned_to must be a project member, and one member per project has no tasks
 -- =========================
-INSERT INTO tasks (id, title, description, status, priority, due_date, project_id, assigned_to) VALUES
+INSERT INTO tasks (id, uuid, title, description, status, priority, due_date, project_id, assigned_to) VALUES
 -- Project 1 (5 tasks - members: 1, 2, 3; user 1 has no tasks)
-(1, 'Design user interface', 'Create wireframes and mockups for e-commerce platform', 'TODO', 'HIGH', '2025-12-15', 1, 2),
-(2, 'Setup payment gateway', 'Integrate Stripe payment processing', 'IN_PROGRESS', 'HIGH', '2025-12-20', 1, 3),
-(3, 'Implement shopping cart', 'Build cart functionality with add/remove items', 'TODO', 'MEDIUM', '2025-12-25', 1, 2),
-(4, 'User authentication', 'Implement login and registration system', 'DONE', 'HIGH', '2025-12-10', 1, 3),
-(5, 'Product catalog API', 'Create REST API for product management', 'IN_PROGRESS', 'MEDIUM', '2025-12-18', 1, 2),
+(1, UUID(), 'Design user interface', 'Create wireframes and mockups for e-commerce platform', 'TODO', 'HIGH', '2025-12-15', 1, 2),
+(2, UUID(), 'Setup payment gateway', 'Integrate Stripe payment processing', 'IN_PROGRESS', 'HIGH', '2025-12-20', 1, 3),
+(3, UUID(), 'Implement shopping cart', 'Build cart functionality with add/remove items', 'TODO', 'MEDIUM', '2025-12-25', 1, 2),
+(4, UUID(), 'User authentication', 'Implement login and registration system', 'DONE', 'HIGH', '2025-12-10', 1, 3),
+(5, UUID(), 'Product catalog API', 'Create REST API for product management', 'IN_PROGRESS', 'MEDIUM', '2025-12-18', 1, 2),
 -- Project 2 (5 tasks - members: 1, 3, 4; user 1 has no tasks)
-(6, 'Mobile app design', 'Design UI/UX for banking app', 'TODO', 'HIGH', '2025-12-16', 2, 3),
-(7, 'Biometric authentication', 'Implement fingerprint and face recognition', 'IN_PROGRESS', 'HIGH', '2025-12-22', 2, 4),
-(8, 'Transaction history', 'Display user transaction records', 'TODO', 'MEDIUM', '2025-12-28', 2, 3),
-(9, 'Security audit', 'Review security measures and vulnerabilities', 'DONE', 'HIGH', '2025-12-12', 2, 4),
-(10, 'Push notifications', 'Implement transaction alerts', 'IN_PROGRESS', 'LOW', '2025-12-19', 2, 3),
+(6, UUID(), 'Mobile app design', 'Design UI/UX for banking app', 'TODO', 'HIGH', '2025-12-16', 2, 3),
+(7, UUID(), 'Biometric authentication', 'Implement fingerprint and face recognition', 'IN_PROGRESS', 'HIGH', '2025-12-22', 2, 4),
+(8, UUID(), 'Transaction history', 'Display user transaction records', 'TODO', 'MEDIUM', '2025-12-28', 2, 3),
+(9, UUID(), 'Security audit', 'Review security measures and vulnerabilities', 'DONE', 'HIGH', '2025-12-12', 2, 4),
+(10, UUID(), 'Push notifications', 'Implement transaction alerts', 'IN_PROGRESS', 'LOW', '2025-12-19', 2, 3),
 -- Project 3 (5 tasks - members: 1, 2, 5; user 1 has no tasks)
-(11, 'Patient registration form', 'Create patient onboarding workflow', 'TODO', 'HIGH', '2025-12-17', 3, 2),
-(12, 'Appointment scheduler', 'Build calendar-based appointment system', 'IN_PROGRESS', 'HIGH', '2025-12-23', 3, 5),
-(13, 'Medical records view', 'Display patient medical history', 'TODO', 'MEDIUM', '2025-12-29', 3, 2),
-(14, 'HIPAA compliance', 'Ensure data privacy compliance', 'DONE', 'HIGH', '2025-12-13', 3, 5),
-(15, 'Doctor dashboard', 'Create interface for healthcare providers', 'IN_PROGRESS', 'MEDIUM', '2025-12-20', 3, 2),
+(11, UUID(), 'Patient registration form', 'Create patient onboarding workflow', 'TODO', 'HIGH', '2025-12-17', 3, 2),
+(12, UUID(), 'Appointment scheduler', 'Build calendar-based appointment system', 'IN_PROGRESS', 'HIGH', '2025-12-23', 3, 5),
+(13, UUID(), 'Medical records view', 'Display patient medical history', 'TODO', 'MEDIUM', '2025-12-29', 3, 2),
+(14, UUID(), 'HIPAA compliance', 'Ensure data privacy compliance', 'DONE', 'HIGH', '2025-12-13', 3, 5),
+(15, UUID(), 'Doctor dashboard', 'Create interface for healthcare providers', 'IN_PROGRESS', 'MEDIUM', '2025-12-20', 3, 2),
 -- Project 4 (5 tasks - members: 1, 4, 5; user 1 has no tasks)
-(16, 'Course creation tool', 'Build interface for instructors to create courses', 'TODO', 'HIGH', '2025-12-18', 4, 4),
-(17, 'Video player component', 'Implement custom video player with controls', 'IN_PROGRESS', 'HIGH', '2025-12-24', 4, 5),
-(18, 'Progress tracking', 'Track student course completion', 'TODO', 'MEDIUM', '2025-12-30', 4, 4),
-(19, 'Quiz system', 'Create quiz builder and grading system', 'DONE', 'HIGH', '2025-12-14', 4, 5),
-(20, 'Certificate generation', 'Generate completion certificates', 'IN_PROGRESS', 'LOW', '2025-12-21', 4, 4),
+(16, UUID(), 'Course creation tool', 'Build interface for instructors to create courses', 'TODO', 'HIGH', '2025-12-18', 4, 4),
+(17, UUID(), 'Video player component', 'Implement custom video player with controls', 'IN_PROGRESS', 'HIGH', '2025-12-24', 4, 5),
+(18, UUID(), 'Progress tracking', 'Track student course completion', 'TODO', 'MEDIUM', '2025-12-30', 4, 4),
+(19, UUID(), 'Quiz system', 'Create quiz builder and grading system', 'DONE', 'HIGH', '2025-12-14', 4, 5),
+(20, UUID(), 'Certificate generation', 'Generate completion certificates', 'IN_PROGRESS', 'LOW', '2025-12-21', 4, 4),
 -- Project 5 (5 tasks - members: 1, 2, 3; user 1 has no tasks)
-(21, 'Data visualization charts', 'Create interactive charts for analytics', 'DONE', 'HIGH', '2025-12-11', 5, 2),
-(22, 'Social media API integration', 'Connect to Twitter, Facebook APIs', 'DONE', 'MEDIUM', '2025-12-12', 5, 3),
-(23, 'Export reports', 'Generate PDF and Excel reports', 'DONE', 'MEDIUM', '2025-12-13', 5, 2),
-(24, 'Real-time updates', 'Implement WebSocket for live data', 'DONE', 'HIGH', '2025-12-14', 5, 3),
-(25, 'User dashboard', 'Create personalized dashboard view', 'DONE', 'MEDIUM', '2025-12-15', 5, 2);
+(21, UUID(), 'Data visualization charts', 'Create interactive charts for analytics', 'DONE', 'HIGH', '2025-12-11', 5, 2),
+(22, UUID(), 'Social media API integration', 'Connect to Twitter, Facebook APIs', 'DONE', 'MEDIUM', '2025-12-12', 5, 3),
+(23, UUID(), 'Export reports', 'Generate PDF and Excel reports', 'DONE', 'MEDIUM', '2025-12-13', 5, 2),
+(24, UUID(), 'Real-time updates', 'Implement WebSocket for live data', 'DONE', 'HIGH', '2025-12-14', 5, 3),
+(25, UUID(), 'User dashboard', 'Create personalized dashboard view', 'DONE', 'MEDIUM', '2025-12-15', 5, 2);
 
 -- =========================
 -- 15 PROJECT MEMBERS (3 per project)
@@ -106,31 +106,31 @@ INSERT INTO project_members (project_id, user_id, role) VALUES
 -- =========================
 -- COMMENTS (2-5 per project, user_id from project_members of same project)
 -- =========================
-INSERT INTO comments (id, project_id, user_id, content) VALUES
+INSERT INTO comments (id, uuid, project_id, user_id, content) VALUES
 -- Project 1 (5 comments from users 1, 2, 3)
-(1, 1, 1, 'Great progress on the UI design! Looking forward to seeing the final mockups.'),
-(2, 1, 2, 'Payment gateway integration is going smoothly. Should be ready for testing soon.'),
-(3, 1, 3, 'The shopping cart functionality looks good. Any plans for wishlist feature?'),
-(4, 1, 1, 'Excellent work team! Keep up the momentum.'),
-(5, 1, 2, 'Product catalog API needs some optimization for large datasets.'),
+(1, UUID(), 1, 1, 'Great progress on the UI design! Looking forward to seeing the final mockups.'),
+(2, UUID(), 1, 2, 'Payment gateway integration is going smoothly. Should be ready for testing soon.'),
+(3, UUID(), 1, 3, 'The shopping cart functionality looks good. Any plans for wishlist feature?'),
+(4, UUID(), 1, 1, 'Excellent work team! Keep up the momentum.'),
+(5, UUID(), 1, 2, 'Product catalog API needs some optimization for large datasets.'),
 -- Project 2 (4 comments from users 1, 3, 4)
-(6, 2, 1, 'Mobile app design is coming along nicely. The UI is very intuitive.'),
-(7, 2, 3, 'Biometric authentication is working well on test devices.'),
-(8, 2, 4, 'Transaction history feature is comprehensive. Good job!'),
-(9, 2, 1, 'Security audit passed with flying colors. Well done!'),
+(6, UUID(), 2, 1, 'Mobile app design is coming along nicely. The UI is very intuitive.'),
+(7, UUID(), 2, 3, 'Biometric authentication is working well on test devices.'),
+(8, UUID(), 2, 4, 'Transaction history feature is comprehensive. Good job!'),
+(9, UUID(), 2, 1, 'Security audit passed with flying colors. Well done!'),
 -- Project 3 (3 comments from users 1, 2, 5)
-(10, 3, 1, 'Patient registration form is user-friendly. Great UX!'),
-(11, 3, 2, 'Appointment scheduler is very intuitive. Easy to use.'),
-(12, 3, 5, 'Medical records view needs better organization.'),
+(10, UUID(), 3, 1, 'Patient registration form is user-friendly. Great UX!'),
+(11, UUID(), 3, 2, 'Appointment scheduler is very intuitive. Easy to use.'),
+(12, UUID(), 3, 5, 'Medical records view needs better organization.'),
 -- Project 4 (4 comments from users 1, 4, 5)
-(13, 4, 1, 'Course creation tool is powerful. Instructors will love it.'),
-(14, 4, 4, 'Video player works smoothly. No buffering issues.'),
-(15, 4, 5, 'Progress tracking is detailed. Students can see their improvement.'),
-(16, 4, 1, 'Quiz system is comprehensive. Good variety of question types.'),
+(13, UUID(), 4, 1, 'Course creation tool is powerful. Instructors will love it.'),
+(14, UUID(), 4, 4, 'Video player works smoothly. No buffering issues.'),
+(15, UUID(), 4, 5, 'Progress tracking is detailed. Students can see their improvement.'),
+(16, UUID(), 4, 1, 'Quiz system is comprehensive. Good variety of question types.'),
 -- Project 5 (3 comments from users 1, 2, 3)
-(17, 5, 1, 'Data visualization is impressive. Charts are interactive and informative.'),
-(18, 5, 2, 'Social media API integration is working well.'),
-(19, 5, 3, 'Export reports feature is very useful. Multiple format options.');
+(17, UUID(), 5, 1, 'Data visualization is impressive. Charts are interactive and informative.'),
+(18, UUID(), 5, 2, 'Social media API integration is working well.'),
+(19, UUID(), 5, 3, 'Export reports feature is very useful. Multiple format options.');
 
 -- =========================
 -- TASK_TAGS (1-5 tags per task)
