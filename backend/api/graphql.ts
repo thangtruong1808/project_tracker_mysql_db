@@ -1,6 +1,6 @@
 /**
  * Vercel Serverless Function for GraphQL API
- * Exports Express app as serverless function for Vercel deployment
+ * Handles GraphQL requests for Vercel deployment
  *
  * @author Thang Truong
  * @date 2025-01-27
@@ -19,38 +19,27 @@ import { resolvers } from '../src/resolvers'
 import '../src/utils/loadEnv'
 
 let apolloServer: ApolloServer | null = null
-let handlerPromise: Promise<void> | null = null
+let app: express.Application | null = null
 
 /**
- * Initialize Apollo Server
+ * Initialize Apollo Server and Express app
  *
  * @author Thang Truong
  * @date 2025-01-27
  */
-async function initApolloServer() {
-  if (apolloServer) return apolloServer
+async function initializeApp() {
+  if (app && apolloServer) return { app, server: apolloServer }
 
+  // Initialize Apollo Server
   apolloServer = new ApolloServer({
     typeDefs,
     resolvers,
   })
 
   await apolloServer.start()
-  return apolloServer
-}
-
-/**
- * Vercel serverless function handler
- *
- * @author Thang Truong
- * @date 2025-01-27
- */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Initialize Apollo Server
-  const server = await initApolloServer()
 
   // Create Express app
-  const app = express()
+  app = express()
 
   // Parse cookies
   app.use(cookieParser())
@@ -61,30 +50,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     credentials: true,
   }))
 
+  // Handle root path
+  app.get('/', (req, res) => {
+    res.json({ message: 'GraphQL API is running. Use /graphql endpoint.' })
+  })
+
   // Apply GraphQL middleware
   app.use(
-    '/graphql',
     express.json(),
-    expressMiddleware(server, {
+    expressMiddleware(apolloServer, {
       context: async ({ req, res }) => {
         return { req, res }
       },
     })
   )
 
-  // Handle root path
-  app.get('/', (req, res) => {
-    res.json({ message: 'GraphQL API is running. Use /graphql endpoint.' })
-  })
+  return { app, server: apolloServer }
+}
 
-  // Execute Express app
-  return new Promise<void>((resolve, reject) => {
-    app(req as any, res as any, (err: any) => {
-      if (err) {
-        reject(err)
-      } else {
-        resolve()
-      }
+/**
+ * Vercel serverless function handler
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ */
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const { app: expressApp } = await initializeApp()
+
+  // Convert Vercel request/response to Express format
+  return new Promise<void>((resolve) => {
+    expressApp!(req as any, res as any, () => {
+      resolve()
     })
   })
 }

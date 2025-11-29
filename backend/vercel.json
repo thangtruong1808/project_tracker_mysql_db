@@ -1,15 +1,13 @@
 {
   "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "api/graphql.ts",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
+      "source": "/graphql",
+      "destination": "/api/graphql"
+    },
     {
-      "src": "/graphql",
-      "dest": "/api/graphql.ts"
+      "source": "/",
+      "destination": "/api/graphql"
     }
   ],
   "env": {
