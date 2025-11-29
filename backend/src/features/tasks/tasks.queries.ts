@@ -30,10 +30,9 @@ export const tasksQueryResolvers = {
       `SELECT t.id, t.uuid, t.title, t.description, t.status, t.priority, t.due_date,
         t.project_id, t.assigned_to, t.created_at, t.updated_at,
         COALESCE(tl.likes_count, 0) as likes_count,
-        COALESCE(tc.comments_count, 0) as comments_count
+        0 as comments_count
       FROM tasks t
       LEFT JOIN (SELECT task_id, COUNT(*) as likes_count FROM task_likes GROUP BY task_id) tl ON t.id = tl.task_id
-      LEFT JOIN (SELECT task_id, COUNT(*) as comments_count FROM comments WHERE is_deleted = false GROUP BY task_id) tc ON t.id = tc.task_id
       WHERE t.is_deleted = false ORDER BY t.created_at DESC`
     )) as any[]
 
@@ -100,10 +99,9 @@ export const tasksQueryResolvers = {
       `SELECT t.id, t.uuid, t.title, t.description, t.status, t.priority, t.due_date,
         t.project_id, t.assigned_to, t.created_at, t.updated_at,
         COALESCE(tl.likes_count, 0) as likes_count,
-        COALESCE(tc.comments_count, 0) as comments_count
+        0 as comments_count
       FROM tasks t
       LEFT JOIN (SELECT task_id, COUNT(*) as likes_count FROM task_likes GROUP BY task_id) tl ON t.id = tl.task_id
-      LEFT JOIN (SELECT task_id, COUNT(*) as comments_count FROM comments WHERE is_deleted = false GROUP BY task_id) tc ON t.id = tc.task_id
       WHERE t.id = ? AND t.is_deleted = false`,
       [id]
     )) as any[]

@@ -3,7 +3,7 @@
  * Keeps component files concise and reusable
  *
  * @author Thang Truong
- * @date 2025-11-25
+ * @date 2025-11-27
  */
 export interface CommentUser {
   id: string
@@ -16,7 +16,7 @@ export interface ProjectComment {
   id: string
   uuid: string
   content: string
-  taskId: string
+  projectId: string | null
   user: CommentUser
   likesCount: number
   isLiked: boolean

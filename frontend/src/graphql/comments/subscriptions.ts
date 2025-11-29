@@ -3,7 +3,7 @@
  * GraphQL subscriptions for real-time comment updates
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
 import { gql } from '@apollo/client'
@@ -12,7 +12,7 @@ import { gql } from '@apollo/client'
  * Comment created subscription
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 export const COMMENT_CREATED_SUBSCRIPTION = gql`
   subscription CommentCreated($projectId: ID!) {
@@ -20,7 +20,7 @@ export const COMMENT_CREATED_SUBSCRIPTION = gql`
       id
       uuid
       content
-      taskId
+      projectId
       user {
         id
         firstName
@@ -39,7 +39,7 @@ export const COMMENT_CREATED_SUBSCRIPTION = gql`
  * Comment like updated subscription
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 export const COMMENT_LIKE_UPDATED_SUBSCRIPTION = gql`
   subscription CommentLikeUpdated($projectId: ID!) {
@@ -47,7 +47,7 @@ export const COMMENT_LIKE_UPDATED_SUBSCRIPTION = gql`
       id
       uuid
       content
-      taskId
+      projectId
       user {
         id
         firstName
@@ -66,7 +66,7 @@ export const COMMENT_LIKE_UPDATED_SUBSCRIPTION = gql`
  * Comment updated subscription
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 export const COMMENT_UPDATED_SUBSCRIPTION = gql`
   subscription CommentUpdated($projectId: ID!) {
@@ -74,7 +74,7 @@ export const COMMENT_UPDATED_SUBSCRIPTION = gql`
       id
       uuid
       content
-      taskId
+      projectId
       user {
         id
         firstName
@@ -93,7 +93,7 @@ export const COMMENT_UPDATED_SUBSCRIPTION = gql`
  * Comment deleted subscription
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 export const COMMENT_DELETED_SUBSCRIPTION = gql`
   subscription CommentDeleted($projectId: ID!) {
@@ -101,7 +101,7 @@ export const COMMENT_DELETED_SUBSCRIPTION = gql`
       id
       uuid
       content
-      taskId
+      projectId
       user {
         id
         firstName

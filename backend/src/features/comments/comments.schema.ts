@@ -4,7 +4,7 @@
  * Includes comment types, inputs, and like response types
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
 export const commentsTypeDefs = `
@@ -13,7 +13,7 @@ export const commentsTypeDefs = `
     uuid: String!
     content: String!
     user: User!
-    taskId: String!
+    projectId: String
     likesCount: Int!
     isLiked: Boolean!
     createdAt: String!

@@ -75,11 +75,10 @@ export const searchQueryResolvers = {
       u.id as owner_user_id, u.first_name as owner_first_name, u.last_name as owner_last_name,
       u.email as owner_email, u.role as owner_role, u.uuid as owner_uuid,
       u.created_at as owner_created_at, u.updated_at as owner_updated_at,
-      COALESCE(tl.likes_count, 0) as likes_count, COALESCE(tc.comments_count, 0) as comments_count
+      COALESCE(tl.likes_count, 0) as likes_count, 0 as comments_count
     FROM tasks t
     LEFT JOIN users u ON t.assigned_to = u.id AND u.is_deleted = false
     LEFT JOIN (SELECT task_id, COUNT(*) as likes_count FROM task_likes GROUP BY task_id) tl ON t.id = tl.task_id
-    LEFT JOIN (SELECT task_id, COUNT(*) as comments_count FROM comments WHERE is_deleted = false GROUP BY task_id) tc ON t.id = tc.task_id
     WHERE t.is_deleted = false`
 
     let taskSql = applySearchFilters(baseTaskSql, searchTerm, taskStatuses, taskValues, ['t.title', 't.description'])

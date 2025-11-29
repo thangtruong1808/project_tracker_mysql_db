@@ -3,7 +3,7 @@
  * GraphQL queries for project data
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
 import { gql } from '@apollo/client'
@@ -104,7 +104,7 @@ export const PROJECT_QUERY = gql`
         id
         uuid
         content
-        taskId
+        projectId
         user {
           id
           firstName

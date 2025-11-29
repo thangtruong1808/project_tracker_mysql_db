@@ -158,24 +158,24 @@ CREATE TABLE task_tags (
 CREATE TABLE comments (
   id INT PRIMARY KEY AUTO_INCREMENT,
   uuid CHAR(36) NOT NULL UNIQUE,
-  task_id INT NOT NULL,
+  project_id INT NULL,                      -- New field for project_id (after uuid)
   user_id INT NOT NULL,
   content TEXT NOT NULL,
   is_deleted BOOLEAN DEFAULT FALSE,
   version INT DEFAULT 1,
   created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-  CONSTRAINT fk_comments_task FOREIGN KEY (task_id)
-    REFERENCES tasks(id) ON DELETE CASCADE,
+  CONSTRAINT fk_comments_project FOREIGN KEY (project_id)
+    REFERENCES projects(id) ON DELETE CASCADE,   -- Foreign key to projects table
   CONSTRAINT fk_comments_user FOREIGN KEY (user_id)
     REFERENCES users(id) ON DELETE CASCADE,
   FULLTEXT idx_comments_content (content)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE INDEX idx_comments_task_created_at ON comments(task_id, created_at);
-CREATE INDEX idx_comments_task_id ON comments(task_id);
-CREATE INDEX idx_comments_user_id ON comments(user_id);
-CREATE INDEX idx_comments_is_deleted ON comments(is_deleted);
+-- Create indices for the updated table
+CREATE INDEX idx_comments_project_id ON comments(project_id);    -- Index for project_id
+CREATE INDEX idx_comments_user_id ON comments(user_id);          -- Index for user_id
+CREATE INDEX idx_comments_is_deleted ON comments(is_deleted);    -- Index for is_deleted
 
 -- TASK_LIKES TABLE
 CREATE TABLE task_likes (
@@ -370,15 +370,9 @@ BEGIN
   END IF;
 END;
 
--- When a task is soft deleted, soft delete related comments
-CREATE TRIGGER trg_tasks_after_soft_delete
-AFTER UPDATE ON tasks
-FOR EACH ROW
-BEGIN
-  IF NEW.is_deleted = TRUE AND OLD.is_deleted = FALSE THEN
-    UPDATE comments SET is_deleted = TRUE WHERE task_id = NEW.id AND is_deleted = FALSE;
-  END IF;
-END;
+-- Comments are now project-level, not task-level
+-- When a project is deleted, comments are automatically deleted via CASCADE foreign key
+-- No trigger needed for task deletion since comments belong to projects
 
 -- Activity Log Triggers
 -- Log user creation

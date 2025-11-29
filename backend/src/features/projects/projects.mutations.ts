@@ -132,11 +132,12 @@ export const projectsMutationResolvers = {
       await db.query(`DELETE FROM task_tags WHERE task_id IN (${taskPlaceholders})`, taskIds)
       await db.query(`DELETE FROM task_likes WHERE task_id IN (${taskPlaceholders})`, taskIds)
 
-      const taskComments = (await db.query(
-        `SELECT id FROM comments WHERE task_id IN (${taskPlaceholders}) AND is_deleted = false`,
-        taskIds
+      // Comments are now project-level, so delete comments directly by project_id
+      const projectComments = (await db.query(
+        `SELECT id FROM comments WHERE project_id = ? AND is_deleted = false`,
+        [projectId]
       )) as any[]
-      const commentIds = taskComments.map((c: any) => c.id)
+      const commentIds = projectComments.map((c: any) => c.id)
 
       if (commentIds.length > 0) {
         const commentPlaceholders = commentIds.map(() => '?').join(',')

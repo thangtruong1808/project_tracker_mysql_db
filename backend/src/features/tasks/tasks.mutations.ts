@@ -147,12 +147,7 @@ export const tasksMutationResolvers = {
     await db.query('DELETE FROM task_tags WHERE task_id = ?', [id])
     await db.query('DELETE FROM task_likes WHERE task_id = ?', [id])
 
-    const taskComments = (await db.query('SELECT id FROM comments WHERE task_id = ? AND is_deleted = false', [id])) as any[]
-    const commentIds = taskComments.map((c: any) => c.id)
-    if (commentIds.length > 0) {
-      const commentPlaceholders = commentIds.map(() => '?').join(',')
-      await db.query(`DELETE FROM comment_likes WHERE comment_id IN (${commentPlaceholders})`, commentIds)
-    }
+    // Comments are now project-level, not task-level, so no need to delete comments when deleting a task
 
     const result = (await db.query(
       'UPDATE tasks SET is_deleted = true, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND is_deleted = false',

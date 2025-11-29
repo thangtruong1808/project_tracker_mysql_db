@@ -3,7 +3,7 @@
  * Handles project query operations
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
 import { db } from '../../db'
@@ -14,14 +14,14 @@ import { tryGetUserIdFromRequest } from '../../utils/helpers'
  * Projects Query Resolvers
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 export const projectsQueryResolvers = {
   /**
    * Fetch all projects with owner, likes, and comments
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-11-27
    */
   projects: async (_: any, __: any, context: { req: any }) => {
     const projects = (await db.query(
@@ -33,9 +33,7 @@ export const projectsQueryResolvers = {
       FROM projects p
       LEFT JOIN users u ON p.owner_id = u.id AND u.is_deleted = false
       LEFT JOIN (SELECT project_id, COUNT(*) as likes_count FROM project_likes GROUP BY project_id) pl ON p.id = pl.project_id
-      LEFT JOIN (SELECT t.project_id, COUNT(*) as comments_count FROM comments c
-        INNER JOIN tasks t ON c.task_id = t.id WHERE c.is_deleted = false AND t.is_deleted = false
-        GROUP BY t.project_id) pc ON p.id = pc.project_id
+      LEFT JOIN (SELECT project_id, COUNT(*) as comments_count FROM comments WHERE is_deleted = false GROUP BY project_id) pc ON p.id = pc.project_id
       WHERE p.is_deleted = false ORDER BY p.created_at DESC`
     )) as any[]
 
@@ -68,7 +66,7 @@ export const projectsQueryResolvers = {
    * Fetch single project by ID with tasks, members, and comments
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-11-27
    */
   project: async (_: any, { id }: { id: string }, context: { req: any }) => {
     const projects = (await db.query(
@@ -80,9 +78,7 @@ export const projectsQueryResolvers = {
       FROM projects p
       LEFT JOIN users u ON p.owner_id = u.id AND u.is_deleted = false
       LEFT JOIN (SELECT project_id, COUNT(*) as likes_count FROM project_likes GROUP BY project_id) pl ON p.id = pl.project_id
-      LEFT JOIN (SELECT t.project_id, COUNT(*) as comments_count FROM comments c
-        INNER JOIN tasks t ON c.task_id = t.id WHERE c.is_deleted = false AND t.is_deleted = false
-        GROUP BY t.project_id) pc ON p.id = pc.project_id
+      LEFT JOIN (SELECT project_id, COUNT(*) as comments_count FROM comments WHERE is_deleted = false GROUP BY project_id) pc ON p.id = pc.project_id
       WHERE p.id = ? AND p.is_deleted = false`,
       [id]
     )) as any[]

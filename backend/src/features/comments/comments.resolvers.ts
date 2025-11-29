@@ -1,7 +1,7 @@
 /**
  * Comments Feature Resolvers - Handles comment mutations and subscriptions
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
 import { db } from '../../db'
@@ -14,11 +14,11 @@ import { v4 as uuidv4 } from 'uuid'
 /**
  * Build comment payload for subscription
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 const buildCommentPayload = async (commentId: number | string, likesCount: number, isLiked: boolean) => {
   const comments = (await db.query(
-    `SELECT c.id, c.uuid, c.content, c.task_id, c.created_at, c.updated_at,
+    `SELECT c.id, c.uuid, c.content, c.project_id, c.created_at, c.updated_at,
       u.id as user_id, u.first_name, u.last_name, u.email, u.role, u.uuid as user_uuid,
       u.created_at as user_created_at, u.updated_at as user_updated_at
     FROM comments c LEFT JOIN users u ON c.user_id = u.id AND u.is_deleted = false WHERE c.id = ?`,
@@ -27,7 +27,7 @@ const buildCommentPayload = async (commentId: number | string, likesCount: numbe
   if (comments.length === 0) return null
   const c = comments[0]
   return {
-    id: c.id.toString(), uuid: c.uuid || '', content: c.content, taskId: c.task_id.toString(),
+    id: c.id.toString(), uuid: c.uuid || '', content: c.content, projectId: c.project_id ? c.project_id.toString() : null,
     user: c.user_id ? {
       id: c.user_id.toString(), uuid: c.user_uuid || '', firstName: c.first_name || '',
       lastName: c.last_name || '', email: c.email || '', role: c.role || '',
@@ -43,7 +43,7 @@ const buildCommentPayload = async (commentId: number | string, likesCount: numbe
  * @date 2025-11-26
  */
 export const commentsMutationResolvers = {
-  /** Create comment mutation - @author Thang Truong @date 2025-11-26 */
+  /** Create comment mutation - @author Thang Truong @date 2025-11-27 */
   createComment: async (_: any, { projectId, content }: { projectId: string; content: string }, context: { req: any }) => {
     const authHeader = context.req?.headers?.authorization || ''
     if (!authHeader || !authHeader.startsWith('Bearer ')) throw new Error('Authentication required. Please login to post comments.')
@@ -56,10 +56,8 @@ export const commentsMutationResolvers = {
     const projects = (await db.query('SELECT id, name, owner_id FROM projects WHERE id = ? AND is_deleted = false', [projectId])) as any[]
     if (projects.length === 0) throw new Error('Project not found or has been deleted')
     const projectName = projects[0].name || 'Unnamed Project'
-    const tasks = (await db.query('SELECT id FROM tasks WHERE project_id = ? AND is_deleted = false ORDER BY id LIMIT 1', [projectId])) as any[]
-    if (tasks.length === 0) throw new Error('Cannot post comments. Project must have at least one task.')
     const commentUuid = uuidv4()
-    const result = (await db.query('INSERT INTO comments (uuid, task_id, user_id, content) VALUES (?, ?, ?, ?)', [commentUuid, tasks[0].id, userId, trimmedContent])) as any
+    const result = (await db.query('INSERT INTO comments (uuid, project_id, user_id, content) VALUES (?, ?, ?, ?)', [commentUuid, projectId, userId, trimmedContent])) as any
     const payload = await buildCommentPayload(result.insertId, 0, false)
     if (payload) {
       await pubsub.publish(`COMMENT_CREATED_${projectId}`, { commentCreated: payload })
@@ -69,7 +67,7 @@ export const commentsMutationResolvers = {
     return payload
   },
 
-  /** Update comment mutation - @author Thang Truong @date 2025-11-26 */
+  /** Update comment mutation - @author Thang Truong @date 2025-11-27 */
   updateComment: async (_: any, { commentId, content }: { commentId: string; content: string }, context: { req: any }) => {
     const authHeader = context.req?.headers?.authorization || ''
     if (!authHeader || !authHeader.startsWith('Bearer ')) throw new Error('Authentication required. Please login to edit comments.')
@@ -79,7 +77,7 @@ export const commentsMutationResolvers = {
     const userId = decoded.userId
     if (!content || !content.trim()) throw new Error('Comment content cannot be empty.')
     const comments = (await db.query(
-      `SELECT c.id, c.user_id, t.project_id FROM comments c LEFT JOIN tasks t ON c.task_id = t.id AND t.is_deleted = false WHERE c.id = ? AND c.is_deleted = false`,
+      `SELECT c.id, c.user_id, c.project_id FROM comments c WHERE c.id = ? AND c.is_deleted = false`,
       [commentId]
     )) as any[]
     if (comments.length === 0) throw new Error('Comment not found or has been deleted')
@@ -93,7 +91,7 @@ export const commentsMutationResolvers = {
     return payload
   },
 
-  /** Delete comment mutation - @author Thang Truong @date 2025-11-26 */
+  /** Delete comment mutation - @author Thang Truong @date 2025-11-27 */
   deleteComment: async (_: any, { commentId }: { commentId: string }, context: { req: any }) => {
     const authHeader = context.req?.headers?.authorization || ''
     if (!authHeader || !authHeader.startsWith('Bearer ')) throw new Error('Authentication required. Please login to delete comments.')
@@ -102,10 +100,10 @@ export const commentsMutationResolvers = {
     if (!decoded || !decoded.userId) throw new Error('Invalid or expired token. Please login again.')
     const userId = decoded.userId
     const comments = (await db.query(
-      `SELECT c.id, c.user_id, c.uuid, c.content, c.task_id, c.created_at, c.updated_at, t.project_id,
+      `SELECT c.id, c.user_id, c.uuid, c.content, c.project_id, c.created_at, c.updated_at,
         u.id as user_uid, u.first_name, u.last_name, u.email, u.role, u.uuid as user_uuid,
         u.created_at as user_created_at, u.updated_at as user_updated_at
-      FROM comments c LEFT JOIN tasks t ON c.task_id = t.id LEFT JOIN users u ON c.user_id = u.id WHERE c.id = ? AND c.is_deleted = false`,
+      FROM comments c LEFT JOIN users u ON c.user_id = u.id WHERE c.id = ? AND c.is_deleted = false`,
       [commentId]
     )) as any[]
     if (comments.length === 0) throw new Error('Comment not found or has been deleted')
@@ -115,7 +113,7 @@ export const commentsMutationResolvers = {
     await db.query('UPDATE comments SET is_deleted = true, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?', [commentId])
     const c = comments[0]
     const payload = {
-      id: c.id.toString(), uuid: c.uuid || '', content: c.content, taskId: c.task_id.toString(),
+      id: c.id.toString(), uuid: c.uuid || '', content: c.content, projectId: c.project_id ? c.project_id.toString() : null,
       user: c.user_uid ? { id: c.user_uid.toString(), uuid: c.user_uuid || '', firstName: c.first_name || '',
         lastName: c.last_name || '', email: c.email || '', role: c.role || '',
         createdAt: formatDateToISO(c.user_created_at), updatedAt: formatDateToISO(c.user_updated_at) } : null,
@@ -125,7 +123,7 @@ export const commentsMutationResolvers = {
     return true
   },
 
-  /** Like comment mutation - @author Thang Truong @date 2025-11-26 */
+  /** Like comment mutation - @author Thang Truong @date 2025-11-27 */
   likeComment: async (_: any, { commentId }: { commentId: string }, context: { req: any }) => {
     const authHeader = context.req?.headers?.authorization || ''
     if (!authHeader || !authHeader.startsWith('Bearer ')) throw new Error('Authentication required. Please login to like comments.')
@@ -133,7 +131,7 @@ export const commentsMutationResolvers = {
     const decoded = verifyAccessToken(token)
     if (!decoded || !decoded.userId) throw new Error('Invalid or expired token. Please login again.')
     const userId = decoded.userId
-    const comments = (await db.query(`SELECT c.id, t.project_id FROM comments c LEFT JOIN tasks t ON c.task_id = t.id WHERE c.id = ? AND c.is_deleted = false`, [commentId])) as any[]
+    const comments = (await db.query(`SELECT c.id, c.project_id FROM comments c WHERE c.id = ? AND c.is_deleted = false`, [commentId])) as any[]
     if (comments.length === 0) throw new Error('Comment not found or has been deleted')
     const projectId = comments[0].project_id
     const existingLikes = (await db.query('SELECT id FROM comment_likes WHERE user_id = ? AND comment_id = ?', [userId, commentId])) as any[]
@@ -148,7 +146,7 @@ export const commentsMutationResolvers = {
   },
 }
 
-/** Comments Subscription Resolvers - @author Thang Truong @date 2025-11-26 */
+/** Comments Subscription Resolvers - @author Thang Truong @date 2025-11-27 */
 export const commentsSubscriptionResolvers = {
   commentCreated: { subscribe: (_: any, { projectId }: { projectId: string }) => pubsub.asyncIterator(`COMMENT_CREATED_${projectId}`), resolve: (payload: any) => payload.commentCreated },
   commentLikeUpdated: { subscribe: (_: any, { projectId }: { projectId: string }) => pubsub.asyncIterator(`COMMENT_LIKE_UPDATED_${projectId}`), resolve: (payload: any) => payload.commentLikeUpdated },

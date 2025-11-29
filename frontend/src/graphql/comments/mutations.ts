@@ -4,7 +4,7 @@
  * CRUD and like operations for comments
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
 import { gql } from '@apollo/client'
@@ -13,7 +13,7 @@ import { gql } from '@apollo/client'
  * Create comment mutation
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 export const CREATE_COMMENT_MUTATION = gql`
   mutation CreateComment($projectId: ID!, $content: String!) {
@@ -21,7 +21,7 @@ export const CREATE_COMMENT_MUTATION = gql`
       id
       uuid
       content
-      taskId
+      projectId
       user {
         id
         firstName
@@ -40,7 +40,7 @@ export const CREATE_COMMENT_MUTATION = gql`
  * Update comment mutation
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 export const UPDATE_COMMENT_MUTATION = gql`
   mutation UpdateComment($commentId: ID!, $content: String!) {
@@ -48,7 +48,7 @@ export const UPDATE_COMMENT_MUTATION = gql`
       id
       uuid
       content
-      taskId
+      projectId
       user {
         id
         firstName

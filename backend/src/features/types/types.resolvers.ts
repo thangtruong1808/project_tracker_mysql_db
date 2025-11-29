@@ -3,7 +3,7 @@
  * Resolves nested fields for GraphQL types
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
 import { db } from '../../db'
@@ -61,11 +61,10 @@ export const projectTypeResolvers = {
           u.email as owner_email, u.role as owner_role, u.uuid as owner_uuid,
           u.created_at as owner_created_at, u.updated_at as owner_updated_at,
           COALESCE(tl.likes_count, 0) as likes_count,
-          COALESCE(tc.comments_count, 0) as comments_count
+          0 as comments_count
         FROM tasks t
         LEFT JOIN users u ON t.assigned_to = u.id AND u.is_deleted = false
         LEFT JOIN (SELECT task_id, COUNT(*) as likes_count FROM task_likes GROUP BY task_id) tl ON t.id = tl.task_id
-        LEFT JOIN (SELECT task_id, COUNT(*) as comments_count FROM comments WHERE is_deleted = false GROUP BY task_id) tc ON t.id = tc.task_id
         WHERE t.project_id = ? AND t.is_deleted = false ORDER BY t.created_at DESC`,
         [projectId]
       )) as any[]
@@ -133,15 +132,14 @@ export const projectTypeResolvers = {
       const userId = tryGetUserIdFromRequest(context.req)
 
       const comments = (await db.query(
-        `SELECT c.id, c.uuid, c.content, c.task_id, c.created_at, c.updated_at,
+        `SELECT c.id, c.uuid, c.content, c.project_id, c.created_at, c.updated_at,
           u.id as user_id, u.first_name, u.last_name, u.email, u.role, u.uuid as user_uuid,
           u.created_at as user_created_at, u.updated_at as user_updated_at,
           COALESCE(cl.likes_count, 0) as likes_count
         FROM comments c
-        INNER JOIN tasks t ON c.task_id = t.id AND t.is_deleted = false AND t.project_id = ?
         LEFT JOIN users u ON c.user_id = u.id AND u.is_deleted = false
         LEFT JOIN (SELECT comment_id, COUNT(*) as likes_count FROM comment_likes GROUP BY comment_id) cl ON c.id = cl.comment_id
-        WHERE c.is_deleted = false ORDER BY c.created_at DESC`,
+        WHERE c.project_id = ? AND c.is_deleted = false ORDER BY c.created_at DESC`,
         [projectId]
       )) as any[]
 
@@ -160,7 +158,7 @@ export const projectTypeResolvers = {
         id: c.id.toString(),
         uuid: c.uuid || '',
         content: c.content,
-        taskId: c.task_id.toString(),
+        projectId: c.project_id ? c.project_id.toString() : null,
         user: c.user_id ? {
           id: c.user_id.toString(), uuid: c.user_uuid || '', firstName: c.first_name || '',
           lastName: c.last_name || '', email: c.email || '', role: c.role || '',
