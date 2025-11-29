@@ -22,7 +22,7 @@ import EditNotificationModal from '../components/EditNotificationModal'
 import DeleteNotificationDialog from '../components/DeleteNotificationDialog'
 import CreateNotificationModal from '../components/CreateNotificationModal'
 
-interface Notification {
+interface Notification extends Record<string, unknown> {
   id: string
   userId: string
   message: string

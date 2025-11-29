@@ -54,7 +54,14 @@ const Projects = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('ASC')
   const [currentPage, setCurrentPage] = useState(1)
   const [entriesPerPage, setEntriesPerPage] = useState(10)
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [selectedProject, setSelectedProject] = useState<{
+    id: string
+    name: string
+    description: string | null
+    status: string
+    createdAt: string
+    updatedAt: string
+  } | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -138,7 +145,14 @@ const Projects = () => {
   const handleEdit = useCallback(async (projectId: string): Promise<void> => {
     const project = sortedProjects.find((p) => p.id === projectId)
     if (project) {
-      setSelectedProject(project)
+      setSelectedProject({
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        status: project.status,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+      })
       setIsEditModalOpen(true)
     }
   }, [sortedProjects])
@@ -147,7 +161,14 @@ const Projects = () => {
   const handleDelete = useCallback(async (projectId: string): Promise<void> => {
     const project = sortedProjects.find((p) => p.id === projectId)
     if (project) {
-      setSelectedProject(project)
+      setSelectedProject({
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        status: project.status,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+      })
       setIsDeleteDialogOpen(true)
     }
   }, [sortedProjects])

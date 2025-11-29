@@ -182,9 +182,9 @@ const CreateCommentModal = ({ isOpen, onClose, onSuccess }: CreateCommentModalPr
         {/* Form Actions */}
         <FormActions
           onCancel={onClose}
-          onSubmit={handleSubmit(onSubmit)}
           isSubmitting={isSubmitting}
           submitLabel="Create Comment"
+          submittingLabel="Creating..."
         />
       </form>
     </ModalWrapper>

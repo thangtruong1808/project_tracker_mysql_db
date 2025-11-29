@@ -3,7 +3,7 @@
  * Renders the main App component into the DOM
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  */
 
 import React from 'react'
@@ -15,7 +15,7 @@ import './index.css'
  * Initialize and render the React application
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  */
 ReactDOM.createRoot(document.getElementById('root')!).render(
   /* Root React Application Container */

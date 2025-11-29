@@ -181,9 +181,9 @@ const EditCommentModal = ({ comment, isOpen, onClose, onSuccess }: EditCommentMo
         {/* Form Actions */}
         <FormActions
           onCancel={onClose}
-          onSubmit={handleSubmit(onSubmit)}
           isSubmitting={isSubmitting}
           submitLabel="Update Comment"
+          submittingLabel="Updating..."
         />
       </form>
     </ModalWrapper>

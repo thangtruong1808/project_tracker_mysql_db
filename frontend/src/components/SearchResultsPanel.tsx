@@ -49,11 +49,7 @@ interface SearchResultsPanelProps {
   isLoading?: boolean
 }
 
-/**
- * Loading skeleton for search result cards
- * @author Thang Truong
- * @date 2025-11-27
- */
+/** Loading skeleton for search result cards - @author Thang Truong @date 2025-11-27 */
 const SearchResultCardSkeleton = () => (
   <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
     <div className="h-5 bg-gray-200 rounded w-3/4 mb-3"></div>
@@ -66,11 +62,7 @@ const SearchResultCardSkeleton = () => (
   </div>
 )
 
-/**
- * Section header skeleton
- * @author Thang Truong
- * @date 2025-11-27
- */
+/** Section header skeleton - @author Thang Truong @date 2025-11-27 */
 const SectionHeaderSkeleton = () => (
   <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
     <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
@@ -127,6 +119,7 @@ const SearchResultsPanel = ({
 
   if (isLoading) {
     return (
+      /* Loading skeleton container */
       <div className="mt-6 space-y-8 animate-pulse">
         {showProjectsSection && (
           <section className="space-y-4">
@@ -149,6 +142,7 @@ const SearchResultsPanel = ({
   }
 
   return (
+    /* Search results panel container with projects and tasks sections */
     <div className="mt-6 space-y-8">
       {showProjectsSection && (
         <section className="space-y-4">

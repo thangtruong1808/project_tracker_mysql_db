@@ -50,8 +50,8 @@ interface TasksTableTabletProps {
  */
 const TasksTableTablet = ({
   tasks,
-  sortField,
-  sortDirection,
+  sortField: _sortField,
+  sortDirection: _sortDirection,
   onSort,
   onEdit,
   onDelete,

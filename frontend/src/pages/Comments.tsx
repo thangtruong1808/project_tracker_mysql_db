@@ -28,7 +28,7 @@ interface CommentUser {
   role: string
 }
 
-interface Comment {
+interface Comment extends Record<string, unknown> {
   id: string
   uuid: string
   content: string

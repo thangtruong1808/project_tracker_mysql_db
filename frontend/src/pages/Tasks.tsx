@@ -27,7 +27,7 @@ interface Tag {
   category?: string
 }
 
-interface Task {
+interface Task extends Record<string, unknown> {
   id: string
   uuid: string
   title: string

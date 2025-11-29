@@ -108,6 +108,7 @@ const RegisterForm = ({ onRegisterSuccess }: RegisterFormProps) => {
   }
 
   return (
+    /* Registration form container */
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 via-white to-gray-50">
       <div className="max-w-xl w-full">
         {/* Register Card */}

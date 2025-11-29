@@ -20,7 +20,6 @@ for (const envPath of envPaths) {
 }
 
 if (!envLoaded) {
-  console.warn('⚠️  No .env file found, trying default location...')
   dotenv.config()
 }
 
@@ -32,10 +31,10 @@ async function runMigration() {
   const dbName = process.env.DB_NAME
 
   if (!dbHost || !dbUser || !dbPassword) {
-    console.error('❌ Missing required environment variables!')
-    console.error('Required: DB_HOST, DB_USER, DB_PASSWORD')
-    console.error(`Found: DB_HOST=${dbHost ? '✓' : '✗'}, DB_USER=${dbUser ? '✓' : '✗'}, DB_PASSWORD=${dbPassword ? '✓' : '✗'}`)
-    console.error('\nPlease check your .env file in the project root or backend directory.')
+    process.stderr.write('❌ Missing required environment variables!\n')
+    process.stderr.write('Required: DB_HOST, DB_USER, DB_PASSWORD\n')
+    process.stderr.write(`Found: DB_HOST=${dbHost ? '✓' : '✗'}, DB_USER=${dbUser ? '✓' : '✗'}, DB_PASSWORD=${dbPassword ? '✓' : '✗'}\n`)
+    process.stderr.write('\nPlease check your .env file in the project root or backend directory.\n')
     process.exit(1)
   }
 
@@ -59,9 +58,9 @@ async function runMigration() {
 
     await connection.query(sql)
   } catch (error: any) {
-    console.error('❌ Migration failed:', error.message)
+    process.stderr.write(`❌ Migration failed: ${error.message}\n`)
     if (error.sql) {
-      console.error('SQL Error:', error.sql)
+      process.stderr.write(`SQL Error: ${error.sql}\n`)
     }
     process.exit(1)
   } finally {

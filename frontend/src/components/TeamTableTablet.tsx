@@ -32,7 +32,7 @@ interface TeamTableTabletProps {
   getSortIcon: (field: SortField) => JSX.Element
 }
 
-const TeamTableTablet = ({ members, sortField, sortDirection, onSort, onEdit, onDelete, getSortIcon }: TeamTableTabletProps) => {
+const TeamTableTablet = ({ members, sortField: _sortField, sortDirection: _sortDirection, onSort, onEdit, onDelete, getSortIcon }: TeamTableTabletProps) => {
   return (
     /* Tablet table container */
     <div className="overflow-x-auto">

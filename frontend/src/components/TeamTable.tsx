@@ -153,12 +153,12 @@ const TeamTable = ({ members, sortField, sortDirection, onSort, onEdit, onDelete
       <div className="hidden md:block lg:hidden">
         <TeamTableTablet
           members={members}
-          sortField={sortField}
+          sortField={sortField as 'projectId' | 'userId' | 'projectName' | 'memberName' | 'memberEmail' | 'role'}
           sortDirection={sortDirection}
-          onSort={onSort}
+          onSort={onSort as (field: 'projectId' | 'userId' | 'projectName' | 'memberName' | 'memberEmail' | 'role') => void}
           onEdit={onEdit}
           onDelete={onDelete}
-          getSortIcon={getSortIcon}
+          getSortIcon={getSortIcon as (field: 'projectId' | 'userId' | 'projectName' | 'memberName' | 'memberEmail' | 'role') => JSX.Element}
         />
       </div>
 

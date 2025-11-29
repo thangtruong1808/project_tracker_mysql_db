@@ -56,8 +56,8 @@ interface CommentsTableTabletProps {
  */
 const CommentsTableTablet = ({
   comments,
-  sortField,
-  sortDirection,
+  sortField: _sortField,
+  sortDirection: _sortDirection,
   onSort,
   onEdit,
   onDelete,

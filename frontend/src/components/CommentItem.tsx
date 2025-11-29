@@ -22,6 +22,7 @@ interface CommentUser {
   firstName: string
   lastName: string
   email: string
+  role?: string
 }
 
 interface CommentItemProps {
@@ -228,11 +229,20 @@ const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, update
       {/* Delete confirmation dialog */}
       {isDeleteDialogOpen && (
         <DeleteCommentDialog
-          comment={{ id, content, user, createdAt, updatedAt, likesCount }}
+          comment={{
+            id,
+            uuid: id,
+            content,
+            projectId: projectIdFromParams || projectId || null,
+            user: { ...user, role: user.role || '' },
+            likesCount,
+            isLiked: false,
+            createdAt,
+            updatedAt,
+          }}
           isOpen={isDeleteDialogOpen}
           onClose={handleDeleteDialogClose}
           onSuccess={handleDeleteSuccess}
-          projectId={projectIdFromParams || projectId}
         />
       )}
     </div>

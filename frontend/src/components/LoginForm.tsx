@@ -93,6 +93,7 @@ const LoginForm = ({ onLoginSuccess }: LoginFormProps) => {
   }
 
   return (
+    /* Login form container */
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 via-white to-gray-50">
       <div className="max-w-md w-full">
         <div className="bg-white rounded-2xl shadow-xl p-8 sm:p-10 border border-gray-100">

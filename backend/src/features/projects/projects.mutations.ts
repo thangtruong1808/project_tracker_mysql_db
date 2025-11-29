@@ -135,7 +135,7 @@ export const projectsMutationResolvers = {
       // Comments are now project-level, so delete comments directly by project_id
       const projectComments = (await db.query(
         `SELECT id FROM comments WHERE project_id = ? AND is_deleted = false`,
-        [projectId]
+        [id]
       )) as any[]
       const commentIds = projectComments.map((c: any) => c.id)
 

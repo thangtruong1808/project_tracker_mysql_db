@@ -20,7 +20,7 @@ import EditUserModal from '../components/EditUserModal'
 import DeleteUserDialog from '../components/DeleteUserDialog'
 import CreateUserModal from '../components/CreateUserModal'
 
-interface User {
+interface User extends Record<string, unknown> {
   id: string
   uuid: string
   firstName: string

@@ -20,7 +20,7 @@ import EditTagModal from '../components/EditTagModal'
 import DeleteTagDialog from '../components/DeleteTagDialog'
 import CreateTagModal from '../components/CreateTagModal'
 
-interface Tag {
+interface Tag extends Record<string, unknown> {
   id: string
   name: string
   description: string | null

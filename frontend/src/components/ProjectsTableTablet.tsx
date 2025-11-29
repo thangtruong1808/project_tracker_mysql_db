@@ -45,8 +45,8 @@ import { getStatusBadge, getStatusLabel } from '../utils/projectUtils'
  */
 const ProjectsTableTablet = ({
   projects,
-  sortField,
-  sortDirection,
+  sortField: _sortField,
+  sortDirection: _sortDirection,
   onSort,
   onEdit,
   onDelete,

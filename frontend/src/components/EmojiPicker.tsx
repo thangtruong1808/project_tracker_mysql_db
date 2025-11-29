@@ -32,7 +32,7 @@ const EMOJI_CATEGORIES = [
  * @author Thang Truong
  * @date 2025-01-27
  */
-const EmojiPicker = ({ onEmojiSelect, isOpen, onClose }: EmojiPickerProps) => {
+const EmojiPicker = ({ onEmojiSelect, isOpen, onClose: _onClose }: EmojiPickerProps) => {
   const [selectedCategory, setSelectedCategory] = useState(0)
 
   /**

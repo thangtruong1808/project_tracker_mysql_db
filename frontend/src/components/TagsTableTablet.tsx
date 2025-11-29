@@ -45,8 +45,8 @@ interface TagsTableTabletProps {
  */
 const TagsTableTablet = ({
   tags,
-  sortField,
-  sortDirection,
+  sortField: _sortField,
+  sortDirection: _sortDirection,
   onSort,
   onEdit,
   onDelete,
