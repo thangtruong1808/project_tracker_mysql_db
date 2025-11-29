@@ -26,6 +26,7 @@ import {
   tasksQueryDefs,
   tasksMutationDefs,
   commentsTypeDefs,
+  commentsQueryDefs,
   commentsMutationDefs,
   commentsSubscriptionDefs,
   notificationsTypeDefs,
@@ -67,6 +68,7 @@ export const typeDefs = gql`
     ${tagsQueryDefs}
     ${projectsQueryDefs}
     ${tasksQueryDefs}
+    ${commentsQueryDefs}
     ${notificationsQueryDefs}
     ${activitiesQueryDefs}
     ${teamQueryDefs}

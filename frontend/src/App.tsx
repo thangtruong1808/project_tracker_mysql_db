@@ -28,6 +28,7 @@ import SearchResultsPage from './pages/SearchResultsPage'
 import Users from './pages/Users'
 import Tags from './pages/Tags'
 import Tasks from './pages/Tasks'
+import Comments from './pages/Comments'
 import Notifications from './pages/Notifications'
 import Activity from './pages/Activity'
 import Team from './pages/Team'
@@ -62,6 +63,7 @@ function App() {
                   <Route path="users" element={<Users />} />
                   <Route path="projects" element={<Projects />} />
                   <Route path="tasks" element={<Tasks />} />
+                  <Route path="comments" element={<Comments />} />
                   <Route path="team" element={<Team />} />
                   <Route path="tags" element={<Tags />} />
                   <Route path="activity" element={<Activity />} />

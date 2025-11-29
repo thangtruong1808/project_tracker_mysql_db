@@ -3,7 +3,7 @@
  * Loading skeleton for tasks table during data fetch
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-27
  */
 
 /**
@@ -32,10 +32,19 @@ const TasksTableLoading = () => {
                 <div className="h-4 bg-gray-200 rounded w-1/2"></div>
               </th>
               <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+              </th>
+              <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <div className="h-4 bg-gray-200 rounded w-2/3"></div>
               </th>
               <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+              </th>
+              <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+              </th>
+              <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div className="h-4 bg-gray-200 rounded w-1/3"></div>
               </th>
               <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <div className="h-4 bg-gray-200 rounded w-1/4"></div>
@@ -60,6 +69,9 @@ const TasksTableLoading = () => {
                 <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
                   <div className="h-4 bg-gray-100 rounded w-1/2"></div>
                 </td>
+                <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
+                  <div className="h-4 bg-gray-100 rounded w-1/3"></div>
+                </td>
                 <td className="px-4 xl:px-6 py-4">
                   <div className="h-4 bg-gray-100 rounded w-2/3"></div>
                 </td>
@@ -68,6 +80,9 @@ const TasksTableLoading = () => {
                 </td>
                 <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
                   <div className="h-6 bg-gray-100 rounded-full w-1/4"></div>
+                </td>
+                <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
+                  <div className="h-4 bg-gray-100 rounded w-1/4"></div>
                 </td>
                 <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
                   <div className="h-4 bg-gray-100 rounded w-1/3"></div>
@@ -96,10 +111,16 @@ const TasksTableLoading = () => {
                 <div className="h-4 bg-gray-200 rounded w-1/2"></div>
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <div className="h-4 bg-gray-200 rounded w-1/4"></div>
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div className="h-4 bg-gray-200 rounded w-1/3"></div>
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <div className="h-4 bg-gray-200 rounded w-1/4"></div>
@@ -113,10 +134,13 @@ const TasksTableLoading = () => {
                   <div className="h-4 bg-gray-100 rounded w-3/4"></div>
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap">
-                  <div className="h-6 bg-gray-100 rounded-full w-1/3"></div>
+                  <div className="h-4 bg-gray-100 rounded w-1/3"></div>
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap">
                   <div className="h-6 bg-gray-100 rounded-full w-1/3"></div>
+                </td>
+                <td className="px-4 py-4 whitespace-nowrap">
+                  <div className="h-4 bg-gray-100 rounded w-1/3"></div>
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap">
                   <div className="flex gap-2">

@@ -158,7 +158,7 @@ CREATE TABLE task_tags (
 CREATE TABLE comments (
   id INT PRIMARY KEY AUTO_INCREMENT,
   uuid CHAR(36) NOT NULL UNIQUE,
-  project_id INT NULL,                      -- New field for project_id (after uuid)
+  project_id INT NULL,                      
   user_id INT NOT NULL,
   content TEXT NOT NULL,
   is_deleted BOOLEAN DEFAULT FALSE,
@@ -166,16 +166,16 @@ CREATE TABLE comments (
   created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   CONSTRAINT fk_comments_project FOREIGN KEY (project_id)
-    REFERENCES projects(id) ON DELETE CASCADE,   -- Foreign key to projects table
+    REFERENCES projects(id) ON DELETE CASCADE,   
   CONSTRAINT fk_comments_user FOREIGN KEY (user_id)
     REFERENCES users(id) ON DELETE CASCADE,
   FULLTEXT idx_comments_content (content)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Create indices for the updated table
-CREATE INDEX idx_comments_project_id ON comments(project_id);    -- Index for project_id
-CREATE INDEX idx_comments_user_id ON comments(user_id);          -- Index for user_id
-CREATE INDEX idx_comments_is_deleted ON comments(is_deleted);    -- Index for is_deleted
+CREATE INDEX idx_comments_project_id ON comments(project_id);    
+CREATE INDEX idx_comments_user_id ON comments(user_id);          
+CREATE INDEX idx_comments_is_deleted ON comments(is_deleted);    
 
 -- TASK_LIKES TABLE
 CREATE TABLE task_likes (

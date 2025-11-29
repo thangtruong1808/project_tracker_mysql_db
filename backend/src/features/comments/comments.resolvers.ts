@@ -1,5 +1,5 @@
 /**
- * Comments Feature Resolvers - Handles comment mutations and subscriptions
+ * Comments Feature Resolvers - Handles comment queries, mutations and subscriptions
  * @author Thang Truong
  * @date 2025-11-27
  */
@@ -8,7 +8,7 @@ import { db } from '../../db'
 import { pubsub } from '../../utils/pubsub'
 import { verifyAccessToken } from '../../utils/auth'
 import { formatDateToISO } from '../../utils/formatters'
-import { getUserDisplayName, notifyProjectParticipants } from '../../utils/helpers'
+import { getUserDisplayName, notifyProjectParticipants, requireAuthentication, tryGetUserIdFromRequest } from '../../utils/helpers'
 import { v4 as uuidv4 } from 'uuid'
 
 /**
@@ -38,9 +38,63 @@ const buildCommentPayload = async (commentId: number | string, likesCount: numbe
 }
 
 /**
+ * Comments Query Resolvers
+ * @author Thang Truong
+ * @date 2025-11-27
+ */
+export const commentsQueryResolvers = {
+  /**
+   * Fetch all comments - requires authentication
+   *
+   * @author Thang Truong
+   * @date 2025-11-27
+   */
+  comments: async (_: any, __: any, context: { req: any }) => {
+    requireAuthentication(context, 'Authentication required to fetch comments.')
+    const userId = tryGetUserIdFromRequest(context.req)
+    const comments = (await db.query(
+      `SELECT c.id, c.uuid, c.content, c.project_id, c.created_at, c.updated_at,
+        u.id as user_id, u.first_name, u.last_name, u.email, u.role, u.uuid as user_uuid,
+        u.created_at as user_created_at, u.updated_at as user_updated_at,
+        COALESCE(cl.likes_count, 0) as likes_count
+      FROM comments c
+      LEFT JOIN users u ON c.user_id = u.id AND u.is_deleted = false
+      LEFT JOIN (SELECT comment_id, COUNT(*) as likes_count FROM comment_likes GROUP BY comment_id) cl ON c.id = cl.comment_id
+      WHERE c.is_deleted = false ORDER BY c.created_at DESC`
+    )) as any[]
+    let userLikedComments: Set<number> = new Set()
+    const validComments = comments.filter((c: any) => c.user_id)
+    if (userId && validComments.length > 0) {
+      const commentIds = validComments.map((c: any) => c.id)
+      const placeholders = commentIds.map(() => '?').join(',')
+      const userLikes = (await db.query(
+        `SELECT comment_id FROM comment_likes WHERE user_id = ? AND comment_id IN (${placeholders})`,
+        [userId, ...commentIds]
+      )) as any[]
+      userLikedComments = new Set(userLikes.map((like: any) => Number(like.comment_id)))
+    }
+    return validComments.map((c: any) => ({
+      id: c.id.toString(),
+      uuid: c.uuid || '',
+      content: c.content,
+      projectId: c.project_id ? c.project_id.toString() : null,
+      user: {
+        id: c.user_id.toString(), uuid: c.user_uuid || '', firstName: c.first_name || '',
+        lastName: c.last_name || '', email: c.email || '', role: c.role || '',
+        createdAt: formatDateToISO(c.user_created_at), updatedAt: formatDateToISO(c.user_updated_at),
+      },
+      likesCount: Number(c.likes_count || 0),
+      isLiked: userId ? userLikedComments.has(Number(c.id)) : false,
+      createdAt: formatDateToISO(c.created_at),
+      updatedAt: formatDateToISO(c.updated_at),
+    }))
+  },
+}
+
+/**
  * Comments Mutation Resolvers
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 export const commentsMutationResolvers = {
   /** Create comment mutation - @author Thang Truong @date 2025-11-27 */

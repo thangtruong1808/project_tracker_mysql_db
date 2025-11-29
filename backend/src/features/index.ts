@@ -29,7 +29,7 @@ export { tasksQueryResolvers, tasksMutationResolvers } from './tasks'
 
 // Comments feature
 export { commentsTypeDefs, commentsQueryDefs, commentsMutationDefs, commentsSubscriptionDefs } from './comments'
-export { commentsMutationResolvers, commentsSubscriptionResolvers } from './comments'
+export { commentsQueryResolvers, commentsMutationResolvers, commentsSubscriptionResolvers } from './comments'
 
 // Subscriptions feature
 export { notificationSubscriptionResolvers } from './subscriptions'

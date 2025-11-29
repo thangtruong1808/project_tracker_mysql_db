@@ -59,8 +59,7 @@ export const searchQueryResolvers = {
     FROM projects p
     LEFT JOIN users u ON p.owner_id = u.id AND u.is_deleted = false
     LEFT JOIN (SELECT project_id, COUNT(*) as likes_count FROM project_likes GROUP BY project_id) pl ON p.id = pl.project_id
-    LEFT JOIN (SELECT t.project_id, COUNT(*) as comments_count FROM comments c
-      INNER JOIN tasks t ON c.task_id = t.id WHERE c.is_deleted = false AND t.is_deleted = false GROUP BY t.project_id) pc ON p.id = pc.project_id
+    LEFT JOIN (SELECT project_id, COUNT(*) as comments_count FROM comments WHERE is_deleted = false GROUP BY project_id) pc ON p.id = pc.project_id
     WHERE p.is_deleted = false`
 
     let projectSql = applySearchFilters(baseProjectSql, searchTerm, projectStatuses, projectValues, ['p.name', 'p.description'])

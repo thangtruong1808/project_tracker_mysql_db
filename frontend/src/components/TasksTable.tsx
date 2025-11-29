@@ -26,7 +26,7 @@ interface Task {
   updatedAt: string
 }
 
-type SortField = 'id' | 'title' | 'status' | 'priority' | 'createdAt' | 'updatedAt'
+type SortField = 'id' | 'title' | 'status' | 'priority' | 'projectId' | 'createdAt' | 'updatedAt'
 type SortDirection = 'ASC' | 'DESC'
 
 interface TasksTableProps {

@@ -3,7 +3,7 @@
  * Mobile card view for displaying tasks on small screens
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-11-27
  */
 
 import { formatDateToMelbourne, getStatusBadge, getStatusLabel, getPriorityBadge, getPriorityLabel } from '../utils/taskUtils'

@@ -28,7 +28,9 @@ export const commentsTypeDefs = `
   }
 `
 
-export const commentsQueryDefs = ``
+export const commentsQueryDefs = `
+  comments: [Comment!]!
+`
 
 export const commentsMutationDefs = `
   createComment(projectId: ID!, content: String!): Comment!

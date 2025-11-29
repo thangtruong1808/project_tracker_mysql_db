@@ -3,7 +3,7 @@
  * Desktop view for tasks table with sortable columns
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  */
 
 import React from 'react'
@@ -23,7 +23,7 @@ interface Task {
   updatedAt: string
 }
 
-type SortField = 'id' | 'title' | 'status' | 'priority' | 'createdAt' | 'updatedAt'
+type SortField = 'id' | 'title' | 'status' | 'priority' | 'projectId' | 'createdAt' | 'updatedAt'
 
 interface TasksTableDesktopProps {
   tasks: Task[]
@@ -38,7 +38,7 @@ interface TasksTableDesktopProps {
  * Renders the desktop view of the tasks table with full column support
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-11-27
  * @param tasks - Array of task objects to display
  * @param onSort - Callback when column header is clicked
  * @param onEdit - Callback when edit button is clicked
@@ -50,6 +50,7 @@ const TasksTableDesktop: React.FC<TasksTableDesktopProps> = ({ tasks, onSort, on
   const sortableColumns: Array<{ field: SortField; label: string }> = [
     { field: 'id', label: 'ID' },
     { field: 'title', label: 'Title' },
+    { field: 'projectId', label: 'Project ID' },
   ]
 
   return (
@@ -71,6 +72,7 @@ const TasksTableDesktop: React.FC<TasksTableDesktopProps> = ({ tasks, onSort, on
             <th onClick={() => onSort('priority')} className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors">
               <div className="flex items-center gap-2">Priority{getSortIcon('priority')}</div>
             </th>
+            <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
             <th onClick={() => onSort('createdAt')} className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors">
               <div className="flex items-center gap-2">Created At{getSortIcon('createdAt')}</div>
             </th>
@@ -86,6 +88,7 @@ const TasksTableDesktop: React.FC<TasksTableDesktopProps> = ({ tasks, onSort, on
             <tr key={task.id} className="hover:bg-gray-100 transition-colors">
               <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{task.id}</td>
               <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{task.title}</td>
+              <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm text-gray-700">{task.projectId}</td>
               <td className="px-4 xl:px-6 py-4 text-sm text-gray-700 max-w-xs"><div className="truncate">{task.description}</div></td>
               <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
                 <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${getStatusBadge(task.status)}`}>{getStatusLabel(task.status)}</span>
@@ -93,6 +96,7 @@ const TasksTableDesktop: React.FC<TasksTableDesktopProps> = ({ tasks, onSort, on
               <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
                 <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${getPriorityBadge(task.priority)}`}>{getPriorityLabel(task.priority)}</span>
               </td>
+              <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm text-gray-700">{task.assignedTo || 'N/A'}</td>
               <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDateToMelbourne(task.createdAt)}</td>
               <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDateToMelbourne(task.updatedAt)}</td>
               <td className="px-4 xl:px-6 py-4 whitespace-nowrap text-sm font-medium">

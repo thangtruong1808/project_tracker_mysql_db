@@ -38,6 +38,7 @@ const DashboardLayout = () => {
     if (path.startsWith('/dashboard/users')) return 'Users'
     if (path.startsWith('/dashboard/projects')) return 'Projects'
     if (path.startsWith('/dashboard/tasks')) return 'Tasks'
+    if (path.startsWith('/dashboard/comments')) return 'Comments'
     if (path.startsWith('/dashboard/team')) return 'Team Members'
     if (path.startsWith('/dashboard/tags')) return 'Tags'
     if (path.startsWith('/dashboard/activity')) return 'Activity Logs'

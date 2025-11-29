@@ -31,5 +31,8 @@ export { ACTIVITIES_QUERY, ACTIVITY_QUERY } from './activities'
 // Team queries
 export { TEAM_MEMBERS_QUERY } from './team'
 
+// Comments queries
+export { COMMENTS_QUERY } from './comments'
+
 // Search queries
 export { SEARCH_DASHBOARD_QUERY } from './search'
