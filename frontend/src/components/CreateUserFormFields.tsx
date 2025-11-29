@@ -3,7 +3,7 @@
  * Form fields for creating a new user with react-hook-form validation
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-01-27
  */
 
 import { UseFormRegister, FieldErrors, UseFormWatch } from 'react-hook-form'
@@ -51,10 +51,16 @@ const CreateUserFormFields = ({
   onTogglePassword,
   onToggleConfirmPassword,
 }: CreateUserFormFieldsProps) => {
-  // Watch password field for confirmation validation
+  /**
+   * Watch password field for confirmation validation
+   *
+   * @author Thang Truong
+   * @date 2025-01-27
+   */
   const password = watch('password')
 
   return (
+    /* Form fields container for user creation */
     <div className="space-y-4">
       {/* Name Fields */}
       <div className="grid grid-cols-2 gap-4">

@@ -3,7 +3,7 @@
  * Handles navigation bar state management and nav item generation
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  */
 
 import { useState, useCallback } from 'react'
@@ -43,7 +43,7 @@ interface UseNavbarResult {
  * Custom hook for navbar state and logic management
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  * @returns Object containing navbar state and handler functions
  */
 export const useNavbar = (): UseNavbarResult => {
@@ -60,9 +60,10 @@ export const useNavbar = (): UseNavbarResult => {
    * Determine if current user has privileged dashboard access
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-01-27
+   * @returns True if user has admin or project manager role
    */
-  const hasDashboardAccess = useCallback(() => {
+  const hasDashboardAccess = useCallback((): boolean => {
     if (!isAuthenticated || !user?.role) return false
     const normalizedRole = user.role.toLowerCase()
     return normalizedRole === 'admin' || normalizedRole === 'project manager'
@@ -72,9 +73,9 @@ export const useNavbar = (): UseNavbarResult => {
    * Open the search drawer
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-01-27
    */
-  const openSearchDrawer = useCallback(async () => {
+  const openSearchDrawer = useCallback(async (): Promise<void> => {
     await Promise.resolve()
     setIsSearchDrawerOpen(true)
   }, [])
@@ -83,9 +84,9 @@ export const useNavbar = (): UseNavbarResult => {
    * Close the search drawer
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-01-27
    */
-  const closeSearchDrawer = useCallback(async () => {
+  const closeSearchDrawer = useCallback(async (): Promise<void> => {
     await Promise.resolve()
     setIsSearchDrawerOpen(false)
   }, [])
@@ -94,9 +95,9 @@ export const useNavbar = (): UseNavbarResult => {
    * Open notifications drawer with fresh data
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-01-27
    */
-  const openNotificationsDrawer = useCallback(async () => {
+  const openNotificationsDrawer = useCallback(async (): Promise<void> => {
     if (!isAuthenticated) return
     await refetchNotifications()
     setIsNotificationDrawerOpen(true)
@@ -106,9 +107,9 @@ export const useNavbar = (): UseNavbarResult => {
    * Close notifications drawer
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-01-27
    */
-  const closeNotificationsDrawer = useCallback(async () => {
+  const closeNotificationsDrawer = useCallback(async (): Promise<void> => {
     await Promise.resolve()
     setIsNotificationDrawerOpen(false)
   }, [])
@@ -117,9 +118,9 @@ export const useNavbar = (): UseNavbarResult => {
    * Toggle mobile menu visibility
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-01-27
    */
-  const toggleMenu = useCallback(async () => {
+  const toggleMenu = useCallback(async (): Promise<void> => {
     await Promise.resolve()
     setIsMenuOpen((prev) => !prev)
   }, [])
@@ -128,9 +129,9 @@ export const useNavbar = (): UseNavbarResult => {
    * Handle mobile menu close
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-01-27
    */
-  const handleMenuClose = useCallback(async () => {
+  const handleMenuClose = useCallback(async (): Promise<void> => {
     await Promise.resolve()
     setIsMenuOpen(false)
   }, [])
@@ -139,9 +140,11 @@ export const useNavbar = (): UseNavbarResult => {
    * Check if nav item is currently active
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-01-27
+   * @param href - Navigation href to check
+   * @returns True if the href matches current location
    */
-  const isActive = useCallback((href: string) => {
+  const isActive = useCallback((href: string): boolean => {
     if (!href) return false
     if (href === '/') return location.pathname === '/'
     return location.pathname.startsWith(href)
@@ -151,7 +154,9 @@ export const useNavbar = (): UseNavbarResult => {
    * Generate navigation items based on auth status and role
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-01-27
+   * @param icons - Object containing icon components
+   * @returns Array of navigation items
    */
   const getNavItems = useCallback((icons: { HomeIcon: React.FC; ProjectsIcon: React.FC; AboutIcon: React.FC; SearchIcon: React.FC; DashboardIcon: React.FC; NotificationsIcon: React.FC }): NavItem[] => {
     const items: NavItem[] = [
@@ -169,7 +174,9 @@ export const useNavbar = (): UseNavbarResult => {
    * Render nav icon with optional notification badge
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-01-27
+   * @param item - Navigation item to render icon for
+   * @returns React node containing icon with optional badge
    */
   const renderNavIcon = useCallback((item: NavItem): React.ReactNode => {
     if (item.label !== 'Notifications' || unreadCount === 0) return item.icon

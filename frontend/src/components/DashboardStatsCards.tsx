@@ -3,7 +3,7 @@
  * Displays statistics cards with real data and percentages from database
  *
  * @author Thang Truong
- * @date 2025-11-27
+ * @date 2025-01-27
  */
 
 import { useMemo } from 'react'
@@ -21,11 +21,22 @@ interface DashboardStatsCardsProps {
 
 /**
  * DashboardStatsCards - Real-time statistics with percentages from database
+ *
  * @author Thang Truong
- * @date 2025-11-27
+ * @date 2025-01-27
+ * @param projects - Array of project objects
+ * @param tasks - Array of task objects
+ * @param users - Array of user objects
+ * @param isLoading - Loading state flag
+ * @returns JSX element containing statistics cards
  */
 const DashboardStatsCards = ({ projects, tasks, users, isLoading }: DashboardStatsCardsProps) => {
-  /** Calculate statistics with percentages from real database data */
+  /**
+   * Calculate statistics with percentages from real database data
+   *
+   * @author Thang Truong
+   * @date 2025-01-27
+   */
   const stats = useMemo(() => {
     const totalProjects = projects.length
     const activeProjects = projects.filter(p => ['active', 'in_progress', 'IN_PROGRESS'].includes(p.status)).length
@@ -35,7 +46,7 @@ const DashboardStatsCards = ({ projects, tasks, users, isLoading }: DashboardSta
     const inProgressTasks = tasks.filter(t => ['in_progress', 'IN_PROGRESS'].includes(t.status)).length
     const pendingTasks = tasks.filter(t => ['pending', 'PENDING', 'todo', 'TODO'].includes(t.status)).length
     const totalUsers = users.length
-    const adminUsers = users.filter(u => u.role === 'admin' || u.role === 'ADMIN').length
+    const adminUsers = users.filter(u => u.role === 'Admin').length
 
     return {
       totalProjects, activeProjects, completedProjects, totalTasks, completedTasks, inProgressTasks, pendingTasks, totalUsers, adminUsers,
@@ -46,7 +57,13 @@ const DashboardStatsCards = ({ projects, tasks, users, isLoading }: DashboardSta
     }
   }, [projects, tasks, users])
 
-  /** Loading skeleton component */
+  /**
+   * Loading skeleton component
+   *
+   * @author Thang Truong
+   * @date 2025-01-27
+   * @returns JSX element for loading skeleton card
+   */
   const SkeletonCard = () => (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 animate-pulse">
       <div className="flex items-center justify-between">

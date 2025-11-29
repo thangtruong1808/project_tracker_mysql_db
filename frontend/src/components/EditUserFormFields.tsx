@@ -3,14 +3,17 @@
  * Form input fields for editing user information
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-01-27
  */
 
 /**
  * Available user roles
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
  */
 export const USER_ROLES = [
-  'ADMIN',
+  'Admin',
   'Project Manager',
   'Software Architect',
   'Frontend Developer',
@@ -44,8 +47,19 @@ interface EditUserFormFieldsProps {
  * @param onInputChange - Callback when input value changes
  * @returns JSX element containing form fields
  */
+/**
+ * EditUserFormFields Component
+ * Renders form input fields for user editing
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ * @param formData - Current form data values
+ * @param onInputChange - Callback when input value changes
+ * @returns JSX element containing form fields
+ */
 const EditUserFormFields = ({ formData, onInputChange }: EditUserFormFieldsProps) => {
   return (
+    /* Form fields container */
     <div className="space-y-4">
       {/* First Name */}
       <div>

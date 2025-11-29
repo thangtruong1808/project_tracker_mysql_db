@@ -3,7 +3,7 @@
  * Form input fields for editing user information with react-hook-form validation
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-01-27
  */
 
 import { UseFormRegister, FieldErrors } from 'react-hook-form'
@@ -34,6 +34,7 @@ const EditUserFormFieldsWithValidation = ({
   errors,
 }: EditUserFormFieldsWithValidationProps) => {
   return (
+    /* Form fields container with validation */
     <div className="space-y-4">
       {/* Name Fields */}
       <div className="grid grid-cols-2 gap-4">

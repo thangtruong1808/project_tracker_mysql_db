@@ -3,7 +3,7 @@
  * Guards dashboard routes and displays a friendly message when unauthenticated.
  *
  * @author Thang Truong
- * @date 2025-11-24
+ * @date 2025-01-27
  */
 
 import { useEffect, useState } from 'react'
@@ -17,9 +17,11 @@ import Logo from './Logo'
  * Renders user-facing guidance for unauthenticated dashboard access attempts.
  *
  * @author Thang Truong
- * @date 2025-11-24
+ * @date 2025-01-27
+ * @returns JSX element containing unauthorized access message
  */
 const UnauthorizedMessage = () => (
+  /* Unauthorized access message container */
   <div className="relative min-h-screen overflow-hidden flex items-center justify-center px-4 py-10 bg-gradient-to-br from-white via-slate-100 to-blue-50">
     <div className="absolute inset-0 pointer-events-none">
       <div className="absolute inset-14 bg-white/60 blur-3xl rounded-full" />
@@ -108,14 +110,21 @@ const UnauthorizedMessage = () => (
  * Performs an async verification before rendering dashboard content.
  *
  * @author Thang Truong
- * @date 2025-11-24
+ * @date 2025-01-27
+ * @returns JSX element containing dashboard layout or unauthorized message
  */
 const DashboardProtectedRoute = () => {
   const { isAuthenticated, user } = useAuth()
   const [isVerifying, setIsVerifying] = useState(true)
 
+  /**
+   * Verify access asynchronously
+   *
+   * @author Thang Truong
+   * @date 2025-01-27
+   */
   useEffect(() => {
-    const verifyAccess = async () => {
+    const verifyAccess = async (): Promise<void> => {
       await new Promise((resolve) => setTimeout(resolve, 120))
       setIsVerifying(false)
     }
@@ -124,6 +133,7 @@ const DashboardProtectedRoute = () => {
 
   if (isVerifying) {
     return (
+      /* Verification loading screen */
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-slate-100 to-blue-50 text-slate-600 text-sm">
         <div className="flex items-center gap-3 px-5 py-3 rounded-full bg-white shadow-lg border border-slate-100">
           <span className="inline-flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
@@ -133,7 +143,14 @@ const DashboardProtectedRoute = () => {
     )
   }
 
-  const hasDashboardAccess = () => {
+  /**
+   * Check if user has dashboard access based on role
+   *
+   * @author Thang Truong
+   * @date 2025-01-27
+   * @returns True if user has admin or project manager role
+   */
+  const hasDashboardAccess = (): boolean => {
     if (!isAuthenticated || !user?.role) {
       return false
     }

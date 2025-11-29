@@ -13,7 +13,7 @@ CREATE TABLE users (
   email VARCHAR(254) NOT NULL UNIQUE COLLATE utf8mb4_general_ci,
   password VARCHAR(255) NOT NULL,
   role ENUM(
-    'ADMIN',
+    'Admin',
     'Project Manager',
     'Software Architect',
     'Frontend Developer',
