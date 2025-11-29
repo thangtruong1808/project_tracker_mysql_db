@@ -9,11 +9,7 @@
   "routes": [
     {
       "src": "/graphql",
-      "dest": "/api/graphql"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/api/graphql"
+      "dest": "/api/graphql.ts"
     }
   ],
   "env": {
