@@ -55,8 +55,11 @@ export const setAccessTokenGetter = (getter: () => string | null) => {
 const getGraphQLUrl = (): string => {
   // Option 1: Production URL (Hostinger/Vercel) - from environment variable
   const productionUrl = import.meta.env.VITE_GRAPHQL_URL
-  if (productionUrl) {
-    return productionUrl.endsWith('/graphql') ? productionUrl : `${productionUrl}/graphql`
+  
+  if (productionUrl && productionUrl.trim() !== '') {
+    // Remove trailing slashes and ensure /graphql is appended
+    const cleanUrl = productionUrl.trim().replace(/\/+$/, '')
+    return cleanUrl.endsWith('/graphql') ? cleanUrl : `${cleanUrl}/graphql`
   }
   
   // Option 2: Local development - fallback to localhost
@@ -89,13 +92,24 @@ const getWebSocketUrl = (): string | null => {
 
 /**
  * HTTP link to GraphQL endpoint
+ * Includes error handling for invalid URIs
  *
  * @author Thang Truong
  * @date 2025-01-27
  */
+const graphqlUrl = getGraphQLUrl()
+
+// Validate GraphQL URL
+if (!graphqlUrl || graphqlUrl === 'undefined/graphql') {
+  throw new Error('Invalid GraphQL URL. Please set VITE_GRAPHQL_URL environment variable.')
+}
+
 const httpLink = createHttpLink({
-  uri: getGraphQLUrl(),
+  uri: graphqlUrl,
   credentials: 'include',
+  fetchOptions: {
+    mode: 'cors',
+  },
 })
 
 /**

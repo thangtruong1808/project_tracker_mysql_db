@@ -100,6 +100,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { app: expressApp } = await initializeApp()
 
+    // Handle root path directly if request is for root
+    if (req.url === '/' || req.url === '') {
+      res.status(200).json({ message: 'GraphQL API is running. Use /graphql endpoint.' })
+      return
+    }
+
     // Convert Vercel request/response to Express format
     return new Promise<void>((resolve, reject) => {
       expressApp!(req as any, res as any, (err: any) => {
