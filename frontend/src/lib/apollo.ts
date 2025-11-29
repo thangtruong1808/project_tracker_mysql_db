@@ -43,10 +43,56 @@ export const setAccessTokenGetter = (getter: () => string | null) => {
 }
 
 /**
+ * Get GraphQL URL from environment variable
+ * Supports two options:
+ * 1. VITE_GRAPHQL_URL - For production (Hostinger/Vercel)
+ * 2. Falls back to localhost for local development
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ * @returns GraphQL endpoint URL
+ */
+const getGraphQLUrl = (): string => {
+  // Option 1: Production URL (Hostinger/Vercel) - from environment variable
+  const productionUrl = import.meta.env.VITE_GRAPHQL_URL
+  if (productionUrl) {
+    return productionUrl.endsWith('/graphql') ? productionUrl : `${productionUrl}/graphql`
+  }
+  
+  // Option 2: Local development - fallback to localhost
+  return 'http://localhost:4000/graphql'
+}
+
+/**
+ * Get WebSocket URL from environment variable
+ * Supports two options:
+ * 1. VITE_GRAPHQL_URL - For production (Hostinger/Vercel) - uses WSS
+ * 2. Falls back to localhost for local development - uses WS
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ * @returns WebSocket endpoint URL
+ */
+const getWebSocketUrl = (): string => {
+  // Option 1: Production URL (Hostinger/Vercel) - convert HTTPS to WSS
+  const productionUrl = import.meta.env.VITE_GRAPHQL_URL
+  if (productionUrl) {
+    const httpUrl = productionUrl.replace(/^https?:\/\//, '')
+    return `wss://${httpUrl.replace(/\/graphql$/, '')}/graphql`
+  }
+  
+  // Option 2: Local development - use WS protocol
+  return 'ws://localhost:4000/graphql'
+}
+
+/**
  * HTTP link to GraphQL endpoint
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
  */
 const httpLink = createHttpLink({
-  uri: 'http://localhost:4000/graphql',
+  uri: getGraphQLUrl(),
   credentials: 'include',
 })
 
@@ -54,11 +100,11 @@ const httpLink = createHttpLink({
  * WebSocket link for GraphQL subscriptions
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  */
 const wsLink = new GraphQLWsLink(
   createClient({
-    url: 'ws://localhost:4000/graphql',
+    url: getWebSocketUrl(),
     connectionParams: () => {
       const accessToken = getAccessToken ? getAccessToken() : null
       return {
