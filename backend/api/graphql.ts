@@ -6,6 +6,7 @@
  * @date 2025-01-27
  */
 
+// @ts-ignore - Vercel types may not be available during build
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import express from 'express'
 import cors from 'cors'
@@ -16,7 +17,18 @@ import { expressMiddleware } from '@apollo/server/express4'
 // Import environment loader first
 import '../src/utils/loadEnv'
 
-let apolloServer: ApolloServer | null = null
+/**
+ * GraphQL context interface
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ */
+interface Context {
+  req: any
+  res: any
+}
+
+let apolloServer: ApolloServer<Context> | null = null
 let app: express.Application | null = null
 
 /**
@@ -35,12 +47,13 @@ async function initializeApp() {
     const { resolvers } = await import('../src/resolvers')
 
     // Initialize Apollo Server
-    apolloServer = new ApolloServer({
+    const server = new ApolloServer<Context>({
       typeDefs,
       resolvers,
     })
 
-    await apolloServer.start()
+    await server.start()
+    apolloServer = server
 
     // Create Express app
     app = express()
@@ -62,7 +75,7 @@ async function initializeApp() {
     // Apply GraphQL middleware
     app.use(
       express.json(),
-      expressMiddleware(apolloServer, {
+      expressMiddleware(server, {
         context: async ({ req, res }) => {
           return { req, res }
         },
