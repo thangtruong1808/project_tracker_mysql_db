@@ -67,13 +67,14 @@ async function initializeApp() {
       credentials: true,
     }))
 
-    // Handle root path
+    // Handle root path - must be before GraphQL middleware
     app.get('/', (req, res) => {
       res.json({ message: 'GraphQL API is running. Use /graphql endpoint.' })
     })
 
-    // Apply GraphQL middleware
+    // Apply GraphQL middleware only to /graphql path
     app.use(
+      '/graphql',
       express.json(),
       expressMiddleware(server, {
         context: async ({ req, res }) => {

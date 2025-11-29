@@ -3,7 +3,7 @@
  * Sets up GraphQL client with authentication headers and error handling
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  */
 
 // Must import before Apollo to suppress WebSocket errors
@@ -24,7 +24,7 @@ let getAccessToken: (() => string | null) | null = null
  * Set the token expiration handler callback
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  * @param handler - Function to call when token expires
  */
 export const setTokenExpirationHandler = (handler: () => Promise<void>) => {
@@ -35,7 +35,7 @@ export const setTokenExpirationHandler = (handler: () => Promise<void>) => {
  * Set the access token getter function
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  * @param getter - Function that returns current access token
  */
 export const setAccessTokenGetter = (getter: () => string | null) => {
@@ -68,17 +68,19 @@ const getGraphQLUrl = (): string => {
  * Supports two options:
  * 1. VITE_GRAPHQL_URL - For production (Hostinger/Vercel) - uses WSS
  * 2. Falls back to localhost for local development - uses WS
+ * Note: Vercel serverless functions don't support WebSockets, so returns null for production
  *
  * @author Thang Truong
  * @date 2025-01-27
- * @returns WebSocket endpoint URL
+ * @returns WebSocket endpoint URL or null if WebSockets not supported
  */
-const getWebSocketUrl = (): string => {
-  // Option 1: Production URL (Hostinger/Vercel) - convert HTTPS to WSS
+const getWebSocketUrl = (): string | null => {
+  // Option 1: Production URL (Hostinger/Vercel) - WebSockets not supported on serverless
   const productionUrl = import.meta.env.VITE_GRAPHQL_URL
   if (productionUrl) {
-    const httpUrl = productionUrl.replace(/^https?:\/\//, '')
-    return `wss://${httpUrl.replace(/\/graphql$/, '')}/graphql`
+    // Vercel serverless functions don't support WebSockets
+    // Return null to disable WebSocket link in production
+    return null
   }
   
   // Option 2: Local development - use WS protocol
@@ -98,48 +100,55 @@ const httpLink = createHttpLink({
 
 /**
  * WebSocket link for GraphQL subscriptions
+ * Only created if WebSocket URL is available (local development)
  *
  * @author Thang Truong
  * @date 2025-01-27
  */
-const wsLink = new GraphQLWsLink(
-  createClient({
-    url: getWebSocketUrl(),
-    connectionParams: () => {
-      const accessToken = getAccessToken ? getAccessToken() : null
-      return {
-        authorization: accessToken ? `Bearer ${accessToken}` : '',
-        authToken: accessToken || '',
-      }
-    },
-    shouldRetry: () => false,
-    on: {
-      error: () => { /* Silently handle WebSocket errors */ },
-      closed: () => { /* Silently handle WebSocket closed events */ },
-    },
-  })
-)
+const wsUrl = getWebSocketUrl()
+const wsLink = wsUrl
+  ? new GraphQLWsLink(
+      createClient({
+        url: wsUrl,
+        connectionParams: () => {
+          const accessToken = getAccessToken ? getAccessToken() : null
+          return {
+            authorization: accessToken ? `Bearer ${accessToken}` : '',
+            authToken: accessToken || '',
+          }
+        },
+        shouldRetry: () => false,
+        on: {
+          error: () => { /* Silently handle WebSocket errors */ },
+          closed: () => { /* Silently handle WebSocket closed events */ },
+        },
+      })
+    )
+  : null
 
 /**
  * Split link - uses WebSocket for subscriptions, HTTP for queries/mutations
+ * Falls back to HTTP if WebSocket is not available (production/Vercel)
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  */
-const splitLink = split(
-  ({ query }) => {
-    const definition = getMainDefinition(query)
-    return definition.kind === 'OperationDefinition' && definition.operation === 'subscription'
-  },
-  wsLink,
-  httpLink
-)
+const splitLink = wsLink
+  ? split(
+      ({ query }) => {
+        const definition = getMainDefinition(query)
+        return definition.kind === 'OperationDefinition' && definition.operation === 'subscription'
+      },
+      wsLink,
+      httpLink
+    )
+  : httpLink
 
 /**
  * Handle token refresh on authentication errors
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  */
 const handleTokenRefresh = async () => {
   try {
@@ -180,7 +189,7 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
  * Auth link to add access token to requests
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  */
 const authLink = setContext((_, { headers }) => {
   const accessToken = getAccessToken ? getAccessToken() : null
@@ -197,7 +206,7 @@ const authLink = setContext((_, { headers }) => {
  * Apollo Client instance with error handling and authentication
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  */
 export const client = new ApolloClient({
   link: from([errorLink, authLink, splitLink]),
