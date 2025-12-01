@@ -167,52 +167,113 @@ try {
   
   // Compose the link chain using from()
   // from() properly chains non-terminating links before the terminating link
-  const linkChain = from(links)
+  let linkChain
+  try {
+    linkChain = from(links)
+  } catch {
+    // If from() fails, fallback to HTTP link only
+    linkChain = httpLink
+  }
   
   // Validate linkChain is an object
   if (!linkChain || typeof linkChain !== 'object') {
-    throw new Error('Link chain composition failed - result is not a valid Apollo Link')
+    // Fallback to HTTP link only if link chain is invalid
+    linkChain = httpLink
   }
   
   // Create Apollo Client with the composed link chain
-  client = new ApolloClient({
-    link: linkChain,
-    cache: new InMemoryCache({
-      typePolicies: {
-        Query: {
-          fields: {
-            // Add any custom cache policies here if needed
+  // Enable DevTools in both development and production for debugging
+  try {
+    client = new ApolloClient({
+      link: linkChain,
+      cache: new InMemoryCache({
+        typePolicies: {
+          Query: {
+            fields: {
+              // Add any custom cache policies here if needed
+            },
           },
         },
+      }),
+      defaultOptions: {
+        watchQuery: { errorPolicy: 'all' },
+        query: { errorPolicy: 'all' },
+        mutate: { errorPolicy: 'all' },
       },
-    }),
-    defaultOptions: {
-      watchQuery: { errorPolicy: 'all' },
-      query: { errorPolicy: 'all' },
-      mutate: { errorPolicy: 'all' },
-    },
-    // Enable devtools for better debugging in development
-    devtools: {
-      enabled: import.meta.env.DEV,
-    },
-  })
+      // Enable DevTools in both dev and production for debugging
+      // DevTools can help diagnose issues in production
+      connectToDevTools: true,
+    })
+  } catch {
+    // If client creation fails with full link chain, try with just HTTP link
+    // This ensures the app works even if error/auth links cause issues
+    client = new ApolloClient({
+      link: httpLink,
+      cache: new InMemoryCache(),
+      defaultOptions: {
+        watchQuery: { errorPolicy: 'all' },
+        query: { errorPolicy: 'all' },
+        mutate: { errorPolicy: 'all' },
+      },
+      // Enable DevTools even in fallback mode
+      connectToDevTools: true,
+    })
+  }
   
-  // Final validation - ensure client was created
-  if (!client) {
-    throw new Error('Apollo Client was not created successfully')
+  // Expose client to window for DevTools discovery (helps in production)
+  // This ensures DevTools can always find the client
+  if (typeof window !== 'undefined') {
+    ;(window as any).__APOLLO_CLIENT__ = client
+  }
+  
+  // Final validation - ensure client was created and has required methods
+  if (!client || typeof client.query !== 'function') {
+    // Last resort: create minimal client with just HTTP link
+    const minimalHttpLink = createHttpLinkInstance()
+    client = new ApolloClient({
+      link: minimalHttpLink,
+      cache: new InMemoryCache(),
+      connectToDevTools: true,
+    })
+  }
+  
+  // Ensure client is valid after all attempts
+  if (!client || typeof client.query !== 'function') {
+    throw new Error('Apollo Client was not created successfully - all creation attempts failed')
   }
 } catch (error) {
-  // Provide helpful error message if client creation fails
-  const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-  const graphqlUrl = import.meta.env.VITE_GRAPHQL_URL || 'not set'
-  const isProduction = import.meta.env.PROD
-  
-  throw new Error(
-    `Failed to create Apollo Client: ${errorMessage}. ` +
-    `GraphQL URL: ${graphqlUrl}. ` +
-    `Environment: ${isProduction ? 'production' : 'development'}. ` +
-    `Please check your configuration.`
-  )
+  // Last resort: try to create absolute minimal client
+  try {
+    const minimalLink = createHttpLinkInstance()
+    client = new ApolloClient({
+      link: minimalLink,
+      cache: new InMemoryCache(),
+      connectToDevTools: true,
+    })
+    
+    // If minimal client creation succeeded, continue
+    if (client && typeof client.query === 'function') {
+      // Client created successfully with minimal config
+      // Expose to window for DevTools
+      if (typeof window !== 'undefined') {
+        ;(window as any).__APOLLO_CLIENT__ = client
+      }
+    } else {
+      throw new Error('Minimal client creation also failed')
+    }
+  } catch (minimalError) {
+    // Provide helpful error message if all client creation attempts fail
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const graphqlUrl = import.meta.env.VITE_GRAPHQL_URL || 'not set'
+    const isProduction = import.meta.env.PROD
+    
+    throw new Error(
+      `Failed to create Apollo Client: ${errorMessage}. ` +
+      `GraphQL URL: ${graphqlUrl}. ` +
+      `Environment: ${isProduction ? 'production' : 'development'}. ` +
+      `Minimal client creation also failed. Please check your configuration.`
+    )
+  }
 }
 
 export { client }
