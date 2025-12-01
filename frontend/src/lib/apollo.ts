@@ -17,6 +17,23 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions'
 import { createClient } from 'graphql-ws'
 import { refreshAccessToken } from '../utils/tokenRefresh'
 
+// Enable detailed error messages in development
+// This helps debug Apollo Client errors during development
+// Note: @apollo/client/dev is only available in development builds
+if (import.meta.env.DEV) {
+  try {
+    // Dynamic import to avoid issues if dev module is not available
+    import('@apollo/client/dev').then(({ loadErrorMessages, loadDevMessages }) => {
+      loadDevMessages()
+      loadErrorMessages()
+    }).catch(() => {
+      // Silently fail if dev module is not available (e.g., in production builds)
+    })
+  } catch {
+    // Silently fail if import fails
+  }
+}
+
 let onTokenExpired: (() => Promise<void>) | null = null
 let getAccessToken: (() => string | null) | null = null
 
@@ -99,9 +116,12 @@ const getWebSocketUrl = (): string | null => {
  */
 const graphqlUrl = getGraphQLUrl()
 
-// Validate GraphQL URL
-if (!graphqlUrl || graphqlUrl === 'undefined/graphql') {
-  throw new Error('Invalid GraphQL URL. Please set VITE_GRAPHQL_URL environment variable.')
+// Validate GraphQL URL - provide helpful error message
+if (!graphqlUrl || graphqlUrl === 'undefined/graphql' || !graphqlUrl.startsWith('http')) {
+  const errorMessage = import.meta.env.DEV
+    ? `Invalid GraphQL URL: "${graphqlUrl}". Please set VITE_GRAPHQL_URL environment variable to your backend URL (e.g., https://your-backend.onrender.com)`
+    : 'Invalid GraphQL URL. Please configure VITE_GRAPHQL_URL environment variable.'
+  throw new Error(errorMessage)
 }
 
 const httpLink = createHttpLink({
@@ -147,16 +167,32 @@ const wsLink = wsUrl
  * @author Thang Truong
  * @date 2025-01-27
  */
-const splitLink = wsLink
-  ? split(
+const createSplitLink = () => {
+  if (!wsLink) {
+    return httpLink
+  }
+
+  try {
+    return split(
       ({ query }) => {
-        const definition = getMainDefinition(query)
-        return definition.kind === 'OperationDefinition' && definition.operation === 'subscription'
+        try {
+          const definition = getMainDefinition(query)
+          return definition.kind === 'OperationDefinition' && definition.operation === 'subscription'
+        } catch {
+          // If query parsing fails, use HTTP link
+          return false
+        }
       },
       wsLink,
       httpLink
     )
-  : httpLink
+  } catch {
+    // If split link creation fails, fall back to HTTP only
+    return httpLink
+  }
+}
+
+const splitLink = createSplitLink()
 
 /**
  * Handle token refresh on authentication errors
@@ -218,16 +254,40 @@ const authLink = setContext((_, { headers }) => {
 
 /**
  * Apollo Client instance with error handling and authentication
+ * Wrapped in try-catch to provide better error messages
  *
  * @author Thang Truong
  * @date 2025-01-27
  */
-export const client = new ApolloClient({
-  link: from([errorLink, authLink, splitLink]),
-  cache: new InMemoryCache(),
-  defaultOptions: {
-    watchQuery: { errorPolicy: 'all' },
-    query: { errorPolicy: 'all' },
-    mutate: { errorPolicy: 'all' },
-  },
-})
+let client: ApolloClient<any>
+
+try {
+  client = new ApolloClient({
+    link: from([errorLink, authLink, splitLink]),
+    cache: new InMemoryCache({
+      typePolicies: {
+        Query: {
+          fields: {
+            // Add any custom cache policies here if needed
+          },
+        },
+      },
+    }),
+    defaultOptions: {
+      watchQuery: { errorPolicy: 'all' },
+      query: { errorPolicy: 'all' },
+      mutate: { errorPolicy: 'all' },
+    },
+    // Add connectToDevTools for better debugging in development
+    connectToDevTools: import.meta.env.DEV,
+  })
+} catch (error) {
+  // Provide helpful error message if client creation fails
+  const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+  throw new Error(
+    `Failed to create Apollo Client: ${errorMessage}. ` +
+    `Please check your GraphQL URL configuration (VITE_GRAPHQL_URL=${import.meta.env.VITE_GRAPHQL_URL || 'not set'})`
+  )
+}
+
+export { client }
