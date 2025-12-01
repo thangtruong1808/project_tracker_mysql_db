@@ -79,30 +79,50 @@ export const createHttpLinkInstance = () => {
  * @author Thang Truong
  * @date 2025-01-27
  */
-export const createWebSocketLink = () => {
-  const wsUrl = getWebSocketUrl()
-  
-  if (!wsUrl) {
+/**
+ * WebSocket link for GraphQL subscriptions
+ * Created for both local development and production (Render supports WebSockets)
+ * Returns null if WebSocket URL is not available or creation fails
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ * @returns GraphQLWsLink instance or null if WebSocket is not available
+ */
+export const createWebSocketLink = (): GraphQLWsLink | null => {
+  try {
+    const wsUrl = getWebSocketUrl()
+    
+    if (!wsUrl) {
+      return null
+    }
+
+    // Validate WebSocket URL format
+    if (!wsUrl.startsWith('ws://') && !wsUrl.startsWith('wss://')) {
+      // Invalid WebSocket URL - return null to fall back to HTTP
+      return null
+    }
+
+    return new GraphQLWsLink(
+      createClient({
+        url: wsUrl,
+        connectionParams: () => {
+          const accessToken = getAccessToken ? getAccessToken() : null
+          return {
+            authorization: accessToken ? `Bearer ${accessToken}` : '',
+            authToken: accessToken || '',
+          }
+        },
+        shouldRetry: () => false,
+        on: {
+          error: () => { /* Silently handle WebSocket errors */ },
+          closed: () => { /* Silently handle WebSocket closed events */ },
+        },
+      })
+    )
+  } catch (error) {
+    // WebSocket link creation failed - return null to fall back to HTTP only
     return null
   }
-
-  return new GraphQLWsLink(
-    createClient({
-      url: wsUrl,
-      connectionParams: () => {
-        const accessToken = getAccessToken ? getAccessToken() : null
-        return {
-          authorization: accessToken ? `Bearer ${accessToken}` : '',
-          authToken: accessToken || '',
-        }
-      },
-      shouldRetry: () => false,
-      on: {
-        error: () => { /* Silently handle WebSocket errors */ },
-        closed: () => { /* Silently handle WebSocket closed events */ },
-      },
-    })
-  )
 }
 
 /**

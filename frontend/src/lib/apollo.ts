@@ -55,26 +55,58 @@ export const setAccessTokenGetter = (getter: () => string | null) => {
   setLinksAccessTokenGetter(getter)
 }
 
-// Create links
-const httpLink = createHttpLinkInstance()
-const wsLink = createWebSocketLink()
-const splitLink = createSplitLink(httpLink, wsLink)
+/**
+ * Create Apollo Client links with error handling
+ * Wraps link creation in try-catch to provide better error messages
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ */
+let httpLink: ReturnType<typeof createHttpLinkInstance>
+let wsLink: ReturnType<typeof createWebSocketLink> | null
+let splitLink: ReturnType<typeof createSplitLink>
+let errorLink: ReturnType<typeof createErrorLink>
+let authLink: ReturnType<typeof createAuthLink>
 
-// Ensure splitLink is a valid Apollo Link
-if (!splitLink || typeof splitLink !== 'object') {
-  throw new Error('Failed to create Apollo Client link chain. splitLink is invalid.')
-}
-
-// Create auth and error links
-const errorLink = createErrorLink()
-const authLink = createAuthLink()
-
-// Validate all links are properly initialized before creating client
-if (!errorLink || !authLink || !splitLink) {
+try {
+  // Create HTTP link - this is required
+  httpLink = createHttpLinkInstance()
+  
+  // Create WebSocket link - this is optional and may return null
+  try {
+    wsLink = createWebSocketLink()
+  } catch (wsError) {
+    // WebSocket link creation failed - continue without it
+    wsLink = null
+  }
+  
+  // Create split link - falls back to HTTP if WebSocket is not available
+  splitLink = createSplitLink(httpLink, wsLink)
+  
+  // Create auth and error links
+  errorLink = createErrorLink()
+  authLink = createAuthLink()
+  
+  // Validate all required links are properly initialized
+  if (!httpLink || !splitLink || !errorLink || !authLink) {
+    throw new Error(
+      'Failed to initialize Apollo Client link chain. ' +
+      `httpLink: ${!!httpLink}, splitLink: ${!!splitLink}, errorLink: ${!!errorLink}, authLink: ${!!authLink}. ` +
+      'Please check your GraphQL URL configuration.'
+    )
+  }
+  
+  // Ensure splitLink is a valid Apollo Link
+  if (typeof splitLink !== 'object' || !splitLink.request) {
+    throw new Error('Failed to create Apollo Client link chain. splitLink is invalid.')
+  }
+} catch (linkError) {
+  const errorMessage = linkError instanceof Error ? linkError.message : 'Unknown error'
+  const graphqlUrl = import.meta.env.VITE_GRAPHQL_URL || 'not set'
   throw new Error(
-    'Failed to initialize Apollo Client link chain. ' +
-    `errorLink: ${!!errorLink}, authLink: ${!!authLink}, splitLink: ${!!splitLink}. ` +
-    'Please check your GraphQL URL configuration.'
+    `Failed to create Apollo Client links: ${errorMessage}. ` +
+    `GraphQL URL: ${graphqlUrl}. ` +
+    `Please check your VITE_GRAPHQL_URL environment variable in Render.`
   )
 }
 
@@ -91,22 +123,31 @@ try {
   // Compose the link chain: error handling -> authentication -> split (WebSocket/HTTP)
   // The from() function composes multiple links into a single link
   // Ensure all links are valid Apollo Links before composition
-  const links = [errorLink, authLink, splitLink].filter(Boolean)
+  const links = [errorLink, authLink, splitLink]
   
-  if (links.length !== 3) {
+  // Validate all links exist and are objects
+  for (let i = 0; i < links.length; i++) {
+    const link = links[i]
+    if (!link || typeof link !== 'object') {
+      throw new Error(
+        `Invalid link at index ${i}: ${link === null ? 'null' : link === undefined ? 'undefined' : typeof link}. ` +
+        `All links must be valid Apollo Link objects.`
+      )
+    }
+  }
+  
+  // Compose the link chain using from()
+  const linkChain = from(links)
+  
+  // Validate linkChain is properly created
+  if (!linkChain || typeof linkChain !== 'object' || typeof linkChain.request !== 'function') {
     throw new Error(
-      `Invalid link chain: expected 3 links, got ${links.length}. ` +
-      `errorLink: ${!!errorLink}, authLink: ${!!authLink}, splitLink: ${!!splitLink}`
+      'Failed to compose Apollo Client link chain: linkChain is invalid. ' +
+      'The composed link must have a request method.'
     )
   }
   
-  const linkChain = from(links as any)
-  
-  // Validate linkChain is properly created and has required methods
-  if (!linkChain || typeof linkChain !== 'object') {
-    throw new Error('Failed to compose Apollo Client link chain: linkChain is invalid')
-  }
-  
+  // Create Apollo Client with the composed link chain
   client = new ApolloClient({
     link: linkChain,
     cache: new InMemoryCache({
@@ -129,14 +170,22 @@ try {
       enabled: import.meta.env.DEV,
     },
   })
+  
+  // Validate client was created successfully
+  if (!client || typeof client.query !== 'function') {
+    throw new Error('Apollo Client was created but is invalid. Missing required methods.')
+  }
 } catch (error) {
   // Provide helpful error message if client creation fails
   const errorMessage = error instanceof Error ? error.message : 'Unknown error'
   const graphqlUrl = import.meta.env.VITE_GRAPHQL_URL || 'not set'
+  const isProduction = import.meta.env.PROD
+  
   throw new Error(
     `Failed to create Apollo Client: ${errorMessage}. ` +
     `GraphQL URL: ${graphqlUrl}. ` +
-    `Please check your VITE_GRAPHQL_URL environment variable.`
+    `Environment: ${isProduction ? 'production' : 'development'}. ` +
+    `Please check your VITE_GRAPHQL_URL environment variable${isProduction ? ' in Render' : ''}.`
   )
 }
 
