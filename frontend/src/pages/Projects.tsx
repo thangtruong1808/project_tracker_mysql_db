@@ -92,11 +92,19 @@ const Projects = () => {
     return () => clearTimeout(timer)
   }, [searchTerm])
 
-  /** Handle GraphQL query errors - @author Thang Truong @date 2025-01-27 */
+  /**
+   * Handle GraphQL query errors
+   * Displays detailed error messages from the backend
+   *
+   * @author Thang Truong
+   * @date 2025-01-27
+   */
   useEffect(() => {
     const handleError = async (): Promise<void> => {
       if (error) {
-        await showToast('Failed to load projects. Please try again later.', 'error', 7000)
+        // Extract error message from GraphQL error
+        const errorMessage = error.message || 'Failed to load projects. Please try again later.'
+        await showToast(errorMessage, 'error', 10000)
       }
     }
     handleError()

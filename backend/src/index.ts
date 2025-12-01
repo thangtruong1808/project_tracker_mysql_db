@@ -47,9 +47,32 @@ app.use(cors(corsOptions))
 
 let wsServerCleanup: any = null
 
+/**
+ * Apollo Server configuration
+ * Handles GraphQL queries, mutations, and subscriptions
+ * Includes error formatting for better client-side error messages
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ */
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  formatError: (error) => {
+    // Format errors to provide helpful messages to the client
+    // @author Thang Truong
+    // @date 2025-01-27
+    const message = error.message || 'An error occurred'
+    const code = error.extensions?.code || 'INTERNAL_SERVER_ERROR'
+    
+    return {
+      message,
+      extensions: {
+        code,
+        ...error.extensions,
+      },
+    }
+  },
   plugins: [
     {
       async serverWillStart() {

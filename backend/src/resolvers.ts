@@ -4,7 +4,7 @@
  * Organized by features for better maintainability
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  */
 
 import {
@@ -37,7 +37,7 @@ import {
  * Combined GraphQL resolvers from all features
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  */
 export const resolvers = {
   Query: {

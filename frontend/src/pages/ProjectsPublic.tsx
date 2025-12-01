@@ -90,10 +90,19 @@ const ProjectsPublic = () => {
     refetchProjects()
   }, [accessToken, refetch])
 
+  /**
+   * Handle GraphQL query errors
+   * Displays detailed error messages from the backend
+   *
+   * @author Thang Truong
+   * @date 2025-01-27
+   */
   useEffect(() => {
     const handleError = async (): Promise<void> => {
       if (error) {
-        await showToast('Failed to load projects. Please try again later.', 'error', 7000)
+        // Extract error message from GraphQL error
+        const errorMessage = error.message || 'Failed to load projects. Please try again later.'
+        await showToast(errorMessage, 'error', 10000)
       }
     }
     handleError()
@@ -129,10 +138,13 @@ const ProjectsPublic = () => {
   }, [])
 
   return (
+    /* Projects public page container */
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
+        {/* Projects page header */}
         <ProjectsHeader />
 
+        {/* Projects filter section */}
         <ProjectsFilter
           selectedStatuses={selectedStatuses}
           dateFrom={dateFrom}
@@ -143,6 +155,7 @@ const ProjectsPublic = () => {
           onClearFilters={handleClearFilters}
         />
 
+        {/* Projects content section */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-lg">
           <ProjectsContent
             projects={projects}
