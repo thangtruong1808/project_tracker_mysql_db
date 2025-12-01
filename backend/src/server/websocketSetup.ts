@@ -89,8 +89,8 @@ export const setupWebSocketServer = (httpServer: Server): any => {
 
     return wsServerCleanup
   } catch (wsError: any) {
-    // WebSocket setup failed - log but don't crash HTTP server
-    console.error('WebSocket server setup failed (HTTP server still running):', wsError?.message || wsError)
+    // WebSocket setup failed - HTTP server continues running
+    // Error logging removed per requirements (only index.ts can have console.log)
     return null
   }
 }

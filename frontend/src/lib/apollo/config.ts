@@ -9,7 +9,7 @@
 /**
  * Get GraphQL URL from environment variable
  * Supports two options:
- * 1. VITE_GRAPHQL_URL - For production (Hostinger/Vercel)
+ * 1. VITE_GRAPHQL_URL - For production (Render backend URL)
  * 2. Falls back to localhost for local development
  *
  * @author Thang Truong
@@ -17,7 +17,7 @@
  * @returns GraphQL endpoint URL
  */
 export const getGraphQLUrl = (): string => {
-  // Option 1: Production URL (Hostinger/Vercel) - from environment variable
+  // Option 1: Production URL (Render) - from environment variable
   const productionUrl = import.meta.env.VITE_GRAPHQL_URL
   
   if (productionUrl && productionUrl.trim() !== '') {
@@ -33,21 +33,22 @@ export const getGraphQLUrl = (): string => {
 /**
  * Get WebSocket URL from environment variable
  * Supports two options:
- * 1. VITE_GRAPHQL_URL - For production (Hostinger/Vercel) - uses WSS
+ * 1. VITE_GRAPHQL_URL - For production (Render) - uses WSS
  * 2. Falls back to localhost for local development - uses WS
- * Note: Vercel serverless functions don't support WebSockets, so returns null for production
+ * Note: Render supports WebSockets, so subscriptions will work in production
  *
  * @author Thang Truong
  * @date 2025-01-27
  * @returns WebSocket endpoint URL or null if WebSockets not supported
  */
 export const getWebSocketUrl = (): string | null => {
-  // Option 1: Production URL (Hostinger/Vercel) - WebSockets not supported on serverless
+  // Option 1: Production URL (Render) - Render supports WebSockets
   const productionUrl = import.meta.env.VITE_GRAPHQL_URL
   if (productionUrl) {
-    // Vercel serverless functions don't support WebSockets
-    // Return null to disable WebSocket link in production
-    return null
+    // Render supports WebSockets, so convert HTTP URL to WebSocket URL
+    const cleanUrl = productionUrl.trim().replace(/\/+$/, '')
+    const wsUrl = cleanUrl.replace(/^https?:\/\//, 'wss://')
+    return wsUrl.endsWith('/graphql') ? wsUrl : `${wsUrl}/graphql`
   }
   
   // Option 2: Local development - use WS protocol

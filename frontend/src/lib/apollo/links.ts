@@ -54,7 +54,7 @@ export const createHttpLinkInstance = () => {
 
 /**
  * WebSocket link for GraphQL subscriptions
- * Only created if WebSocket URL is available (local development)
+ * Created for both local development and production (Render supports WebSockets)
  *
  * @author Thang Truong
  * @date 2025-01-27
@@ -87,18 +87,19 @@ export const createWebSocketLink = () => {
 
 /**
  * Split link - uses WebSocket for subscriptions, HTTP for queries/mutations
- * Falls back to HTTP if WebSocket is not available (production/Vercel)
+ * Falls back to HTTP if WebSocket is not available
+ * Render supports WebSockets, so subscriptions work in production
  *
  * @author Thang Truong
  * @date 2025-01-27
  */
 export const createSplitLink = (httpLink: ReturnType<typeof createHttpLinkInstance>, wsLink: ReturnType<typeof createWebSocketLink>) => {
-  // In production (Vercel), wsLink is null, so use HTTP link directly
+  // If WebSocket link is not available, use HTTP link directly
   if (!wsLink) {
     return httpLink
   }
 
-  // In development, create split link for WebSocket subscriptions
+  // Create split link for WebSocket subscriptions (works in both dev and production on Render)
   try {
     return split(
       ({ query }) => {

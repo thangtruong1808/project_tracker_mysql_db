@@ -44,7 +44,7 @@ function getPool(): mysql.Pool {
   }
 
   // Create MySQL connection pool with timeout and SSL configuration
-  // Hostinger databases typically require SSL connections
+  // FreeSQLDatabase requires SSL connections with rejectUnauthorized: false
   const poolConfig: mysql.PoolOptions = {
     host: requiredEnvVars.DB_HOST,
     port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 3306,
@@ -59,10 +59,10 @@ function getPool(): mysql.Pool {
     keepAliveInitialDelay: 0, // Start keep-alive immediately
   }
 
-  // SSL configuration - Hostinger typically requires SSL
-  // Try with SSL first (most common for remote databases)
+  // SSL configuration - FreeSQLDatabase requires SSL with rejectUnauthorized: false
+  // Default to SSL enabled unless explicitly disabled
   if (process.env.DB_SSL !== 'false') {
-    // Hostinger often requires SSL but with rejectUnauthorized: false
+    // FreeSQLDatabase requires SSL but with rejectUnauthorized: false by default
     poolConfig.ssl = {
       rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true',
     }
@@ -114,7 +114,7 @@ export const db = {
           `1. Database host (${process.env.DB_HOST}) is correct and accessible\n` +
           `2. Database allows connections from Render's IP addresses\n` +
           `3. Firewall rules allow connections on port ${process.env.DB_PORT || 3306}\n` +
-          `4. SSL configuration if required by your database provider`
+          `4. SSL configuration - FreeSQLDatabase requires SSL with rejectUnauthorized: false`
         )
       }
       if (error.code === 'ECONNREFUSED') {

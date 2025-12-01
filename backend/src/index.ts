@@ -27,7 +27,8 @@ app.use(cookieParser())
 /**
  * Configure CORS options
  * Allows frontend to connect from localhost:3000 or production frontend URL
- * Frontend URL can be set via FRONTEND_URL environment variable
+ * Frontend URL can be set via FRONTEND_URL environment variable (Render frontend URL)
+ * Render supports WebSockets, so subscriptions will work
  *
  * @author Thang Truong
  * @date 2025-01-27
@@ -36,7 +37,7 @@ const corsOptions = {
   origin: [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    process.env.FRONTEND_URL,
+    process.env.FRONTEND_URL, // Render frontend URL
   ].filter(Boolean) as string[], // Remove undefined values
   credentials: true,
 }
@@ -113,17 +114,19 @@ async function startServer(): Promise<void> {
       })
     )
 
-    const PORT = process.env.PORT || 4000
+    const PORT = parseInt(process.env.PORT || '4000', 10)
 
     /**
      * Start HTTP server and listen on specified port
+     * Render requires listening on 0.0.0.0 or the PORT environment variable
      * Must be done before WebSocket server setup
      *
      * @author Thang Truong
      * @date 2025-01-27
      */
     await new Promise<void>((resolve, reject) => {
-      httpServer.listen(PORT, () => {
+      // Render requires binding to 0.0.0.0, not just localhost
+      httpServer.listen(PORT, '0.0.0.0', () => {
         // Server started successfully
         console.log(`Server is running on port ${PORT}`)
         resolve()
@@ -135,6 +138,7 @@ async function startServer(): Promise<void> {
      * WebSocket server for GraphQL subscriptions
      * Set up after HTTP server is listening
      * Handles real-time comment updates
+     * Render supports WebSockets, so subscriptions will work (unlike Vercel)
      * Setup is optional - HTTP server will work even if WebSocket fails
      *
      * @author Thang Truong
@@ -144,7 +148,7 @@ async function startServer(): Promise<void> {
 
     /**
      * Test database connection on startup with retry logic
-     * Hostinger databases may need multiple connection attempts
+     * FreeSQLDatabase may need multiple connection attempts
      * Extended timeout for Render free tier which may have slower network
      * Server starts even if DB connection is slow (non-blocking)
      *
