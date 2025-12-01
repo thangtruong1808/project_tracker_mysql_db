@@ -54,7 +54,7 @@ function getPool(): mysql.Pool {
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-    connectTimeout: 120000, // 120 seconds connection timeout for remote databases (Render free tier may be slower)
+    connectTimeout: 180000, // 180 seconds connection timeout for remote databases (Render free tier may be slower)
     enableKeepAlive: true, // Keep connection alive
     keepAliveInitialDelay: 0, // Start keep-alive immediately
   }
