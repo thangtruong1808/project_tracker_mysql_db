@@ -32,24 +32,44 @@ export const setAccessTokenGetter = (getter: () => string | null) => {
  * @author Thang Truong
  * @date 2025-01-27
  */
+/**
+ * HTTP link to GraphQL endpoint
+ * Includes error handling for invalid URIs
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ * @returns HTTP link instance
+ * @throws Error if GraphQL URL is invalid
+ */
 export const createHttpLinkInstance = () => {
-  const graphqlUrl = getGraphQLUrl()
+  try {
+    const graphqlUrl = getGraphQLUrl()
 
-  // Validate GraphQL URL - provide helpful error message
-  if (!graphqlUrl || graphqlUrl === 'undefined/graphql' || !graphqlUrl.startsWith('http')) {
-    const errorMessage = import.meta.env.DEV
-      ? `Invalid GraphQL URL: "${graphqlUrl}". Please set VITE_GRAPHQL_URL environment variable to your backend URL (e.g., https://your-backend.onrender.com)`
-      : 'Invalid GraphQL URL. Please configure VITE_GRAPHQL_URL environment variable.'
-    throw new Error(errorMessage)
+    // Validate GraphQL URL - provide helpful error message
+    if (!graphqlUrl || graphqlUrl === 'undefined/graphql' || (!graphqlUrl.startsWith('http://') && !graphqlUrl.startsWith('https://'))) {
+      const errorMessage = import.meta.env.DEV
+        ? `Invalid GraphQL URL: "${graphqlUrl}". Please set VITE_GRAPHQL_URL environment variable to your backend URL (e.g., https://your-backend.onrender.com)`
+        : `Invalid GraphQL URL: "${graphqlUrl}". Please configure VITE_GRAPHQL_URL in Render environment variables (e.g., https://project-tracker-backend-pa9k.onrender.com)`
+      throw new Error(errorMessage)
+    }
+
+    return createHttpLink({
+      uri: graphqlUrl,
+      credentials: 'include',
+      fetchOptions: {
+        mode: 'cors',
+      },
+    })
+  } catch (error) {
+    // Re-throw with additional context
+    if (error instanceof Error) {
+      throw new Error(
+        `Failed to create HTTP link: ${error.message}. ` +
+        `Please ensure VITE_GRAPHQL_URL is set correctly in Render environment variables.`
+      )
+    }
+    throw error
   }
-
-  return createHttpLink({
-    uri: graphqlUrl,
-    credentials: 'include',
-    fetchOptions: {
-      mode: 'cors',
-    },
-  })
 }
 
 /**

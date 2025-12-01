@@ -16,6 +16,17 @@
  * @date 2025-01-27
  * @returns GraphQL endpoint URL
  */
+/**
+ * Get GraphQL URL from environment variable
+ * Supports two options:
+ * 1. VITE_GRAPHQL_URL - For production (Render backend URL)
+ * 2. Falls back to localhost for local development
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ * @returns GraphQL endpoint URL
+ * @throws Error if URL is invalid in production
+ */
 export const getGraphQLUrl = (): string => {
   // Option 1: Production URL (Render) - from environment variable
   const productionUrl = import.meta.env.VITE_GRAPHQL_URL
@@ -23,10 +34,30 @@ export const getGraphQLUrl = (): string => {
   if (productionUrl && productionUrl.trim() !== '') {
     // Remove trailing slashes and ensure /graphql is appended
     const cleanUrl = productionUrl.trim().replace(/\/+$/, '')
-    return cleanUrl.endsWith('/graphql') ? cleanUrl : `${cleanUrl}/graphql`
+    const finalUrl = cleanUrl.endsWith('/graphql') ? cleanUrl : `${cleanUrl}/graphql`
+    
+    // Validate URL format
+    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+      throw new Error(
+        `Invalid VITE_GRAPHQL_URL format: "${productionUrl}". ` +
+        `URL must start with http:// or https://. ` +
+        `Please set VITE_GRAPHQL_URL in Render environment variables (e.g., https://project-tracker-backend-pa9k.onrender.com)`
+      )
+    }
+    
+    return finalUrl
   }
   
   // Option 2: Local development - fallback to localhost
+  // In production, this should not happen - VITE_GRAPHQL_URL must be set
+  if (import.meta.env.PROD) {
+    throw new Error(
+      'VITE_GRAPHQL_URL environment variable is not set in production. ' +
+      'Please configure VITE_GRAPHQL_URL in Render environment variables for the frontend service. ' +
+      'Example: https://project-tracker-backend-pa9k.onrender.com'
+    )
+  }
+  
   return 'http://localhost:4000/graphql'
 }
 
