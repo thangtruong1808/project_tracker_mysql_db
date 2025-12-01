@@ -4,7 +4,7 @@
  * Must run before any Apollo/GraphQL imports
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  */
 
 const originalConsoleError = console.error
@@ -15,7 +15,7 @@ const originalWindowError = window.onerror
  * Check if error message is WebSocket-related and should be suppressed
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  * @param message - Error message to check
  * @returns True if message should be suppressed
  */
@@ -37,7 +37,7 @@ const suppressWebSocketLogs = (message: string): boolean => {
  * Override window.onerror to catch WebSocket errors
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  */
 window.onerror = (message, source, lineno, colno, error) => {
   const errorMessage = String(message || '')
@@ -52,7 +52,7 @@ window.onerror = (message, source, lineno, colno, error) => {
  * Override console.error to suppress WebSocket errors
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  */
 console.error = (...args: unknown[]) => {
   const errorMessage = args.map((arg) => String(arg || '')).join(' ')
@@ -64,7 +64,7 @@ console.error = (...args: unknown[]) => {
  * Override console.warn to suppress WebSocket warnings
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-01-27
  */
 console.warn = (...args: unknown[]) => {
   const errorMessage = args.map((arg) => String(arg || '')).join(' ')
