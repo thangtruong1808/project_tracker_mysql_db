@@ -7,7 +7,7 @@
  */
 
 import './utils/loadEnv'
-import express from 'express'
+import express, { Request, Response } from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import { ApolloServer } from '@apollo/server'
@@ -78,7 +78,7 @@ async function startServer(): Promise<void> {
       cors(corsOptions),
       express.json(),
       expressMiddleware(server, {
-        context: async ({ req, res }) => {
+        context: async ({ req, res }: { req: Request; res: Response }) => {
           return { req, res }
         },
       })
@@ -120,10 +120,14 @@ async function startServer(): Promise<void> {
        * @author Thang Truong
        * @date 2025-01-27
        */
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const ws = require('ws')
       // Use package exports path - Node.js will resolve to correct CommonJS file
-      const { useServer } = require('graphql-ws/use/ws')
-      const { executableSchema } = require('./schemaExecutable')
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const graphqlWsUseWs = require('graphql-ws/use/ws')
+      const { useServer } = graphqlWsUseWs
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { executableSchema } = require('./schemaExecutable') as { executableSchema: any }
 
       const { WebSocketServer } = ws
 

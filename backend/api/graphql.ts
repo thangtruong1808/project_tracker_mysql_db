@@ -24,8 +24,8 @@ import '../src/utils/loadEnv'
  * @date 2025-01-27
  */
 interface Context {
-  req: any
-  res: any
+  req: express.Request
+  res: express.Response
 }
 
 let apolloServer: ApolloServer<Context> | null = null
@@ -68,7 +68,7 @@ async function initializeApp() {
     }))
 
     // Handle root path - must be before GraphQL middleware
-    app.get('/', (req, res) => {
+    app.get('/', (req: express.Request, res: express.Response) => {
       res.json({ message: 'GraphQL API is running. Use /graphql endpoint.' })
     })
 
@@ -77,7 +77,7 @@ async function initializeApp() {
       '/graphql',
       express.json(),
       expressMiddleware(server, {
-        context: async ({ req, res }) => {
+        context: async ({ req, res }: { req: express.Request; res: express.Response }) => {
           return { req, res }
         },
       })
