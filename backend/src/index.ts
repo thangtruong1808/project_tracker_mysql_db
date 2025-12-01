@@ -26,10 +26,18 @@ app.use(cookieParser())
 
 /**
  * Configure CORS options
- * Allows frontend to connect from localhost:3000
+ * Allows frontend to connect from localhost:3000 or production frontend URL
+ * Frontend URL can be set via FRONTEND_URL environment variable
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
  */
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    process.env.FRONTEND_URL,
+  ].filter(Boolean) as string[], // Remove undefined values
   credentials: true,
 }
 
