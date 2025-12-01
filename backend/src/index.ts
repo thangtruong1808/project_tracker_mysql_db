@@ -81,6 +81,27 @@ async function startServer(): Promise<void> {
      * @author Thang Truong
      * @date 2025-01-27
      */
+    /**
+     * Root endpoint - provides API information
+     *
+     * @author Thang Truong
+     * @date 2025-01-27
+     */
+    app.get('/', (req: Request, res: Response) => {
+      res.json({ 
+        message: 'GraphQL API is running. Use /graphql endpoint.',
+        graphql: '/graphql',
+        status: 'online'
+      })
+    })
+
+    /**
+     * GraphQL endpoint with CORS support
+     * Handles all GraphQL queries and mutations
+     *
+     * @author Thang Truong
+     * @date 2025-01-27
+     */
     app.use(
       '/graphql',
       cors(corsOptions),

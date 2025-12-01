@@ -25,8 +25,11 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 4173,
     strictPort: false,
-    // Allow all hosts for Render deployment
-    allowedHosts: 'all',
+    // Allow all hosts for Render deployment - use function to allow any host
+    allowedHosts: (host: string) => {
+      // Allow all hosts for Render deployment
+      return true
+    },
   },
   build: {
     rollupOptions: {
