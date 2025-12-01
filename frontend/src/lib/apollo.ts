@@ -20,18 +20,17 @@ import { refreshAccessToken } from '../utils/tokenRefresh'
 // Enable detailed error messages in development
 // This helps debug Apollo Client errors during development
 // Note: @apollo/client/dev is only available in development builds
+// Load asynchronously - error messages will be available after initial load
 if (import.meta.env.DEV) {
-  try {
-    // Dynamic import to avoid issues if dev module is not available
-    import('@apollo/client/dev').then(({ loadErrorMessages, loadDevMessages }) => {
+  // Load dev messages asynchronously - this is fine as it's just for better error messages
+  import('@apollo/client/dev')
+    .then(({ loadErrorMessages, loadDevMessages }) => {
       loadDevMessages()
       loadErrorMessages()
-    }).catch(() => {
-      // Silently fail if dev module is not available (e.g., in production builds)
     })
-  } catch {
-    // Silently fail if import fails
-  }
+    .catch(() => {
+      // Silently fail if dev module is not available (expected in production builds)
+    })
 }
 
 let onTokenExpired: (() => Promise<void>) | null = null
@@ -168,16 +167,21 @@ const wsLink = wsUrl
  * @date 2025-01-27
  */
 const createSplitLink = () => {
+  // In production (Vercel), wsLink is null, so use HTTP link directly
   if (!wsLink) {
     return httpLink
   }
 
+  // In development, create split link for WebSocket subscriptions
   try {
     return split(
       ({ query }) => {
         try {
           const definition = getMainDefinition(query)
-          return definition.kind === 'OperationDefinition' && definition.operation === 'subscription'
+          return (
+            definition.kind === 'OperationDefinition' &&
+            definition.operation === 'subscription'
+          )
         } catch {
           // If query parsing fails, use HTTP link
           return false
@@ -193,6 +197,11 @@ const createSplitLink = () => {
 }
 
 const splitLink = createSplitLink()
+
+// Ensure splitLink is a valid Apollo Link
+if (!splitLink || typeof splitLink !== 'object') {
+  throw new Error('Failed to create Apollo Client link chain. splitLink is invalid.')
+}
 
 /**
  * Handle token refresh on authentication errors
@@ -261,14 +270,24 @@ const authLink = setContext((_, { headers }) => {
  */
 let client: ApolloClient<any>
 
-// Validate that splitLink is properly initialized before creating client
-if (!splitLink) {
-  throw new Error('Failed to initialize Apollo Client link chain. Please check your GraphQL URL configuration.')
+// Validate all links are properly initialized before creating client
+if (!errorLink || !authLink || !splitLink) {
+  throw new Error(
+    'Failed to initialize Apollo Client link chain. ' +
+    `errorLink: ${!!errorLink}, authLink: ${!!authLink}, splitLink: ${!!splitLink}. ` +
+    'Please check your GraphQL URL configuration.'
+  )
 }
 
 try {
   // Compose the link chain: error handling -> authentication -> split (WebSocket/HTTP)
+  // The from() function composes multiple links into a single link
   const linkChain = from([errorLink, authLink, splitLink])
+  
+  // Validate linkChain is properly created
+  if (!linkChain) {
+    throw new Error('Failed to compose Apollo Client link chain')
+  }
   
   client = new ApolloClient({
     link: linkChain,
@@ -295,9 +314,11 @@ try {
 } catch (error) {
   // Provide helpful error message if client creation fails
   const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+  const graphqlUrl = import.meta.env.VITE_GRAPHQL_URL || 'not set'
   throw new Error(
     `Failed to create Apollo Client: ${errorMessage}. ` +
-    `Please check your GraphQL URL configuration (VITE_GRAPHQL_URL=${import.meta.env.VITE_GRAPHQL_URL || 'not set'})`
+    `GraphQL URL: ${graphqlUrl}. ` +
+    `Please check your VITE_GRAPHQL_URL environment variable.`
   )
 }
 
