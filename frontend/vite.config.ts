@@ -25,6 +25,17 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 4173,
     strictPort: false,
+    /**
+     * Allowed hosts for preview mode
+     * Required for Render deployment to allow requests from Render domain
+     *
+     * @author Thang Truong
+     * @date 2025-01-27
+     */
+    allowedHosts: [
+      'project-tracker-frontend-ff0t.onrender.com',
+      '.onrender.com', // Allow all Render subdomains
+    ],
   },
   build: {
     rollupOptions: {
