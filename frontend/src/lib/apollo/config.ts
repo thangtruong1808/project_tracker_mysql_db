@@ -7,39 +7,28 @@
  */
 
 /**
- * Get GraphQL URL from environment variable
- * Supports two options:
- * 1. VITE_GRAPHQL_URL - For production (Render backend URL)
- * 2. Falls back to localhost for local development
+ * Hardcoded production GraphQL URL as fallback
+ * Used when environment variable is not available
+ * This ensures the app works even if VITE_GRAPHQL_URL is not set
  *
  * @author Thang Truong
  * @date 2025-01-27
- * @returns GraphQL endpoint URL
  */
+const FALLBACK_PRODUCTION_GRAPHQL_URL = 'https://project-tracker-backend-pa9k.onrender.com/graphql'
+
 /**
- * Get GraphQL URL from environment variable
- * Supports two options:
- * 1. VITE_GRAPHQL_URL - For production (Render backend URL)
- * 2. Falls back to localhost for local development
+ * Get GraphQL URL from environment variable with fallback
+ * Supports three options:
+ * 1. VITE_GRAPHQL_URL - From environment variable (preferred)
+ * 2. Hardcoded production URL - Fallback if env var is not set
+ * 3. Localhost - For local development
  *
  * @author Thang Truong
  * @date 2025-01-27
  * @returns GraphQL endpoint URL
- * @throws Error if URL is invalid in production
- */
-/**
- * Get GraphQL URL from environment variable
- * Supports two options:
- * 1. VITE_GRAPHQL_URL - For production (Render backend URL)
- * 2. Falls back to localhost for local development
- *
- * @author Thang Truong
- * @date 2025-01-27
- * @returns GraphQL endpoint URL
- * @throws Error if URL is invalid in production
  */
 export const getGraphQLUrl = (): string => {
-  // Option 1: Production URL (Render) - from environment variable
+  // Option 1: Production URL from environment variable (preferred)
   const productionUrl = import.meta.env.VITE_GRAPHQL_URL
   
   if (productionUrl && typeof productionUrl === 'string' && productionUrl.trim() !== '') {
@@ -53,45 +42,42 @@ export const getGraphQLUrl = (): string => {
     const finalUrl = cleanUrl.endsWith('/graphql') ? cleanUrl : `${cleanUrl}/graphql`
     
     // Validate URL format - must be a valid HTTP/HTTPS URL
-    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-      throw new Error(
-        `Invalid VITE_GRAPHQL_URL format: "${productionUrl}". ` +
-        `URL must start with http:// or https://. ` +
-        `Please set VITE_GRAPHQL_URL in Render/Vercel environment variables (e.g., https://project-tracker-backend-pa9k.onrender.com)`
-      )
+    if (finalUrl.startsWith('http://') || finalUrl.startsWith('https://')) {
+      // Try to create a URL object to validate it's a valid URL
+      try {
+        new URL(finalUrl)
+        return finalUrl
+      } catch {
+        // Invalid URL format - fall through to fallback
+      }
     }
-    
-    // Try to create a URL object to validate it's a valid URL
-    try {
-      new URL(finalUrl)
-    } catch (urlError) {
-      throw new Error(
-        `Invalid VITE_GRAPHQL_URL: "${productionUrl}" is not a valid URL. ` +
-        `Please check the URL format in your environment variables.`
-      )
-    }
-    
-    return finalUrl
   }
   
-  // Option 2: Local development - fallback to localhost
-  // In production, this should not happen - VITE_GRAPHQL_URL must be set
+  // Option 2: Production - use hardcoded fallback URL
+  // This ensures the app works even if environment variable is not set
   if (import.meta.env.PROD) {
-    throw new Error(
-      'VITE_GRAPHQL_URL environment variable is not set in production. ' +
-      'Please configure VITE_GRAPHQL_URL in Render/Vercel environment variables for the frontend service. ' +
-      'Example: https://project-tracker-backend-pa9k.onrender.com/graphql'
-    )
+    return FALLBACK_PRODUCTION_GRAPHQL_URL
   }
   
+  // Option 3: Local development - fallback to localhost
   return 'http://localhost:4000/graphql'
 }
 
 /**
- * Get WebSocket URL from environment variable
- * Supports two options:
- * 1. VITE_GRAPHQL_URL - For production (Render) - uses WSS
- * 2. Falls back to localhost for local development - uses WS
+ * Hardcoded production WebSocket URL as fallback
+ * Used when environment variable is not available
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ */
+const FALLBACK_PRODUCTION_WEBSOCKET_URL = 'wss://project-tracker-backend-pa9k.onrender.com/graphql'
+
+/**
+ * Get WebSocket URL from environment variable with fallback
+ * Supports three options:
+ * 1. VITE_GRAPHQL_URL - From environment variable (preferred)
+ * 2. Hardcoded production URL - Fallback if env var is not set
+ * 3. Localhost - For local development
  * Note: Render supports WebSockets, so subscriptions will work in production
  *
  * @author Thang Truong
@@ -99,16 +85,23 @@ export const getGraphQLUrl = (): string => {
  * @returns WebSocket endpoint URL or null if WebSockets not supported
  */
 export const getWebSocketUrl = (): string | null => {
-  // Option 1: Production URL (Render) - Render supports WebSockets
+  // Option 1: Production URL from environment variable (preferred)
   const productionUrl = import.meta.env.VITE_GRAPHQL_URL
-  if (productionUrl) {
+  if (productionUrl && typeof productionUrl === 'string' && productionUrl.trim() !== '') {
     // Render supports WebSockets, so convert HTTP URL to WebSocket URL
-    const cleanUrl = productionUrl.trim().replace(/\/+$/, '')
-    const wsUrl = cleanUrl.replace(/^https?:\/\//, 'wss://')
-    return wsUrl.endsWith('/graphql') ? wsUrl : `${wsUrl}/graphql`
+    const cleanUrl = productionUrl.trim().replace(/\/+$/, '').replace(/^["']|["']$/g, '')
+    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+      const wsUrl = cleanUrl.replace(/^https?:\/\//, 'wss://')
+      return wsUrl.endsWith('/graphql') ? wsUrl : `${wsUrl}/graphql`
+    }
   }
   
-  // Option 2: Local development - use WS protocol
+  // Option 2: Production - use hardcoded fallback WebSocket URL
+  if (import.meta.env.PROD) {
+    return FALLBACK_PRODUCTION_WEBSOCKET_URL
+  }
+  
+  // Option 3: Local development - use WS protocol
   return 'ws://localhost:4000/graphql'
 }
 
