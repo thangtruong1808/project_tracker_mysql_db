@@ -44,7 +44,7 @@ function getPool(): mysql.Pool {
   }
 
   // Create MySQL connection pool with timeout and SSL configuration
-  // SSL is often required for remote database connections
+  // Hostinger databases typically require SSL connections
   const poolConfig: mysql.PoolOptions = {
     host: requiredEnvVars.DB_HOST,
     port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 3306,
@@ -54,14 +54,17 @@ function getPool(): mysql.Pool {
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-    connectTimeout: 60000, // 60 seconds connection timeout
+    connectTimeout: 120000, // 120 seconds connection timeout for remote databases (Render free tier may be slower)
+    enableKeepAlive: true, // Keep connection alive
+    keepAliveInitialDelay: 0, // Start keep-alive immediately
   }
 
-  // SSL configuration - required for most remote databases
-  // Only add SSL if not explicitly disabled
+  // SSL configuration - Hostinger typically requires SSL
+  // Try with SSL first (most common for remote databases)
   if (process.env.DB_SSL !== 'false') {
+    // Hostinger often requires SSL but with rejectUnauthorized: false
     poolConfig.ssl = {
-      rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+      rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true',
     }
   }
 

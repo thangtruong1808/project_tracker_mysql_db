@@ -190,35 +190,64 @@ async function startServer(): Promise<void> {
     }
 
     /**
-     * Test database connection on startup
-     * Uses a longer timeout for initial connection test
+     * Test database connection on startup with retry logic
+     * Hostinger databases may need multiple connection attempts
+     * Extended timeout for Render free tier which may have slower network
      *
      * @author Thang Truong
      * @date 2025-01-27
      */
-    try {
-      // Test database connection with timeout
-      const connectionTest = Promise.race([
-        db.query('SELECT 1'),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Database connection test timeout after 30 seconds')), 30000)
-        )
-      ])
-      
-      await connectionTest
-      await ensureActivityLogTargetUsers()
-      // Database connection successful
-    } catch (error: any) {
-      // Database connection failed - provide detailed error message
-      const errorMessage = error?.message || 'Unknown database connection error'
-      console.error('Database connection failed:', errorMessage)
-      if (error?.code) {
-        console.error('Error code:', error.code)
+    const maxRetries = 5
+    let lastError: any = null
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Test database connection with extended timeout for remote databases
+        // Increased to 120 seconds to account for Render free tier network delays
+        const connectionTest = Promise.race([
+          db.query('SELECT 1'),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Database connection test timeout after 120 seconds')), 120000)
+          )
+        ])
+        
+        await connectionTest
+        await ensureActivityLogTargetUsers()
+        // Database connection successful
+        break
+      } catch (error: any) {
+        lastError = error
+        const errorMessage = error?.message || 'Unknown database connection error'
+        
+        if (attempt < maxRetries) {
+          // Wait before retrying (exponential backoff with longer delays)
+          const waitTime = attempt * 3000 // 3s, 6s, 9s, 12s
+          console.error(`Database connection attempt ${attempt} failed. Retrying in ${waitTime}ms...`)
+          console.error('Error:', errorMessage)
+          await new Promise(resolve => setTimeout(resolve, waitTime))
+        } else {
+          // Final attempt failed - provide detailed error message
+          console.error(`Database connection failed after ${maxRetries} attempts:`)
+          console.error('Error message:', errorMessage)
+          if (error?.code) {
+            console.error('Error code:', error.code)
+          }
+          if (error?.errno) {
+            console.error('Error number:', error.errno)
+          }
+          if (error?.sqlState) {
+            console.error('SQL State:', error.sqlState)
+          }
+          console.error('\nTroubleshooting steps:')
+          console.error('1. Verify database credentials in Render environment variables')
+          console.error('2. Check if Hostinger database allows external connections (Remote MySQL with % host)')
+          console.error('3. Try setting DB_SSL_REJECT_UNAUTHORIZED=false in environment variables')
+          console.error('4. Verify database host IP (82.180.142.51) and port (3306) are correct')
+          console.error('5. Check if Hostinger firewall allows connections from Render IPs')
+          console.error('6. Render free tier may have network restrictions - consider upgrading')
+          process.exit(1)
+        }
       }
-      if (error?.errno) {
-        console.error('Error number:', error.errno)
-      }
-      process.exit(1)
     }
   } catch (error) {
     // Failed to start server
