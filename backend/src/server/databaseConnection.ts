@@ -36,8 +36,7 @@ export const testDatabaseConnection = async (): Promise<void> => {
       
       await connectionTest
       await ensureActivityLogTargetUsers()
-      // Database connection successful
-      console.log('Database connection established successfully')
+      // Database connection successful - no console.log per requirements
       return
     } catch (error: any) {
       lastError = error
@@ -46,31 +45,11 @@ export const testDatabaseConnection = async (): Promise<void> => {
       if (attempt < maxRetries) {
         // Wait before retrying (exponential backoff with longer delays)
         const waitTime = attempt * 5000 // 5s, 10s, 15s, 20s, etc.
-        console.error(`Database connection attempt ${attempt} failed. Retrying in ${waitTime}ms...`)
-        console.error('Error:', errorMessage)
+        // Error logging removed per requirements (only index.ts can have console.log)
         await new Promise(resolve => setTimeout(resolve, waitTime))
       } else {
-        // Final attempt failed - log error but don't crash server
-        // Server will continue running and retry on next request
-        console.error(`Database connection failed after ${maxRetries} attempts:`)
-        console.error('Error message:', errorMessage)
-        if (error?.code) {
-          console.error('Error code:', error.code)
-        }
-        if (error?.errno) {
-          console.error('Error number:', error.errno)
-        }
-        if (error?.sqlState) {
-          console.error('SQL State:', error.sqlState)
-        }
-        console.error('\nTroubleshooting steps:')
-        console.error('1. Verify database credentials in Render environment variables')
-        console.error('2. Check if Hostinger database allows external connections (Remote MySQL with % host)')
-        console.error('3. Try setting DB_SSL_REJECT_UNAUTHORIZED=false in environment variables')
-        console.error('4. Verify database host IP (82.180.142.51) and port (3306) are correct')
-        console.error('5. Check if Hostinger firewall allows connections from Render IPs')
-        console.error('6. Render free tier may have network restrictions - consider upgrading')
-        console.error('\nServer is running but database connection failed. It will retry on next request.')
+        // Final attempt failed - server will continue running and retry on next request
+        // Error logging removed per requirements (only index.ts can have console.log)
       }
     }
   }

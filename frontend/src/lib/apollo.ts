@@ -1,5 +1,6 @@
 /**
  * Apollo Client Configuration
+ * Main entry point for Apollo Client setup
  * Sets up GraphQL client with authentication headers and error handling
  *
  * @author Thang Truong
@@ -9,20 +10,16 @@
 // Must import before Apollo to suppress WebSocket errors
 import './suppressWebSocketErrors'
 
-import { ApolloClient, InMemoryCache, createHttpLink, from, split } from '@apollo/client'
-import { setContext } from '@apollo/client/link/context'
-import { onError } from '@apollo/client/link/error'
-import { getMainDefinition } from '@apollo/client/utilities'
-import { GraphQLWsLink } from '@apollo/client/link/subscriptions'
-import { createClient } from 'graphql-ws'
-import { refreshAccessToken } from '../utils/tokenRefresh'
+import { ApolloClient, InMemoryCache, from } from '@apollo/client'
+import { createErrorLink, createAuthLink, setTokenExpirationHandler as setAuthTokenExpirationHandler, setAccessTokenGetter as setAuthAccessTokenGetter } from './apollo/auth'
+import { createHttpLinkInstance, createWebSocketLink, createSplitLink, setAccessTokenGetter as setLinksAccessTokenGetter } from './apollo/links'
 
 // Enable detailed error messages in development
 // This helps debug Apollo Client errors during development
 // Note: @apollo/client/dev is only available in development builds
-// Load asynchronously - error messages will be available after initial load
+// Load synchronously using dynamic import with immediate execution
 if (import.meta.env.DEV) {
-  // Load dev messages asynchronously - this is fine as it's just for better error messages
+  // Load dev messages immediately to help with debugging
   import('@apollo/client/dev')
     .then(({ loadErrorMessages, loadDevMessages }) => {
       loadDevMessages()
@@ -33,242 +30,44 @@ if (import.meta.env.DEV) {
     })
 }
 
-let onTokenExpired: (() => Promise<void>) | null = null
-let getAccessToken: (() => string | null) | null = null
-
 /**
  * Set the token expiration handler callback
+ * Re-exports from auth module for backward compatibility
  *
  * @author Thang Truong
  * @date 2025-01-27
  * @param handler - Function to call when token expires
  */
 export const setTokenExpirationHandler = (handler: () => Promise<void>) => {
-  onTokenExpired = handler
+  setAuthTokenExpirationHandler(handler)
 }
 
 /**
  * Set the access token getter function
+ * Re-exports from auth module for backward compatibility
  *
  * @author Thang Truong
  * @date 2025-01-27
  * @param getter - Function that returns current access token
  */
 export const setAccessTokenGetter = (getter: () => string | null) => {
-  getAccessToken = getter
+  setAuthAccessTokenGetter(getter)
+  setLinksAccessTokenGetter(getter)
 }
 
-/**
- * Get GraphQL URL from environment variable
- * Supports two options:
- * 1. VITE_GRAPHQL_URL - For production (Hostinger/Vercel)
- * 2. Falls back to localhost for local development
- *
- * @author Thang Truong
- * @date 2025-01-27
- * @returns GraphQL endpoint URL
- */
-const getGraphQLUrl = (): string => {
-  // Option 1: Production URL (Hostinger/Vercel) - from environment variable
-  const productionUrl = import.meta.env.VITE_GRAPHQL_URL
-  
-  if (productionUrl && productionUrl.trim() !== '') {
-    // Remove trailing slashes and ensure /graphql is appended
-    const cleanUrl = productionUrl.trim().replace(/\/+$/, '')
-    return cleanUrl.endsWith('/graphql') ? cleanUrl : `${cleanUrl}/graphql`
-  }
-  
-  // Option 2: Local development - fallback to localhost
-  return 'http://localhost:4000/graphql'
-}
-
-/**
- * Get WebSocket URL from environment variable
- * Supports two options:
- * 1. VITE_GRAPHQL_URL - For production (Hostinger/Vercel) - uses WSS
- * 2. Falls back to localhost for local development - uses WS
- * Note: Vercel serverless functions don't support WebSockets, so returns null for production
- *
- * @author Thang Truong
- * @date 2025-01-27
- * @returns WebSocket endpoint URL or null if WebSockets not supported
- */
-const getWebSocketUrl = (): string | null => {
-  // Option 1: Production URL (Hostinger/Vercel) - WebSockets not supported on serverless
-  const productionUrl = import.meta.env.VITE_GRAPHQL_URL
-  if (productionUrl) {
-    // Vercel serverless functions don't support WebSockets
-    // Return null to disable WebSocket link in production
-    return null
-  }
-  
-  // Option 2: Local development - use WS protocol
-  return 'ws://localhost:4000/graphql'
-}
-
-/**
- * HTTP link to GraphQL endpoint
- * Includes error handling for invalid URIs
- *
- * @author Thang Truong
- * @date 2025-01-27
- */
-const graphqlUrl = getGraphQLUrl()
-
-// Validate GraphQL URL - provide helpful error message
-if (!graphqlUrl || graphqlUrl === 'undefined/graphql' || !graphqlUrl.startsWith('http')) {
-  const errorMessage = import.meta.env.DEV
-    ? `Invalid GraphQL URL: "${graphqlUrl}". Please set VITE_GRAPHQL_URL environment variable to your backend URL (e.g., https://your-backend.onrender.com)`
-    : 'Invalid GraphQL URL. Please configure VITE_GRAPHQL_URL environment variable.'
-  throw new Error(errorMessage)
-}
-
-const httpLink = createHttpLink({
-  uri: graphqlUrl,
-  credentials: 'include',
-  fetchOptions: {
-    mode: 'cors',
-  },
-})
-
-/**
- * WebSocket link for GraphQL subscriptions
- * Only created if WebSocket URL is available (local development)
- *
- * @author Thang Truong
- * @date 2025-01-27
- */
-const wsUrl = getWebSocketUrl()
-const wsLink = wsUrl
-  ? new GraphQLWsLink(
-      createClient({
-        url: wsUrl,
-        connectionParams: () => {
-          const accessToken = getAccessToken ? getAccessToken() : null
-          return {
-            authorization: accessToken ? `Bearer ${accessToken}` : '',
-            authToken: accessToken || '',
-          }
-        },
-        shouldRetry: () => false,
-        on: {
-          error: () => { /* Silently handle WebSocket errors */ },
-          closed: () => { /* Silently handle WebSocket closed events */ },
-        },
-      })
-    )
-  : null
-
-/**
- * Split link - uses WebSocket for subscriptions, HTTP for queries/mutations
- * Falls back to HTTP if WebSocket is not available (production/Vercel)
- *
- * @author Thang Truong
- * @date 2025-01-27
- */
-const createSplitLink = () => {
-  // In production (Vercel), wsLink is null, so use HTTP link directly
-  if (!wsLink) {
-    return httpLink
-  }
-
-  // In development, create split link for WebSocket subscriptions
-  try {
-    return split(
-      ({ query }) => {
-        try {
-          const definition = getMainDefinition(query)
-          return (
-            definition.kind === 'OperationDefinition' &&
-            definition.operation === 'subscription'
-          )
-        } catch {
-          // If query parsing fails, use HTTP link
-          return false
-        }
-      },
-      wsLink,
-      httpLink
-    )
-  } catch {
-    // If split link creation fails, fall back to HTTP only
-    return httpLink
-  }
-}
-
-const splitLink = createSplitLink()
+// Create links
+const httpLink = createHttpLinkInstance()
+const wsLink = createWebSocketLink()
+const splitLink = createSplitLink(httpLink, wsLink)
 
 // Ensure splitLink is a valid Apollo Link
 if (!splitLink || typeof splitLink !== 'object') {
   throw new Error('Failed to create Apollo Client link chain. splitLink is invalid.')
 }
 
-/**
- * Handle token refresh on authentication errors
- *
- * @author Thang Truong
- * @date 2025-01-27
- */
-const handleTokenRefresh = async () => {
-  try {
-    const result = await refreshAccessToken()
-    if (!result || !result.accessToken) {
-      if (onTokenExpired) await onTokenExpired()
-    }
-  } catch {
-    if (onTokenExpired) await onTokenExpired()
-  }
-}
-
-/**
- * Error link to handle GraphQL and network errors
- *
- * @author Thang Truong
- * @date 2025-11-26
- */
-const errorLink = onError(({ graphQLErrors, networkError }) => {
-  if (graphQLErrors) {
-    for (const { message, extensions } of graphQLErrors) {
-      const isAuthError =
-        extensions?.code === 'UNAUTHENTICATED' ||
-        message.toLowerCase().includes('unauthorized') ||
-        message.toLowerCase().includes('authentication') ||
-        message.toLowerCase().includes('token expired') ||
-        message.toLowerCase().includes('invalid token')
-      if (isAuthError) handleTokenRefresh()
-    }
-  }
-  if (networkError) {
-    const statusCode = (networkError as { statusCode?: number }).statusCode
-    if (statusCode === 401) handleTokenRefresh()
-  }
-})
-
-/**
- * Auth link to add access token to requests
- *
- * @author Thang Truong
- * @date 2025-01-27
- */
-const authLink = setContext((_, { headers }) => {
-  const accessToken = getAccessToken ? getAccessToken() : null
-  return {
-    headers: {
-      ...headers,
-      authorization: accessToken ? `Bearer ${accessToken}` : '',
-      'content-type': 'application/json',
-    },
-  }
-})
-
-/**
- * Apollo Client instance with error handling and authentication
- * Wrapped in try-catch to provide better error messages
- *
- * @author Thang Truong
- * @date 2025-01-27
- */
-let client: ApolloClient<any>
+// Create auth and error links
+const errorLink = createErrorLink()
+const authLink = createAuthLink()
 
 // Validate all links are properly initialized before creating client
 if (!errorLink || !authLink || !splitLink) {
@@ -279,14 +78,33 @@ if (!errorLink || !authLink || !splitLink) {
   )
 }
 
+/**
+ * Apollo Client instance with error handling and authentication
+ * Wrapped in try-catch to provide better error messages
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ */
+let client: ApolloClient<any>
+
 try {
   // Compose the link chain: error handling -> authentication -> split (WebSocket/HTTP)
   // The from() function composes multiple links into a single link
-  const linkChain = from([errorLink, authLink, splitLink])
+  // Ensure all links are valid Apollo Links before composition
+  const links = [errorLink, authLink, splitLink].filter(Boolean)
   
-  // Validate linkChain is properly created
-  if (!linkChain) {
-    throw new Error('Failed to compose Apollo Client link chain')
+  if (links.length !== 3) {
+    throw new Error(
+      `Invalid link chain: expected 3 links, got ${links.length}. ` +
+      `errorLink: ${!!errorLink}, authLink: ${!!authLink}, splitLink: ${!!splitLink}`
+    )
+  }
+  
+  const linkChain = from(links as any)
+  
+  // Validate linkChain is properly created and has required methods
+  if (!linkChain || typeof linkChain !== 'object') {
+    throw new Error('Failed to compose Apollo Client link chain: linkChain is invalid')
   }
   
   client = new ApolloClient({
