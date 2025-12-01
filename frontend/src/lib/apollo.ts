@@ -261,9 +261,17 @@ const authLink = setContext((_, { headers }) => {
  */
 let client: ApolloClient<any>
 
+// Validate that splitLink is properly initialized before creating client
+if (!splitLink) {
+  throw new Error('Failed to initialize Apollo Client link chain. Please check your GraphQL URL configuration.')
+}
+
 try {
+  // Compose the link chain: error handling -> authentication -> split (WebSocket/HTTP)
+  const linkChain = from([errorLink, authLink, splitLink])
+  
   client = new ApolloClient({
-    link: from([errorLink, authLink, splitLink]),
+    link: linkChain,
     cache: new InMemoryCache({
       typePolicies: {
         Query: {
@@ -278,8 +286,11 @@ try {
       query: { errorPolicy: 'all' },
       mutate: { errorPolicy: 'all' },
     },
-    // Add connectToDevTools for better debugging in development
-    connectToDevTools: import.meta.env.DEV,
+    // Enable devtools for better debugging in development
+    // Use new devtools.enabled format instead of deprecated connectToDevTools
+    devtools: {
+      enabled: import.meta.env.DEV,
+    },
   })
 } catch (error) {
   // Provide helpful error message if client creation fails
