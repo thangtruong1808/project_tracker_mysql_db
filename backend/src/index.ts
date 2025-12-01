@@ -3,7 +3,7 @@
  * Initializes Express and Apollo GraphQL server with CORS support
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-01-27
  */
 
 import './utils/loadEnv'
@@ -62,7 +62,7 @@ const server = new ApolloServer({
  * @author Thang Truong
  * @date 2025-01-27
  */
-async function startServer() {
+async function startServer(): Promise<void> {
   try {
     await server.start()
 

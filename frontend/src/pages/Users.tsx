@@ -67,7 +67,7 @@ const Users = () => {
    * Handle data fetching errors
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-01-27
    */
   useEffect(() => {
     const handleError = async (): Promise<void> => {
@@ -82,7 +82,7 @@ const Users = () => {
    * Refetch data on component mount
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-01-27
    */
   useEffect(() => {
     const loadData = async (): Promise<void> => {
@@ -99,10 +99,10 @@ const Users = () => {
    * Handle edit user action by finding user and opening modal
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-01-27
    * @param userId - ID of user to edit
    */
-  const handleEdit = useCallback((userId: string): void => {
+  const handleEdit = useCallback(async (userId: string): Promise<void> => {
     const user = dataManager.sortedData.find((u) => u.id === userId)
     if (user) modalState.openEditModal(user)
   }, [dataManager.sortedData, modalState])
@@ -111,10 +111,10 @@ const Users = () => {
    * Handle delete user action by finding user and opening dialog
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-01-27
    * @param userId - ID of user to delete
    */
-  const handleDelete = useCallback((userId: string): void => {
+  const handleDelete = useCallback(async (userId: string): Promise<void> => {
     const user = dataManager.sortedData.find((u) => u.id === userId)
     if (user) modalState.openDeleteDialog(user)
   }, [dataManager.sortedData, modalState])
@@ -123,7 +123,7 @@ const Users = () => {
    * Handle successful CRUD operation and refetch data
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-01-27
    */
   const handleSuccess = useCallback(async (): Promise<void> => {
     modalState.handleSuccess()

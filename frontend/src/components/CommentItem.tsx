@@ -1,6 +1,7 @@
 /**
  * CommentItem Component
  * Displays a single comment with user info, content, like, edit, and delete functionality
+ * Only comment owners can edit and delete their comments
  *
  * @author Thang Truong
  * @date 2025-01-27
@@ -35,15 +36,6 @@ interface CommentItemProps {
   updatedAt: string
   projectId: string
 }
-
-/**
- * CommentItem Component
- * Displays comment with like, edit, and delete functionality for authenticated users
- * Only comment owners can edit and delete their comments
- *
- * @author Thang Truong
- * @date 2025-01-27
- */
 const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, updatedAt, projectId }: CommentItemProps) => {
   const { id: projectIdFromParams } = useParams<{ id: string }>()
   const { isAuthenticated, user: currentUser } = useAuth()
@@ -72,9 +64,7 @@ const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, update
   })
 
   /**
-   * Handle like button click
-   * Backend checks DB and returns updated isLiked status
-   *
+   * Handle like button click - backend checks DB and returns updated isLiked status
    * @author Thang Truong
    * @date 2025-01-27
    */
@@ -145,26 +135,38 @@ const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, update
     setIsEditing(false)
   }
 
-  /** Handle delete button click - opens confirmation dialog */
+  /**
+   * Handle delete button click - opens confirmation dialog
+   * @author Thang Truong
+   * @date 2025-01-27
+   */
   const handleDelete = (e: React.MouseEvent): void => {
     e.stopPropagation()
     setIsDeleteDialogOpen(true)
   }
 
-  /** Handle delete dialog close */
+  /**
+   * Handle delete dialog close
+   * @author Thang Truong
+   * @date 2025-01-27
+   */
   const handleDeleteDialogClose = (): void => {
     setIsDeleteDialogOpen(false)
   }
 
-  /** Handle delete success - refetch handled by dialog mutation */
+  /**
+   * Handle delete success - refetch handled by dialog mutation
+   * @author Thang Truong
+   * @date 2025-01-27
+   */
   const handleDeleteSuccess = async (): Promise<void> => {
     setIsDeleteDialogOpen(false)
   }
 
   if (isEditing) {
     return (
+      /* Edit form container */
       <div className="bg-white rounded-lg p-4 border border-gray-200">
-        {/* Edit form container */}
         <CommentEditForm
           initialContent={content}
           onSave={handleSaveEdit}
@@ -176,8 +178,8 @@ const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, update
   }
 
   return (
+    /* Comment container */
     <div className="bg-white rounded-lg p-4 border border-gray-200">
-      {/* Comment container */}
       <div className="flex items-start gap-3">
         {/* User avatar */}
         <div className="flex-shrink-0">
@@ -206,21 +208,8 @@ const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, update
             className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label={`Like comment`}
           >
-            <svg
-              className={`w-4 h-4 flex-shrink-0 transition-colors ${isLiked
-                ? 'text-blue-600 fill-blue-600'
-                : 'text-gray-400 hover:text-blue-500'
-                }`}
-              fill={isLiked ? 'currentColor' : 'none'}
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"
-              />
+            <svg className={`w-4 h-4 flex-shrink-0 transition-colors ${isLiked ? 'text-blue-600 fill-blue-600' : 'text-gray-400 hover:text-blue-500'}`} fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
             </svg>
             <span className="font-medium">{likesCount}</span>
           </button>

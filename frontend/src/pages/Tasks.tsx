@@ -78,7 +78,7 @@ const Tasks = () => {
    * Handle data fetching errors
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-01-27
    */
   useEffect(() => {
     const handleError = async (): Promise<void> => {
@@ -93,7 +93,7 @@ const Tasks = () => {
    * Refetch data on component mount
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-01-27
    */
   useEffect(() => {
     const loadData = async (): Promise<void> => {
@@ -110,10 +110,10 @@ const Tasks = () => {
    * Handle edit task action by finding task and opening modal
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-01-27
    * @param taskId - ID of task to edit
    */
-  const handleEdit = useCallback((taskId: string): void => {
+  const handleEdit = useCallback(async (taskId: string): Promise<void> => {
     const task = dataManager.sortedData.find((t) => t.id === taskId)
     if (task) modalState.openEditModal(task)
   }, [dataManager.sortedData, modalState])
@@ -122,10 +122,10 @@ const Tasks = () => {
    * Handle delete task action by finding task and opening dialog
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-01-27
    * @param taskId - ID of task to delete
    */
-  const handleDelete = useCallback((taskId: string): void => {
+  const handleDelete = useCallback(async (taskId: string): Promise<void> => {
     const task = dataManager.sortedData.find((t) => t.id === taskId)
     if (task) modalState.openDeleteDialog(task)
   }, [dataManager.sortedData, modalState])
@@ -134,7 +134,7 @@ const Tasks = () => {
    * Handle successful CRUD operation and refetch data
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-01-27
    */
   const handleSuccess = useCallback(async (): Promise<void> => {
     modalState.handleSuccess()

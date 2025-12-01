@@ -76,7 +76,7 @@ const Comments = () => {
    * Handle data fetching errors
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-01-27
    */
   useEffect(() => {
     const handleError = async (): Promise<void> => {
@@ -91,10 +91,10 @@ const Comments = () => {
    * Handle edit comment action by finding comment and opening modal
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-01-27
    * @param commentId - ID of comment to edit
    */
-  const handleEdit = useCallback((commentId: string): void => {
+  const handleEdit = useCallback(async (commentId: string): Promise<void> => {
     const comment = dataManager.sortedData.find((c) => c.id === commentId)
     if (comment) modalState.openEditModal(comment)
   }, [dataManager.sortedData, modalState])
@@ -103,7 +103,7 @@ const Comments = () => {
    * Handle delete comment action by finding comment and opening dialog
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-01-27
    * @param commentId - ID of comment to delete
    */
   const handleDelete = useCallback((commentId: string): void => {
@@ -115,7 +115,7 @@ const Comments = () => {
    * Handle successful CRUD operation and refetch data
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-01-27
    */
   const handleSuccess = useCallback(async (): Promise<void> => {
     modalState.handleSuccess()

@@ -3,7 +3,7 @@
  * Displays project team members with search, sorting, pagination, and CRUD
  *
  * @author Thang Truong
- * @date 2025-11-27
+ * @date 2025-01-27
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
@@ -51,7 +51,7 @@ const Team = () => {
     errorPolicy: 'all',
   })
 
-  /** Debounce search term to improve performance - @author Thang Truong @date 2025-11-27 */
+  /** Debounce search term to improve performance - @author Thang Truong @date 2025-01-27 */
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm)
@@ -60,7 +60,7 @@ const Team = () => {
     return () => clearTimeout(timer)
   }, [searchTerm])
 
-  /** Handle GraphQL query errors - @author Thang Truong @date 2025-11-27 */
+  /** Handle GraphQL query errors - @author Thang Truong @date 2025-01-27 */
   useEffect(() => {
     const handleError = async (): Promise<void> => {
       if (error) {
@@ -70,7 +70,7 @@ const Team = () => {
     handleError()
   }, [error, showToast])
 
-  /** Initial data load - @author Thang Truong @date 2025-11-27 */
+  /** Initial data load - @author Thang Truong @date 2025-01-27 */
   useEffect(() => {
     const loadData = async (): Promise<void> => {
       try {
@@ -82,7 +82,7 @@ const Team = () => {
     loadData()
   }, [refetch])
 
-  /** Filter and sort team members - @author Thang Truong @date 2025-11-27 */
+  /** Filter and sort team members - @author Thang Truong @date 2025-01-27 */
   const filteredMembers = useMemo(() => {
     const members = data?.teamMembers || []
     const term = debouncedSearchTerm.trim().toLowerCase()
@@ -115,7 +115,7 @@ const Team = () => {
     rowNumber: startIndex + index + 1,
   }))
 
-  /** Handle column sorting - @author Thang Truong @date 2025-11-27 */
+  /** Handle column sorting - @author Thang Truong @date 2025-01-27 */
   const handleSort = useCallback(
     async (field: SortField): Promise<void> => {
       if (sortField === field) {
@@ -128,7 +128,11 @@ const Team = () => {
     [sortField]
   )
 
-  /** Handle edit team member action - @author Thang Truong @date 2025-11-27 */
+  /**
+   * Handle edit team member action
+   * @author Thang Truong
+   * @date 2025-01-27
+   */
   const handleEdit = useCallback(
     async (teamMemberId: string): Promise<void> => {
       const member = filteredMembers.find((item) => item.id === teamMemberId)
@@ -140,7 +144,7 @@ const Team = () => {
     [filteredMembers]
   )
 
-  /** Handle delete team member action - @author Thang Truong @date 2025-11-27 */
+  /** Handle delete team member action - @author Thang Truong @date 2025-01-27 */
   const handleDelete = useCallback(
     async (teamMemberId: string): Promise<void> => {
       const member = filteredMembers.find((item) => item.id === teamMemberId)
@@ -152,7 +156,7 @@ const Team = () => {
     [filteredMembers]
   )
 
-  /** Handle successful CRUD operation - @author Thang Truong @date 2025-11-27 */
+  /** Handle successful CRUD operation - @author Thang Truong @date 2025-01-27 */
   const handleSuccess = useCallback(async (): Promise<void> => {
     setSelectedMember(null)
     setIsCreateModalOpen(false)
@@ -161,13 +165,13 @@ const Team = () => {
     await refetch()
   }, [refetch])
 
-  /** Handle clear search action - @author Thang Truong @date 2025-11-27 */
+  /** Handle clear search action - @author Thang Truong @date 2025-01-27 */
   const handleClearSearch = useCallback(async (): Promise<void> => {
     setSearchTerm('')
     setDebouncedSearchTerm('')
   }, [])
 
-  /** Close modals - @author Thang Truong @date 2025-11-27 */
+  /** Close modals - @author Thang Truong @date 2025-01-27 */
   const closeCreateModal = useCallback(async (): Promise<void> => setIsCreateModalOpen(false), [])
   const closeEditModal = useCallback(async (): Promise<void> => { setIsEditModalOpen(false); setSelectedMember(null) }, [])
   const closeDeleteDialog = useCallback(async (): Promise<void> => { setIsDeleteDialogOpen(false); setSelectedMember(null) }, [])
