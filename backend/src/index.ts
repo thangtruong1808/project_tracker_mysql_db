@@ -191,17 +191,33 @@ async function startServer(): Promise<void> {
 
     /**
      * Test database connection on startup
+     * Uses a longer timeout for initial connection test
      *
      * @author Thang Truong
      * @date 2025-01-27
      */
     try {
-      await db.query('SELECT 1')
+      // Test database connection with timeout
+      const connectionTest = Promise.race([
+        db.query('SELECT 1'),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Database connection test timeout after 30 seconds')), 30000)
+        )
+      ])
+      
+      await connectionTest
       await ensureActivityLogTargetUsers()
       // Database connection successful
-    } catch (error) {
-      // Database connection failed
-      console.error('Database connection failed', error)
+    } catch (error: any) {
+      // Database connection failed - provide detailed error message
+      const errorMessage = error?.message || 'Unknown database connection error'
+      console.error('Database connection failed:', errorMessage)
+      if (error?.code) {
+        console.error('Error code:', error.code)
+      }
+      if (error?.errno) {
+        console.error('Error number:', error.errno)
+      }
       process.exit(1)
     }
   } catch (error) {

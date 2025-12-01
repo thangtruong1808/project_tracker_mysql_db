@@ -43,8 +43,9 @@ function getPool(): mysql.Pool {
     )
   }
 
-  // Create MySQL connection pool
-  pool = mysql.createPool({
+  // Create MySQL connection pool with timeout and SSL configuration
+  // SSL is often required for remote database connections
+  const poolConfig: mysql.PoolOptions = {
     host: requiredEnvVars.DB_HOST,
     port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 3306,
     user: requiredEnvVars.DB_USER,
@@ -53,7 +54,18 @@ function getPool(): mysql.Pool {
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-  })
+    connectTimeout: 60000, // 60 seconds connection timeout
+  }
+
+  // SSL configuration - required for most remote databases
+  // Only add SSL if not explicitly disabled
+  if (process.env.DB_SSL !== 'false') {
+    poolConfig.ssl = {
+      rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+    }
+  }
+
+  pool = mysql.createPool(poolConfig)
 
   return pool
 }
@@ -91,6 +103,23 @@ export const db = {
       if (error.code === 'ER_ACCESS_DENIED_ERROR') {
         throw new Error(
           `Access denied. Please check your database credentials in the .env file.`
+        )
+      }
+      if (error.code === 'ETIMEDOUT' || error.errno === 'ETIMEDOUT') {
+        throw new Error(
+          `Database connection timeout. Please check:\n` +
+          `1. Database host (${process.env.DB_HOST}) is correct and accessible\n` +
+          `2. Database allows connections from Render's IP addresses\n` +
+          `3. Firewall rules allow connections on port ${process.env.DB_PORT || 3306}\n` +
+          `4. SSL configuration if required by your database provider`
+        )
+      }
+      if (error.code === 'ECONNREFUSED') {
+        throw new Error(
+          `Database connection refused. Please check:\n` +
+          `1. Database host (${process.env.DB_HOST}) and port (${process.env.DB_PORT || 3306}) are correct\n` +
+          `2. Database server is running and accessible\n` +
+          `3. Network connectivity from Render to database host`
         )
       }
       throw error
