@@ -97,7 +97,8 @@ try {
   }
   
   // Ensure splitLink is a valid Apollo Link
-  if (typeof splitLink !== 'object' || !splitLink.request) {
+  // The split link is a terminating link and should be an object
+  if (typeof splitLink !== 'object' || splitLink === null) {
     throw new Error('Failed to create Apollo Client link chain. splitLink is invalid.')
   }
 } catch (linkError) {
@@ -122,30 +123,20 @@ let client: ApolloClient<any>
 try {
   // Compose the link chain: error handling -> authentication -> split (WebSocket/HTTP)
   // The from() function composes multiple links into a single link
-  // Ensure all links are valid Apollo Links before composition
+  // Order is important: non-terminating links (error, auth) before terminating link (split/http)
   const links = [errorLink, authLink, splitLink]
   
-  // Validate all links exist and are objects
-  for (let i = 0; i < links.length; i++) {
-    const link = links[i]
-    if (!link || typeof link !== 'object') {
-      throw new Error(
-        `Invalid link at index ${i}: ${link === null ? 'null' : link === undefined ? 'undefined' : typeof link}. ` +
-        `All links must be valid Apollo Link objects.`
-      )
-    }
+  // Basic validation - ensure links are not null/undefined
+  if (links.some(link => link === null || link === undefined)) {
+    throw new Error(
+      'One or more Apollo Client links are null or undefined. ' +
+      `errorLink: ${!!errorLink}, authLink: ${!!authLink}, splitLink: ${!!splitLink}`
+    )
   }
   
   // Compose the link chain using from()
+  // from() properly chains non-terminating links before the terminating link
   const linkChain = from(links)
-  
-  // Validate linkChain is properly created
-  if (!linkChain || typeof linkChain !== 'object' || typeof linkChain.request !== 'function') {
-    throw new Error(
-      'Failed to compose Apollo Client link chain: linkChain is invalid. ' +
-      'The composed link must have a request method.'
-    )
-  }
   
   // Create Apollo Client with the composed link chain
   client = new ApolloClient({
@@ -170,11 +161,6 @@ try {
       enabled: import.meta.env.DEV,
     },
   })
-  
-  // Validate client was created successfully
-  if (!client || typeof client.query !== 'function') {
-    throw new Error('Apollo Client was created but is invalid. Missing required methods.')
-  }
 } catch (error) {
   // Provide helpful error message if client creation fails
   const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -185,7 +171,7 @@ try {
     `Failed to create Apollo Client: ${errorMessage}. ` +
     `GraphQL URL: ${graphqlUrl}. ` +
     `Environment: ${isProduction ? 'production' : 'development'}. ` +
-    `Please check your VITE_GRAPHQL_URL environment variable${isProduction ? ' in Render' : ''}.`
+    `Please check your VITE_GRAPHQL_URL environment variable${isProduction ? ' in Render or Vercel' : ''}.`
   )
 }
 
