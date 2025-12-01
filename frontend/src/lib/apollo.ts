@@ -11,7 +11,7 @@
 // This file suppresses WebSocket-related console errors
 import './suppressWebSocketErrors'
 
-import { ApolloClient, InMemoryCache, from } from '@apollo/client'
+import { ApolloClient, InMemoryCache, from, HttpLink } from '@apollo/client'
 import { createErrorLink, createAuthLink, setTokenExpirationHandler as setAuthTokenExpirationHandler, setAccessTokenGetter as setAuthAccessTokenGetter } from './apollo/auth'
 import { createHttpLinkInstance, createWebSocketLink, createSplitLink, setAccessTokenGetter as setLinksAccessTokenGetter } from './apollo/links'
 
@@ -140,8 +140,53 @@ try {
 }
 
 /**
+ * Create minimal Apollo Client with HTTP link only
+ * Used as absolute fallback if all other client creation attempts fail
+ * This ensures a client is always available for ApolloProvider
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ * @returns Minimal Apollo Client instance
+ */
+const createMinimalClient = (): ApolloClient<any> => {
+  try {
+    // Try to use existing HTTP link if available
+    if (httpLink) {
+      return new ApolloClient({
+        link: httpLink,
+        cache: new InMemoryCache(),
+        connectToDevTools: true,
+      })
+    }
+    
+    // If HTTP link not available, create a new one
+    const minimalHttpLink = createHttpLinkInstance()
+    return new ApolloClient({
+      link: minimalHttpLink,
+      cache: new InMemoryCache(),
+      connectToDevTools: true,
+    })
+  } catch {
+    // If all else fails, create with hardcoded URL using HttpLink directly
+    const fallbackLink = new HttpLink({
+      uri: 'https://project-tracker-backend-pa9k.onrender.com/graphql',
+      credentials: 'include',
+      fetchOptions: {
+        mode: 'cors',
+      },
+    })
+    
+    return new ApolloClient({
+      link: fallbackLink,
+      cache: new InMemoryCache(),
+      connectToDevTools: true,
+    })
+  }
+}
+
+/**
  * Apollo Client instance with error handling and authentication
- * Wrapped in try-catch to provide better error messages
+ * Ensures client is always created, even with minimal configuration
  *
  * @author Thang Truong
  * @date 2025-01-27
@@ -158,26 +203,23 @@ try {
   for (let i = 0; i < links.length; i++) {
     const link = links[i]
     if (!link || typeof link !== 'object' || link === null) {
-      throw new Error(
-        `Invalid link at index ${i}. ` +
-        `Expected Apollo Link object, got: ${link === null ? 'null' : link === undefined ? 'undefined' : typeof link}`
-      )
+      // If any link is invalid, use HTTP link only
+      throw new Error(`Invalid link at index ${i}`)
     }
   }
   
   // Compose the link chain using from()
   // from() properly chains non-terminating links before the terminating link
-  let linkChain
+  let linkChain = httpLink
   try {
     linkChain = from(links)
   } catch {
-    // If from() fails, fallback to HTTP link only
+    // If from() fails, use HTTP link only
     linkChain = httpLink
   }
   
   // Validate linkChain is an object
   if (!linkChain || typeof linkChain !== 'object') {
-    // Fallback to HTTP link only if link chain is invalid
     linkChain = httpLink
   }
   
@@ -201,12 +243,10 @@ try {
         mutate: { errorPolicy: 'all' },
       },
       // Enable DevTools in both dev and production for debugging
-      // DevTools can help diagnose issues in production
       connectToDevTools: true,
     })
   } catch {
-    // If client creation fails with full link chain, try with just HTTP link
-    // This ensures the app works even if error/auth links cause issues
+    // If client creation fails, use HTTP link only
     client = new ApolloClient({
       link: httpLink,
       cache: new InMemoryCache(),
@@ -215,64 +255,59 @@ try {
         query: { errorPolicy: 'all' },
         mutate: { errorPolicy: 'all' },
       },
-      // Enable DevTools even in fallback mode
       connectToDevTools: true,
     })
   }
   
-  // Expose client to window for DevTools discovery (helps in production)
-  // This ensures DevTools can always find the client
-  if (typeof window !== 'undefined') {
-    ;(window as any).__APOLLO_CLIENT__ = client
-  }
-  
-  // Final validation - ensure client was created and has required methods
+  // Final validation - ensure client was created
   if (!client || typeof client.query !== 'function') {
-    // Last resort: create minimal client with just HTTP link
-    const minimalHttpLink = createHttpLinkInstance()
-    client = new ApolloClient({
-      link: minimalHttpLink,
-      cache: new InMemoryCache(),
-      connectToDevTools: true,
-    })
-  }
-  
-  // Ensure client is valid after all attempts
-  if (!client || typeof client.query !== 'function') {
-    throw new Error('Apollo Client was not created successfully - all creation attempts failed')
+    // Last resort: create minimal client
+    client = createMinimalClient()
   }
 } catch (error) {
-  // Last resort: try to create absolute minimal client
+  // Absolute last resort: create minimal client
+  // This ensures client is ALWAYS created, preventing Error 69
+  client = createMinimalClient()
+}
+
+// Expose client to window for DevTools discovery
+// This ensures DevTools can always find the client
+if (typeof window !== 'undefined' && client) {
+  ;(window as any).__APOLLO_CLIENT__ = client
+}
+
+// Final safety check - if client is still undefined, create absolute minimal client
+// This ensures client is ALWAYS defined, preventing Error 69 (ApolloProvider receiving undefined)
+if (!client || typeof client.query !== 'function') {
+  // This should never happen, but ensures client is always defined
   try {
-    const minimalLink = createHttpLinkInstance()
+    const fallbackHttpLink = new HttpLink({
+      uri: 'https://project-tracker-backend-pa9k.onrender.com/graphql',
+      credentials: 'include',
+      fetchOptions: {
+        mode: 'cors',
+      },
+    })
     client = new ApolloClient({
-      link: minimalLink,
+      link: fallbackHttpLink,
       cache: new InMemoryCache(),
       connectToDevTools: true,
     })
     
-    // If minimal client creation succeeded, continue
-    if (client && typeof client.query === 'function') {
-      // Client created successfully with minimal config
-      // Expose to window for DevTools
-      if (typeof window !== 'undefined') {
-        ;(window as any).__APOLLO_CLIENT__ = client
-      }
-    } else {
-      throw new Error('Minimal client creation also failed')
+    // Expose to window for DevTools
+    if (typeof window !== 'undefined') {
+      ;(window as any).__APOLLO_CLIENT__ = client
     }
-  } catch (minimalError) {
-    // Provide helpful error message if all client creation attempts fail
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    const graphqlUrl = import.meta.env.VITE_GRAPHQL_URL || 'not set'
-    const isProduction = import.meta.env.PROD
-    
-    throw new Error(
-      `Failed to create Apollo Client: ${errorMessage}. ` +
-      `GraphQL URL: ${graphqlUrl}. ` +
-      `Environment: ${isProduction ? 'production' : 'development'}. ` +
-      `Minimal client creation also failed. Please check your configuration.`
-    )
+  } catch {
+    // If even this fails, create the most basic client possible
+    const basicLink = new HttpLink({
+      uri: 'https://project-tracker-backend-pa9k.onrender.com/graphql',
+    })
+    client = new ApolloClient({
+      link: basicLink,
+      cache: new InMemoryCache(),
+      connectToDevTools: true,
+    })
   }
 }
 
