@@ -25,13 +25,6 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 4173,
     strictPort: false,
-    // Allow all hosts for Render deployment
-    // Vite requires array format - include specific host and wildcard pattern
-    allowedHosts: [
-      'localhost',
-      '127.0.0.1',
-      'project-tracker-frontend-ff0t.onrender.com',
-    ],
   },
   build: {
     rollupOptions: {
