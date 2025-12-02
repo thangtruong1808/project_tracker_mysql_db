@@ -7,14 +7,14 @@
  * @date 2025-11-27
  */
 
-import { useEffect, useCallback, useRef } from 'react'
-import { useQuery, useSubscription } from '@apollo/client'
+import { useEffect, useCallback } from 'react'
+import { useQuery } from '@apollo/client'
 import { useToast } from '../hooks/useToast'
 import { usePageDataManager } from '../hooks/usePageDataManager'
 import { useModalState } from '../hooks/useModalState'
 import { NOTIFICATIONS_QUERY } from '../graphql/queries'
-import { NOTIFICATION_CREATED_SUBSCRIPTION } from '../graphql/subscriptions'
 import { useAuth } from '../context/AuthContext'
+import { usePusherNotificationRealtime } from '../hooks/usePusherNotificationRealtime'
 import NotificationsTable from '../components/NotificationsTable'
 import NotificationsSearchInput from '../components/NotificationsSearchInput'
 import NotificationsPagination from '../components/NotificationsPagination'
@@ -44,7 +44,6 @@ type SortField = 'id' | 'message' | 'isRead' | 'createdAt' | 'updatedAt'
 const Notifications = () => {
   const { showToast } = useToast()
   const { user } = useAuth()
-  const processedNotificationIds = useRef<Set<string>>(new Set())
 
   const { data, loading, error, refetch } = useQuery<{ notifications: Notification[] }>(
     NOTIFICATIONS_QUERY,
@@ -68,23 +67,18 @@ const Notifications = () => {
   const modalState = useModalState<Notification>()
 
   /**
-   * Subscribe to new notifications for real-time updates
+   * Subscribe to Pusher events for real-time notification updates
+   * Replaces GraphQL subscriptions with Pusher for better compatibility
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-01-27
    */
-  useSubscription(NOTIFICATION_CREATED_SUBSCRIPTION, {
-    variables: { userId: user?.id },
-    skip: !user?.id,
-    onData: async ({ data: subscriptionData }) => {
-      const newNotification = subscriptionData?.data?.notificationCreated
-      if (!newNotification || processedNotificationIds.current.has(newNotification.id)) {
-        return
-      }
-      processedNotificationIds.current.add(newNotification.id)
-      await showToast('New notification received.', 'info', 7000)
+  usePusherNotificationRealtime({
+    userId: user?.id,
+    onRefetch: async () => {
       await refetch()
     },
+    showToast,
   })
 
   /**

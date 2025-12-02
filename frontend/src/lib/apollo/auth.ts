@@ -102,14 +102,21 @@ export const createErrorLink = () => {
  * @author Thang Truong
  * @date 2025-01-27
  */
+/**
+ * Auth link to add access token to requests
+ * Apollo Client automatically sets content-type, so we don't override it
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ * @returns Apollo context link
+ */
 export const createAuthLink = () => {
   return setContext((_, { headers }) => {
     const accessToken = getAccessToken ? getAccessToken() : null
     return {
       headers: {
         ...headers,
-        authorization: accessToken ? `Bearer ${accessToken}` : '',
-        'content-type': 'application/json',
+        ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
       },
     }
   })

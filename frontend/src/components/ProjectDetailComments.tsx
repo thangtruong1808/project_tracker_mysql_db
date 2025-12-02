@@ -15,7 +15,7 @@ import { useToast } from '../hooks/useToast'
 import { CREATE_COMMENT_MUTATION } from '../graphql/mutations'
 import { PROJECT_QUERY } from '../graphql/queries'
 import { ProjectComment, ProjectMember, ProjectOwner } from '../types/comments'
-import { useProjectCommentRealtime } from '../hooks/useProjectCommentRealtime'
+import { usePusherCommentRealtime } from '../hooks/usePusherCommentRealtime'
 import CommentItem from './CommentItem'
 import ProjectDetailCommentsRestricted from './ProjectDetailCommentsRestricted'
 import ProjectDetailCommentForm from './ProjectDetailCommentForm'
@@ -59,7 +59,14 @@ const ProjectDetailComments = ({ comments, projectId, members, owner, onRefetch 
     return isOwner || isMember
   }, [isAuthenticated, user, owner, members])
 
-  useProjectCommentRealtime({
+  /**
+   * Subscribe to Pusher events for real-time comment updates
+   * Replaces GraphQL subscriptions with Pusher for better compatibility
+   *
+   * @author Thang Truong
+   * @date 2025-01-27
+   */
+  usePusherCommentRealtime({
     projectId,
     isProjectMember,
     onRefetch,

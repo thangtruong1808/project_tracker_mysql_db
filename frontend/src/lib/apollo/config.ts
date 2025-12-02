@@ -10,11 +10,12 @@
  * Hardcoded production GraphQL URL as fallback
  * Used when environment variable is not available
  * This ensures the app works even if VITE_GRAPHQL_URL is not set
+ * Update this with your Railway backend URL after deployment
  *
  * @author Thang Truong
  * @date 2025-01-27
  */
-const FALLBACK_PRODUCTION_GRAPHQL_URL = 'https://project-tracker-backend-pa9k.onrender.com/graphql'
+const FALLBACK_PRODUCTION_GRAPHQL_URL = 'https://your-backend.up.railway.app/graphql'
 
 /**
  * Get GraphQL URL from environment variable with fallback
@@ -66,11 +67,13 @@ export const getGraphQLUrl = (): string => {
 /**
  * Hardcoded production WebSocket URL as fallback
  * Used when environment variable is not available
+ * Note: Vercel does NOT support WebSockets, so subscriptions will use HTTP polling
+ * Railway supports WebSockets, but Vercel frontend cannot use them
  *
  * @author Thang Truong
  * @date 2025-01-27
  */
-const FALLBACK_PRODUCTION_WEBSOCKET_URL = 'wss://project-tracker-backend-pa9k.onrender.com/graphql'
+const FALLBACK_PRODUCTION_WEBSOCKET_URL = 'wss://your-backend.up.railway.app/graphql'
 
 /**
  * Get WebSocket URL from environment variable with fallback
@@ -78,7 +81,8 @@ const FALLBACK_PRODUCTION_WEBSOCKET_URL = 'wss://project-tracker-backend-pa9k.on
  * 1. VITE_GRAPHQL_URL - From environment variable (preferred)
  * 2. Hardcoded production URL - Fallback if env var is not set
  * 3. Localhost - For local development
- * Note: Render supports WebSockets, so subscriptions will work in production
+ * Note: Vercel does NOT support WebSockets, so subscriptions will fall back to HTTP polling
+ * Railway backend supports WebSockets, but Vercel frontend cannot use them
  *
  * @author Thang Truong
  * @date 2025-01-27

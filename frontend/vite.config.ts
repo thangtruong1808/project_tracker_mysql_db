@@ -27,14 +27,13 @@ export default defineConfig({
     strictPort: false,
     /**
      * Allowed hosts for preview mode
-     * Required for Render deployment to allow requests from Render domain
+     * Vercel handles routing automatically, so this is mainly for local preview
      *
      * @author Thang Truong
      * @date 2025-01-27
      */
     allowedHosts: [
-      'project-tracker-frontend-ff0t.onrender.com',
-      '.onrender.com', // Allow all Render subdomains
+      '.vercel.app', // Allow all Vercel preview and production domains
     ],
   },
   build: {

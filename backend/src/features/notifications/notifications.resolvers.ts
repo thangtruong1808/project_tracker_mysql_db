@@ -10,6 +10,7 @@
 import { db } from '../../db'
 import { formatDateToISO } from '../../utils/formatters'
 import { requireAuthentication } from '../../utils/helpers'
+import { pubsub } from '../../utils/pubsub'
 
 /**
  * Notifications Query Resolvers
@@ -94,7 +95,7 @@ export const notificationsMutationResolvers = {
     )) as any[]
     if (notifications.length === 0) throw new Error('Failed to retrieve created notification')
     const n = notifications[0]
-    return {
+    const payload = {
       id: n.id.toString(),
       userId: n.user_id.toString(),
       message: n.message,
@@ -102,6 +103,9 @@ export const notificationsMutationResolvers = {
       createdAt: formatDateToISO(n.created_at),
       updatedAt: formatDateToISO(n.updated_at),
     }
+    // Publish to Pusher for real-time updates
+    await pubsub.publish(`NOTIFICATION_CREATED_${payload.userId}`, { notificationCreated: payload })
+    return payload
   },
 
   /**

@@ -27,20 +27,37 @@ app.use(cookieParser())
 /**
  * Configure CORS options
  * Allows frontend to connect from localhost:3000 or production frontend URL
- * Frontend URL can be set via FRONTEND_URL environment variable (Render frontend URL)
- * Also includes hardcoded production frontend URL as fallback
- * Render supports WebSockets, so subscriptions will work
+ * Frontend URL can be set via FRONTEND_URL environment variable (Vercel frontend URL)
+ * Supports Vercel preview and production deployments
+ * Vercel serverless functions do NOT support WebSockets
+ * For real-time features, consider integrating Pusher Channels
  *
  * @author Thang Truong
  * @date 2025-01-27
  */
 const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'https://project-tracker-frontend-ff0t.onrender.com', // Production frontend URL
-    process.env.FRONTEND_URL, // Render frontend URL from environment variable
-  ].filter(Boolean) as string[], // Remove undefined values
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) {
+      callback(null, true)
+      return
+    }
+
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      process.env.FRONTEND_URL, // Vercel frontend URL from environment variable
+    ].filter(Boolean) as string[]
+
+    // Allow all Vercel preview and production domains
+    const isVercelDomain = origin.includes('.vercel.app') || origin.includes('vercel.app')
+    
+    if (allowedOrigins.includes(origin) || isVercelDomain) {
+      callback(null, true)
+    } else {
+      callback(new Error('Not allowed by CORS'))
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -137,6 +154,7 @@ async function startServer(): Promise<void> {
      * GraphQL endpoint with CORS support
      * Handles all GraphQL queries and mutations
      * CORS middleware is already applied globally, but explicit application ensures proper headers
+     * express.json() must come before expressMiddleware to parse request body correctly
      *
      * @author Thang Truong
      * @date 2025-01-27
@@ -144,7 +162,7 @@ async function startServer(): Promise<void> {
     app.use(
       '/graphql',
       cors(corsOptions),
-      express.json(),
+      express.json({ limit: '10mb', type: 'application/json' }),
       expressMiddleware(server, {
         context: async ({ req, res }: { req: Request; res: Response }) => {
           return { req, res }
@@ -156,7 +174,7 @@ async function startServer(): Promise<void> {
 
     /**
      * Start HTTP server and listen on specified port
-     * Render requires listening on 0.0.0.0 or the PORT environment variable
+     * Railway requires listening on 0.0.0.0 and uses PORT environment variable
      * Must be done before WebSocket server setup
      *
      * @author Thang Truong
@@ -176,7 +194,8 @@ async function startServer(): Promise<void> {
      * WebSocket server for GraphQL subscriptions
      * Set up after HTTP server is listening
      * Handles real-time comment updates
-     * Render supports WebSockets, so subscriptions will work (unlike Vercel)
+     * Railway supports WebSockets, but Vercel frontend cannot use them
+     * Subscriptions will fall back to HTTP polling when accessed from Vercel
      * Setup is optional - HTTP server will work even if WebSocket fails
      *
      * @author Thang Truong
