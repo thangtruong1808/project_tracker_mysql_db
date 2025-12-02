@@ -148,13 +148,35 @@ try {
  * @date 2025-01-27
  * @returns Minimal Apollo Client instance
  */
+/**
+ * Create minimal Apollo Client with HTTP link only
+ * Used as absolute fallback if all other client creation attempts fail
+ * Includes proper cache configuration to prevent Error 69
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ * @returns Minimal Apollo Client instance
+ */
 const createMinimalClient = (): ApolloClient<any> => {
+  // Cache configuration with dataIdFromObject to prevent Error 69
+  const cacheConfig = {
+    dataIdFromObject: (object: any): string | undefined => {
+      if (object.__typename && object.id) {
+        return `${object.__typename}:${object.id}`
+      }
+      if (object.id) {
+        return String(object.id)
+      }
+      return undefined
+    },
+  }
+  
   try {
     // Try to use existing HTTP link if available
     if (httpLink) {
       return new ApolloClient({
         link: httpLink,
-        cache: new InMemoryCache(),
+        cache: new InMemoryCache(cacheConfig),
         devtools: { enabled: true },
       })
     }
@@ -163,7 +185,7 @@ const createMinimalClient = (): ApolloClient<any> => {
     const minimalHttpLink = createHttpLinkInstance()
       return new ApolloClient({
         link: minimalHttpLink,
-        cache: new InMemoryCache(),
+        cache: new InMemoryCache(cacheConfig),
         devtools: { enabled: true },
       })
   } catch {
@@ -178,7 +200,7 @@ const createMinimalClient = (): ApolloClient<any> => {
     
     return new ApolloClient({
       link: fallbackLink,
-      cache: new InMemoryCache(),
+      cache: new InMemoryCache(cacheConfig),
       devtools: { enabled: true },
     })
   }
@@ -242,6 +264,20 @@ try {
             },
           },
         },
+        // Prevent Error 69 by providing proper object identification
+        // This function tells Apollo how to create unique IDs for cached objects
+        dataIdFromObject: (object: any): string | undefined => {
+          // If object has __typename and id, create unique identifier
+          if (object.__typename && object.id) {
+            return `${object.__typename}:${object.id}`
+          }
+          // If object has only id, use it directly
+          if (object.id) {
+            return String(object.id)
+          }
+          // Return undefined to use default Apollo Client identification
+          return undefined
+        },
         // Prevent Error 69 by allowing partial data
         possibleTypes: {},
         // Add resultCaching to prevent cache normalization errors
@@ -262,10 +298,21 @@ try {
       assumeImmutableResults: false,
     })
   } catch {
-    // If client creation fails, use HTTP link only
+    // If client creation fails, use HTTP link only with proper cache config
     client = new ApolloClient({
       link: httpLink,
-      cache: new InMemoryCache(),
+      cache: new InMemoryCache({
+        // Add dataIdFromObject to prevent Error 69 in fallback client
+        dataIdFromObject: (object: any): string | undefined => {
+          if (object.__typename && object.id) {
+            return `${object.__typename}:${object.id}`
+          }
+          if (object.id) {
+            return String(object.id)
+          }
+          return undefined
+        },
+      }),
       defaultOptions: {
         watchQuery: { errorPolicy: 'all' },
         query: { errorPolicy: 'all' },
@@ -296,6 +343,19 @@ if (typeof window !== 'undefined' && client) {
 // This ensures client is ALWAYS defined, preventing Error 69 (ApolloProvider receiving undefined)
 if (!client || typeof client.query !== 'function') {
   // This should never happen, but ensures client is always defined
+  // Cache configuration with dataIdFromObject to prevent Error 69
+  const finalCacheConfig = {
+    dataIdFromObject: (object: any): string | undefined => {
+      if (object.__typename && object.id) {
+        return `${object.__typename}:${object.id}`
+      }
+      if (object.id) {
+        return String(object.id)
+      }
+      return undefined
+    },
+  }
+  
   try {
     const fallbackHttpLink = new HttpLink({
       uri: 'https://project-tracker-backend-pa9k.onrender.com/graphql',
@@ -306,7 +366,7 @@ if (!client || typeof client.query !== 'function') {
     })
     client = new ApolloClient({
       link: fallbackHttpLink,
-      cache: new InMemoryCache(),
+      cache: new InMemoryCache(finalCacheConfig),
       devtools: { enabled: true },
     })
     
@@ -321,7 +381,7 @@ if (!client || typeof client.query !== 'function') {
     })
     client = new ApolloClient({
       link: basicLink,
-      cache: new InMemoryCache(),
+      cache: new InMemoryCache(finalCacheConfig),
       devtools: { enabled: true },
     })
   }
