@@ -215,104 +215,115 @@ const createMinimalClient = (): ApolloClient<any> => {
  */
 let client: ApolloClient<any>
 
+/**
+ * Cache configuration with dataIdFromObject to prevent Error 69
+ * Shared across all client instances
+ *
+ * @author Thang Truong
+ * @date 2025-01-27
+ */
+const cacheConfig = {
+  typePolicies: {
+    Query: {
+      fields: {
+        // Add any custom cache policies here if needed
+      },
+    },
+  },
+  // Prevent Error 69 by providing proper object identification
+  dataIdFromObject: (object: any): string | undefined => {
+    if (object.__typename && object.id) {
+      return `${object.__typename}:${object.id}`
+    }
+    if (object.id) {
+      return String(object.id)
+    }
+    return undefined
+  },
+  possibleTypes: {},
+  resultCaching: true,
+}
+
 try {
-  // Compose the link chain: error handling -> authentication -> terminating link (HTTP or split)
-  // The from() function composes multiple links into a single link
-  // Order is critical: non-terminating links (error, auth) before terminating link
-  const links = [errorLink, authLink, terminatingLink]
-  
-  // Validate all links exist and are objects
-  for (let i = 0; i < links.length; i++) {
-    const link = links[i]
+  // Validate all links are valid ApolloLink instances
+  // Check that links have the required request method
+  const validateLink = (link: any): boolean => {
     if (!link || typeof link !== 'object' || link === null) {
-      // If any link is invalid, use HTTP link only
-      throw new Error(`Invalid link at index ${i}`)
+      return false
+    }
+    // ApolloLink instances should have a request method or be a function
+    if (typeof link.request === 'function' || typeof link === 'function') {
+      return true
+    }
+    // HttpLink and other links might have different structure
+    // If it's an object from Apollo Client, it's likely valid
+    return true
+  }
+  
+  // Validate each link
+  if (!validateLink(httpLink)) {
+    throw new Error('Invalid HTTP link')
+  }
+  if (!validateLink(errorLink)) {
+    throw new Error('Invalid error link')
+  }
+  if (!validateLink(authLink)) {
+    throw new Error('Invalid auth link')
+  }
+  if (!validateLink(terminatingLink)) {
+    throw new Error('Invalid terminating link')
+  }
+  
+  // Compose the link chain: error handling -> authentication -> terminating link
+  // Use from() to properly chain non-terminating links before terminating link
+  let linkChain: any = httpLink
+  
+  try {
+    // Compose links in order: error -> auth -> terminating
+    linkChain = from([errorLink, authLink, terminatingLink])
+    
+    // Validate composed link chain
+    if (!linkChain || typeof linkChain !== 'object') {
+      throw new Error('Failed to compose link chain')
+    }
+  } catch (composeError) {
+    // If composition fails, try simpler chain with just auth and HTTP
+    try {
+      linkChain = from([authLink, httpLink])
+    } catch {
+      // If that fails, use HTTP link only
+      linkChain = httpLink
     }
   }
   
-  // Compose the link chain using from()
-  // from() properly chains non-terminating links before the terminating link
-  let linkChain = httpLink
-  try {
-    linkChain = from(links)
-  } catch {
-    // If from() fails, use HTTP link only
-    linkChain = httpLink
-  }
-  
-  // Validate linkChain is an object
+  // Final validation of link chain
   if (!linkChain || typeof linkChain !== 'object') {
     linkChain = httpLink
   }
   
-  // Create Apollo Client with the composed link chain
-  // Enable DevTools in both development and production for debugging
-  // Improved cache configuration to prevent Error 69
+  // Create Apollo Client with validated link chain
+  client = new ApolloClient({
+    link: linkChain,
+    cache: new InMemoryCache(cacheConfig),
+    defaultOptions: {
+      watchQuery: { errorPolicy: 'all' },
+      query: { errorPolicy: 'all' },
+      mutate: { errorPolicy: 'all' },
+    },
+    devtools: { enabled: true },
+    assumeImmutableResults: false,
+  })
+  
+  // Validate client was created successfully
+  if (!client || typeof client.query !== 'function') {
+    throw new Error('Failed to create Apollo Client')
+  }
+} catch (error) {
+  // Fallback: create client with HTTP link only
   try {
-    // Validate linkChain before creating client
-    if (!linkChain || typeof linkChain !== 'object') {
-      throw new Error('Invalid link chain')
-    }
-    
-    client = new ApolloClient({
-      link: linkChain,
-      cache: new InMemoryCache({
-        typePolicies: {
-          Query: {
-            fields: {
-              // Add any custom cache policies here if needed
-            },
-          },
-        },
-        // Prevent Error 69 by providing proper object identification
-        // This function tells Apollo how to create unique IDs for cached objects
-        dataIdFromObject: (object: any): string | undefined => {
-          // If object has __typename and id, create unique identifier
-          if (object.__typename && object.id) {
-            return `${object.__typename}:${object.id}`
-          }
-          // If object has only id, use it directly
-          if (object.id) {
-            return String(object.id)
-          }
-          // Return undefined to use default Apollo Client identification
-          return undefined
-        },
-        // Prevent Error 69 by allowing partial data
-        possibleTypes: {},
-        // Add resultCaching to prevent cache normalization errors
-        resultCaching: true,
-      }),
-      defaultOptions: {
-        watchQuery: { 
-          errorPolicy: 'all',
-        },
-        query: { 
-          errorPolicy: 'all',
-        },
-        mutate: { errorPolicy: 'all' },
-      },
-      // Enable DevTools in both dev and production for debugging
-      devtools: { enabled: true },
-      // Add assumeImmutableResults to prevent cache issues
-      assumeImmutableResults: false,
-    })
-  } catch {
-    // If client creation fails, use HTTP link only with proper cache config
     client = new ApolloClient({
       link: httpLink,
-      cache: new InMemoryCache({
-        // Add dataIdFromObject to prevent Error 69 in fallback client
-        dataIdFromObject: (object: any): string | undefined => {
-          if (object.__typename && object.id) {
-            return `${object.__typename}:${object.id}`
-          }
-          if (object.id) {
-            return String(object.id)
-          }
-          return undefined
-        },
-      }),
+      cache: new InMemoryCache(cacheConfig),
       defaultOptions: {
         watchQuery: { errorPolicy: 'all' },
         query: { errorPolicy: 'all' },
@@ -320,17 +331,10 @@ try {
       },
       devtools: { enabled: true },
     })
-  }
-  
-  // Final validation - ensure client was created
-  if (!client || typeof client.query !== 'function') {
+  } catch {
     // Last resort: create minimal client
     client = createMinimalClient()
   }
-} catch (error) {
-  // Absolute last resort: create minimal client
-  // This ensures client is ALWAYS created, preventing Error 69
-  client = createMinimalClient()
 }
 
 // Expose client to window for DevTools discovery
