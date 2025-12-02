@@ -227,6 +227,11 @@ try {
   // Enable DevTools in both development and production for debugging
   // Improved cache configuration to prevent Error 69
   try {
+    // Validate linkChain before creating client
+    if (!linkChain || typeof linkChain !== 'object') {
+      throw new Error('Invalid link chain')
+    }
+    
     client = new ApolloClient({
       link: linkChain,
       cache: new InMemoryCache({
@@ -239,6 +244,8 @@ try {
         },
         // Prevent Error 69 by allowing partial data
         possibleTypes: {},
+        // Add resultCaching to prevent cache normalization errors
+        resultCaching: true,
       }),
       defaultOptions: {
         watchQuery: { 

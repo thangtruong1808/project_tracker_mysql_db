@@ -122,6 +122,8 @@ async function initializeServer(): Promise<void> {
 
   /**
    * GraphQL endpoint
+   * express.json() must come before expressMiddleware to parse request body
+   * CORS middleware ensures proper headers for cross-origin requests
    *
    * @author Thang Truong
    * @date 2025-01-27
@@ -129,7 +131,7 @@ async function initializeServer(): Promise<void> {
   app.use(
     '/graphql',
     cors(corsOptions),
-    express.json({ limit: '10mb', type: 'application/json' }),
+    express.json({ limit: '10mb' }),
     expressMiddleware(server, {
       context: async ({ req, res }: { req: Request; res: Response }) => {
         return { req, res }
@@ -141,28 +143,41 @@ async function initializeServer(): Promise<void> {
 }
 
 /**
- * Initialize server on module load
- * This ensures server is ready before first request
- *
- * @author Thang Truong
- * @date 2025-01-27
- */
-initializeServer().catch((error) => {
-  console.error('Failed to initialize server:', error)
-})
-
-/**
  * Vercel serverless function handler
  * Exports Express app for Vercel
  * Handles all routes including /graphql
+ * Properly processes requests in serverless context
  *
  * @author Thang Truong
  * @date 2025-01-27
  */
 export default async function handler(req: Request, res: Response): Promise<void> {
-  // Ensure server is initialized
-  await initializeServer()
-  // Delegate to Express app
-  app(req, res)
+  try {
+    // Ensure server is initialized
+    await initializeServer()
+    
+    // Handle favicon.ico requests to prevent 404 errors
+    if (req.url === '/favicon.ico') {
+      res.status(204).end()
+      return
+    }
+    
+    // Delegate to Express app
+    // Wrap in Promise to handle async Express middleware
+    return new Promise<void>((resolve, reject) => {
+      app(req, res, (err?: any) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve()
+        }
+      })
+    })
+  } catch (error) {
+    console.error('Handler error:', error)
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
 }
 
