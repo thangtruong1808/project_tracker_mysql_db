@@ -28,6 +28,7 @@ app.use(cookieParser())
  * Configure CORS options
  * Allows frontend to connect from localhost:3000 or production frontend URL
  * Frontend URL can be set via FRONTEND_URL environment variable (Render frontend URL)
+ * Also includes hardcoded production frontend URL as fallback
  * Render supports WebSockets, so subscriptions will work
  *
  * @author Thang Truong
@@ -37,9 +38,13 @@ const corsOptions = {
   origin: [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    process.env.FRONTEND_URL, // Render frontend URL
+    'https://project-tracker-frontend-ff0t.onrender.com', // Production frontend URL
+    process.env.FRONTEND_URL, // Render frontend URL from environment variable
   ].filter(Boolean) as string[], // Remove undefined values
   credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Type'],
 }
 
 // Apply CORS middleware to all routes
@@ -120,8 +125,18 @@ async function startServer(): Promise<void> {
     })
 
     /**
+     * Handle OPTIONS preflight requests for GraphQL endpoint
+     * CORS middleware already handles this, but explicit handler ensures compatibility
+     *
+     * @author Thang Truong
+     * @date 2025-01-27
+     */
+    app.options('/graphql', cors(corsOptions))
+
+    /**
      * GraphQL endpoint with CORS support
      * Handles all GraphQL queries and mutations
+     * CORS middleware is already applied globally, but explicit application ensures proper headers
      *
      * @author Thang Truong
      * @date 2025-01-27

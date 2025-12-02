@@ -155,17 +155,17 @@ const createMinimalClient = (): ApolloClient<any> => {
       return new ApolloClient({
         link: httpLink,
         cache: new InMemoryCache(),
-        connectToDevTools: true,
+        devtools: { enabled: true },
       })
     }
     
     // If HTTP link not available, create a new one
     const minimalHttpLink = createHttpLinkInstance()
-    return new ApolloClient({
-      link: minimalHttpLink,
-      cache: new InMemoryCache(),
-      connectToDevTools: true,
-    })
+      return new ApolloClient({
+        link: minimalHttpLink,
+        cache: new InMemoryCache(),
+        devtools: { enabled: true },
+      })
   } catch {
     // If all else fails, create with hardcoded URL using HttpLink directly
     const fallbackLink = new HttpLink({
@@ -179,7 +179,7 @@ const createMinimalClient = (): ApolloClient<any> => {
     return new ApolloClient({
       link: fallbackLink,
       cache: new InMemoryCache(),
-      connectToDevTools: true,
+      devtools: { enabled: true },
     })
   }
 }
@@ -243,7 +243,7 @@ try {
         mutate: { errorPolicy: 'all' },
       },
       // Enable DevTools in both dev and production for debugging
-      connectToDevTools: true,
+      devtools: { enabled: true },
     })
   } catch {
     // If client creation fails, use HTTP link only
@@ -255,7 +255,7 @@ try {
         query: { errorPolicy: 'all' },
         mutate: { errorPolicy: 'all' },
       },
-      connectToDevTools: true,
+      devtools: { enabled: true },
     })
   }
   
@@ -291,7 +291,7 @@ if (!client || typeof client.query !== 'function') {
     client = new ApolloClient({
       link: fallbackHttpLink,
       cache: new InMemoryCache(),
-      connectToDevTools: true,
+      devtools: { enabled: true },
     })
     
     // Expose to window for DevTools
@@ -306,7 +306,7 @@ if (!client || typeof client.query !== 'function') {
     client = new ApolloClient({
       link: basicLink,
       cache: new InMemoryCache(),
-      connectToDevTools: true,
+      devtools: { enabled: true },
     })
   }
 }
