@@ -131,7 +131,7 @@ async function initializeServer(): Promise<void> {
   app.use(
     '/graphql',
     cors(corsOptions),
-    express.json({ limit: '10mb' }),
+    express.json({ limit: '10mb', type: 'application/json' }),
     expressMiddleware(server, {
       context: async ({ req, res }: { req: Request; res: Response }) => {
         return { req, res }
