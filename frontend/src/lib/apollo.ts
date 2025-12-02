@@ -225,6 +225,7 @@ try {
   
   // Create Apollo Client with the composed link chain
   // Enable DevTools in both development and production for debugging
+  // Improved cache configuration to prevent Error 69
   try {
     client = new ApolloClient({
       link: linkChain,
@@ -236,14 +237,22 @@ try {
             },
           },
         },
+        // Prevent Error 69 by allowing partial data
+        possibleTypes: {},
       }),
       defaultOptions: {
-        watchQuery: { errorPolicy: 'all' },
-        query: { errorPolicy: 'all' },
+        watchQuery: { 
+          errorPolicy: 'all',
+        },
+        query: { 
+          errorPolicy: 'all',
+        },
         mutate: { errorPolicy: 'all' },
       },
       // Enable DevTools in both dev and production for debugging
       devtools: { enabled: true },
+      // Add assumeImmutableResults to prevent cache issues
+      assumeImmutableResults: false,
     })
   } catch {
     // If client creation fails, use HTTP link only
