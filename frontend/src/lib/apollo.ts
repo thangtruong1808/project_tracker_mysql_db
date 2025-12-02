@@ -1,6 +1,7 @@
 /**
  * Apollo Client Configuration - Fixed for 3.14.0
  * Properly handles URL validation and link chain initialization
+ * Prevents Error 69 and 400 Bad Request errors
  *
  * @author Thang Truong
  * @date 2025-01-27
@@ -9,7 +10,6 @@
 import { ApolloClient, InMemoryCache, HttpLink, from } from '@apollo/client'
 import { setContext } from '@apollo/client/link/context'
 import { onError } from '@apollo/client/link/error'
-import { getGraphQLUrl } from './apollo/config'
 
 /**
  * Access token getter function
@@ -42,34 +42,29 @@ export const setTokenExpirationHandler = (_handler: () => Promise<void>) => {
 }
 
 /**
- * Get validated GraphQL URL
- * Ensures URL is valid before creating HTTP link
+ * Get GraphQL URL from environment or use fallback
+ * Uses the actual deployed backend URL
  *
  * @author Thang Truong
  * @date 2025-01-27
- * @returns Valid GraphQL URL
+ * @returns GraphQL endpoint URL
  */
-const getValidatedGraphQLUrl = (): string => {
-  const url = getGraphQLUrl()
+const getGraphQLUrl = (): string => {
+  // Try environment variable first
+  const envUrl = import.meta.env.VITE_GRAPHQL_URL
   
-  // Validate URL format
-  if (!url || typeof url !== 'string') {
-    throw new Error('Invalid GraphQL URL: URL is not a string')
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+    let cleanUrl = envUrl.trim().replace(/\/+$/, '')
+    if (!cleanUrl.endsWith('/graphql')) {
+      cleanUrl = `${cleanUrl}/graphql`
+    }
+    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+      return cleanUrl
+    }
   }
   
-  // Ensure URL is valid HTTP/HTTPS URL
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    throw new Error(`Invalid GraphQL URL: "${url}" - must start with http:// or https://`)
-  }
-  
-  // Validate URL can be parsed
-  try {
-    new URL(url)
-  } catch {
-    throw new Error(`Invalid GraphQL URL: "${url}" - cannot be parsed as URL`)
-  }
-  
-  return url
+  // Fallback to actual deployed backend URL
+  return 'https://project-tracker-mysql-db-8cgm.vercel.app/graphql'
 }
 
 /**
@@ -79,29 +74,13 @@ const getValidatedGraphQLUrl = (): string => {
  * @author Thang Truong
  * @date 2025-01-27
  */
-let httpLink: HttpLink
-
-try {
-  const graphqlUrl = getValidatedGraphQLUrl()
-  httpLink = new HttpLink({
-    uri: graphqlUrl,
-    credentials: 'include',
-    fetchOptions: {
-      mode: 'cors',
-    },
-  })
-} catch (error) {
-  // Fallback to production URL if validation fails
-  // Use the actual backend URL from user's deployment
-  const fallbackUrl = import.meta.env.VITE_GRAPHQL_URL || 'https://project-tracker-mysql-db-8cgm.vercel.app/graphql'
-  httpLink = new HttpLink({
-    uri: fallbackUrl.endsWith('/graphql') ? fallbackUrl : `${fallbackUrl}/graphql`,
-    credentials: 'include',
-    fetchOptions: {
-      mode: 'cors',
-    },
-  })
-}
+const httpLink = new HttpLink({
+  uri: getGraphQLUrl(),
+  credentials: 'include',
+  fetchOptions: {
+    mode: 'cors',
+  },
+})
 
 /**
  * Auth link to add authorization header
@@ -122,7 +101,7 @@ const authLink = setContext((_, { headers }) => {
 
 /**
  * Error link for error handling
- * Handles GraphQL and network errors
+ * Handles GraphQL and network errors silently
  *
  * @author Thang Truong
  * @date 2025-01-27
