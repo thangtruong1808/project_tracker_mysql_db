@@ -3,7 +3,7 @@
  * Exports Express app as serverless function for Vercel
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 
 import '../src/utils/loadEnv'
@@ -174,7 +174,7 @@ export default async function handler(req: Request, res: Response): Promise<void
       })
     })
   } catch (error) {
-    console.error('Handler error:', error)
+    // Error handled silently - only index.ts server entry may use console.log
     if (!res.headersSent) {
       res.status(500).json({ error: 'Internal server error' })
     }

@@ -1,10 +1,10 @@
 /**
  * Database Connection Module
  * Manages MySQL database connection pool and query execution
- * The database name should match: project_tracker_mysql_db
+ * Supports Hostinger MySQL database configuration
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 
 import mysql from 'mysql2/promise'

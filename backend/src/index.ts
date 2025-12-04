@@ -3,7 +3,7 @@
  * Initializes Express and Apollo GraphQL server with CORS support
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 
 import './utils/loadEnv'

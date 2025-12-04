@@ -3,19 +3,17 @@
  * URL and environment configuration utilities
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 
 /**
- * Hardcoded production GraphQL URL as fallback
- * Used when environment variable is not available
- * This ensures the app works even if VITE_GRAPHQL_URL is not set
- * Update this with your Railway backend URL after deployment
+ * Production GraphQL URL fallback
+ * Used when VITE_GRAPHQL_URL is not set
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
-const FALLBACK_PRODUCTION_GRAPHQL_URL = 'https://your-backend.up.railway.app/graphql'
+const FALLBACK_PRODUCTION_GRAPHQL_URL = 'https://project-tracker-mysql-db-wjay.vercel.app/graphql'
 
 /**
  * Get GraphQL URL from environment variable with fallback
@@ -65,15 +63,13 @@ export const getGraphQLUrl = (): string => {
 }
 
 /**
- * Hardcoded production WebSocket URL as fallback
- * Used when environment variable is not available
- * Note: Vercel does NOT support WebSockets, so subscriptions will use HTTP polling
- * Railway supports WebSockets, but Vercel frontend cannot use them
+ * Production WebSocket URL fallback
+ * Note: Vercel serverless does NOT support WebSockets - use Pusher for real-time
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
-const FALLBACK_PRODUCTION_WEBSOCKET_URL = 'wss://your-backend.up.railway.app/graphql'
+const FALLBACK_PRODUCTION_WEBSOCKET_URL = 'wss://project-tracker-mysql-db-wjay.vercel.app/graphql'
 
 /**
  * Get WebSocket URL from environment variable with fallback

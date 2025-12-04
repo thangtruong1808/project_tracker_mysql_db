@@ -1,10 +1,10 @@
 /**
- * Apollo Client Configuration - Fixed for 3.14.0
- * Properly handles URL validation and link chain initialization
- * Prevents Error 69 and 400 Bad Request errors
+ * Apollo Client Configuration
+ * Handles GraphQL connection with proper URL validation
+ * Supports both local development and production environments
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 
 import { ApolloClient, InMemoryCache, HttpLink, from } from '@apollo/client'
@@ -12,47 +12,47 @@ import { setContext } from '@apollo/client/link/context'
 import { onError } from '@apollo/client/link/error'
 
 /**
- * Access token getter function
- *
+ * Access token getter function reference
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 let getAccessToken: (() => string | null) | null = null
 
 /**
- * Set access token getter
+ * Sets the access token getter function
+ * Called by AuthContext to provide token access
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  * @param getter - Function that returns current access token
  */
-export const setAccessTokenGetter = (getter: () => string | null) => {
+export const setAccessTokenGetter = (getter: () => string | null): void => {
   getAccessToken = getter
 }
 
 /**
- * Set token expiration handler
+ * Sets token expiration handler for refresh logic
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  * @param handler - Function to call when token expires
  */
-export const setTokenExpirationHandler = (_handler: () => Promise<void>) => {
-  // Token expiration handling can be added here
+export const setTokenExpirationHandler = (_handler: () => Promise<void>): void => {
+  // Token expiration handling placeholder
 }
 
 /**
- * Get GraphQL URL from environment or use fallback
- * Uses the actual deployed backend URL
+ * Constructs GraphQL endpoint URL from environment
+ * Prioritizes VITE_GRAPHQL_URL environment variable
+ * Falls back to deployed backend URL for production
  *
  * @author Thang Truong
- * @date 2025-01-27
- * @returns GraphQL endpoint URL
+ * @date 2025-12-04
+ * @returns Validated GraphQL endpoint URL
  */
 const getGraphQLUrl = (): string => {
-  // Try environment variable first
   const envUrl = import.meta.env.VITE_GRAPHQL_URL
-  
+
   if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
     let cleanUrl = envUrl.trim().replace(/\/+$/, '')
     if (!cleanUrl.endsWith('/graphql')) {
@@ -62,17 +62,17 @@ const getGraphQLUrl = (): string => {
       return cleanUrl
     }
   }
-  
-  // Fallback to actual deployed backend URL
-  return 'https://project-tracker-mysql-db-8cgm.vercel.app/graphql'
+
+  // Production fallback - deployed Vercel backend
+  return 'https://project-tracker-mysql-db-wjay.vercel.app/graphql'
 }
 
 /**
- * HTTP link for GraphQL requests
- * Created with validated URL to prevent Error 69
+ * HTTP link for GraphQL network requests
+ * Configured with CORS credentials for cookie-based auth
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 const httpLink = new HttpLink({
   uri: getGraphQLUrl(),
@@ -83,11 +83,11 @@ const httpLink = new HttpLink({
 })
 
 /**
- * Auth link to add authorization header
- * Only adds header if token exists
+ * Authentication link - adds Bearer token to requests
+ * Retrieves token from AuthContext getter function
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 const authLink = setContext((_, { headers }) => {
   const token = getAccessToken ? getAccessToken() : null
@@ -100,30 +100,30 @@ const authLink = setContext((_, { headers }) => {
 })
 
 /**
- * Error link for error handling
- * Handles GraphQL and network errors silently
+ * Error handling link for GraphQL and network errors
+ * Processes errors silently without console output
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 const errorLink = onError(({ graphQLErrors, networkError }) => {
   if (graphQLErrors) {
     graphQLErrors.forEach(() => {
-      // Error handling logic can be added here
+      // Silent error handling - errors shown via UI toasts
     })
   }
   if (networkError) {
-    // Network error handling
+    // Network error handled by Apollo error policies
   }
 })
 
 /**
- * Create Apollo Client with proper link chain
- * Link chain: errorLink -> authLink -> httpLink
- * This order ensures errors are caught, auth is added, then request is sent
+ * Apollo Client instance with configured link chain
+ * Order: errorLink -> authLink -> httpLink
+ * Ensures errors are caught, auth is added, then request is sent
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 export const client = new ApolloClient({
   link: from([errorLink, authLink, httpLink]),
