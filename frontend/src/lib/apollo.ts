@@ -1,121 +1,76 @@
 /**
  * Apollo Client Configuration
- * Handles GraphQL connection with environment-based URL configuration
- * Uses VITE_GRAPHQL_URL environment variable for API endpoint
+ * Simple and robust GraphQL client setup
+ * Uses VITE_GRAPHQL_URL environment variable
  *
  * @author Thang Truong
  * @date 2025-12-04
  */
 
-import { ApolloClient, InMemoryCache, HttpLink, from, ApolloLink } from '@apollo/client'
+import { ApolloClient, InMemoryCache, HttpLink, from } from '@apollo/client'
 import { setContext } from '@apollo/client/link/context'
 import { onError } from '@apollo/client/link/error'
 
-/** Access token getter function reference @author Thang Truong @date 2025-12-04 */
+/** Access token getter @author Thang Truong @date 2025-12-04 */
 let getAccessToken: (() => string | null) | null = null
 
 /**
- * Sets the access token getter function
+ * Sets access token getter function
  * @author Thang Truong
  * @date 2025-12-04
- * @param getter - Function that returns current access token
  */
 export const setAccessTokenGetter = (getter: () => string | null): void => {
   getAccessToken = getter
 }
 
 /**
- * Sets token expiration handler for refresh logic
+ * Token expiration handler setter
  * @author Thang Truong
  * @date 2025-12-04
- * @param _handler - Function to call when token expires
  */
 export const setTokenExpirationHandler = (_handler: () => Promise<void>): void => {}
 
 /**
- * Constructs GraphQL endpoint URL from environment variable
- * Uses VITE_GRAPHQL_URL in production, defaults to localhost in development
- *
+ * Gets the GraphQL URL from environment variable
  * @author Thang Truong
  * @date 2025-12-04
- * @returns GraphQL endpoint URL
  */
 const getGraphQLUrl = (): string => {
-  const envUrl = import.meta.env.VITE_GRAPHQL_URL
-
-  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
-    let cleanUrl = envUrl.trim().replace(/\/+$/, '')
-    if (!cleanUrl.endsWith('/graphql')) cleanUrl = `${cleanUrl}/graphql`
-    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) return cleanUrl
-  }
-
-  // Development: default to localhost
-  if (import.meta.env.DEV) return 'http://localhost:4000/graphql'
-
-  // Production fallback: derive from window location for same-origin API
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname
-    if (host.includes('vercel.app')) {
-      // Construct backend URL pattern: frontend is project-tracker-mysql-db, backend is project-tracker-mysql-db-wjay
-      const backendUrl = `https://project-tracker-mysql-db-wjay.vercel.app/graphql`
-      return backendUrl
+  try {
+    const envUrl = import.meta.env.VITE_GRAPHQL_URL
+    if (envUrl) {
+      const url = String(envUrl).trim().replace(/\/+$/, '')
+      return url.endsWith('/graphql') ? url : `${url}/graphql`
     }
+  } catch {
+    // Silent catch
   }
-
-  return 'http://localhost:4000/graphql'
+  return import.meta.env.DEV ? 'http://localhost:4000/graphql' : '/graphql'
 }
 
-/** HTTP link for GraphQL requests @author Thang Truong @date 2025-12-04 */
-const httpLink = new HttpLink({
-  uri: getGraphQLUrl(),
-  headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+/** HTTP link @author Thang Truong @date 2025-12-04 */
+const httpLink = new HttpLink({ uri: getGraphQLUrl() })
+
+/** Auth link @author Thang Truong @date 2025-12-04 */
+const authLink = setContext((_, { headers }) => {
+  const token = getAccessToken?.() || null
+  return { headers: { ...headers, ...(token ? { authorization: `Bearer ${token}` } : {}) } }
 })
 
-/** Auth link - adds Bearer token @author Thang Truong @date 2025-12-04 */
-const authLink = setContext(async (_, { headers }) => {
-  const token = getAccessToken ? getAccessToken() : null
-  return {
-    headers: { ...headers, 'Content-Type': 'application/json', 'Accept': 'application/json',
-      ...(token ? { authorization: `Bearer ${token}` } : {}) },
-  }
-})
-
-/** Error handling link @author Thang Truong @date 2025-12-04 */
-const errorLink = onError(({ graphQLErrors, networkError }) => {
-  if (graphQLErrors) graphQLErrors.forEach(() => { /* Silent */ })
-  if (networkError) { /* Silent */ }
-})
-
-/** Pass-through link @author Thang Truong @date 2025-12-04 */
-const loggingLink = new ApolloLink((operation, forward) => forward(operation))
+/** Error link @author Thang Truong @date 2025-12-04 */
+const errorLink = onError(() => {})
 
 /**
- * Apollo Client instance with proper cache configuration
+ * Apollo Client instance
  * @author Thang Truong
  * @date 2025-12-04
  */
 export const client = new ApolloClient({
-  link: from([errorLink, loggingLink, authLink, httpLink]),
-  cache: new InMemoryCache({
-    typePolicies: {
-      Query: {
-        fields: {
-          projects: { merge: (_existing, incoming) => incoming },
-          users: { merge: (_existing, incoming) => incoming },
-          tasks: { merge: (_existing, incoming) => incoming },
-          tags: { merge: (_existing, incoming) => incoming },
-          notifications: { merge: (_existing, incoming) => incoming },
-          activities: { merge: (_existing, incoming) => incoming },
-          teamMembers: { merge: (_existing, incoming) => incoming },
-          comments: { merge: (_existing, incoming) => incoming },
-        },
-      },
-    },
-  }),
+  link: from([errorLink, authLink, httpLink]),
+  cache: new InMemoryCache(),
   defaultOptions: {
-    watchQuery: { errorPolicy: 'all', fetchPolicy: 'network-only', notifyOnNetworkStatusChange: true },
-    query: { errorPolicy: 'all', fetchPolicy: 'network-only' },
+    watchQuery: { fetchPolicy: 'network-only', errorPolicy: 'all' },
+    query: { fetchPolicy: 'network-only', errorPolicy: 'all' },
     mutate: { errorPolicy: 'all' },
   },
-  devtools: { enabled: import.meta.env.DEV },
 })

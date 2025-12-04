@@ -1,62 +1,42 @@
 /**
  * Apollo Client Configuration Helpers
- * Environment-based URL configuration
- *
  * @author Thang Truong
  * @date 2025-12-04
  */
 
 /**
- * Get GraphQL URL from environment variable
- * Uses VITE_GRAPHQL_URL or derives from window location
- *
+ * Get GraphQL URL from environment
  * @author Thang Truong
  * @date 2025-12-04
- * @returns GraphQL endpoint URL
  */
 export const getGraphQLUrl = (): string => {
-  const envUrl = import.meta.env.VITE_GRAPHQL_URL
-
-  if (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '') {
-    let cleanUrl = envUrl.trim().replace(/\/+$/, '').replace(/\s+/g, '')
-    cleanUrl = cleanUrl.replace(/^["']|["']$/g, '')
-    const finalUrl = cleanUrl.endsWith('/graphql') ? cleanUrl : `${cleanUrl}/graphql`
-    if (finalUrl.startsWith('http://') || finalUrl.startsWith('https://')) {
-      try { new URL(finalUrl); return finalUrl } catch { /* continue */ }
+  try {
+    const envUrl = import.meta.env.VITE_GRAPHQL_URL
+    if (envUrl) {
+      const url = String(envUrl).trim().replace(/\/+$/, '')
+      return url.endsWith('/graphql') ? url : `${url}/graphql`
     }
+  } catch {
+    // Silent
   }
-
-  // Development mode
-  if (import.meta.env.DEV) return 'http://localhost:4000/graphql'
-
-  // Production: derive backend URL from window location
-  if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
-    return 'https://project-tracker-mysql-db-wjay.vercel.app/graphql'
-  }
-
-  return 'http://localhost:4000/graphql'
+  return import.meta.env.DEV ? 'http://localhost:4000/graphql' : '/graphql'
 }
 
 /**
- * Get WebSocket URL from environment variable
+ * Get WebSocket URL from environment
  * @author Thang Truong
  * @date 2025-12-04
- * @returns WebSocket endpoint URL or null
  */
 export const getWebSocketUrl = (): string | null => {
-  const envUrl = import.meta.env.VITE_GRAPHQL_URL
-
-  if (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '') {
-    const cleanUrl = envUrl.trim().replace(/\/+$/, '').replace(/^["']|["']$/g, '')
-    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
-      const wsProtocol = cleanUrl.startsWith('https://') ? 'wss://' : 'ws://'
-      const wsUrl = cleanUrl.replace(/^https?:\/\//, wsProtocol)
+  try {
+    const envUrl = import.meta.env.VITE_GRAPHQL_URL
+    if (envUrl) {
+      const url = String(envUrl).trim().replace(/\/+$/, '')
+      const wsUrl = url.replace(/^https?:\/\//, url.startsWith('https') ? 'wss://' : 'ws://')
       return wsUrl.endsWith('/graphql') ? wsUrl : `${wsUrl}/graphql`
     }
+  } catch {
+    // Silent
   }
-
-  if (import.meta.env.DEV) return 'ws://localhost:4000/graphql'
-
-  // Production: Vercel doesn't support WebSockets, use null
-  return null
+  return import.meta.env.DEV ? 'ws://localhost:4000/graphql' : null
 }
