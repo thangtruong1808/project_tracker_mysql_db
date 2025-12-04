@@ -7,7 +7,7 @@
  */
 
 import '../src/utils/loadEnv'
-import express, { Request, Response } from 'express'
+import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import { ApolloServer } from '@apollo/server'
@@ -17,167 +17,86 @@ import { resolvers } from '../src/resolvers'
 
 const app = express()
 
-// Parse cookies from requests
-app.use(cookieParser())
-
 /**
- * Configure CORS options for Vercel
- * Allows frontend to connect from Vercel domains
- *
+ * CORS configuration - allows all Vercel domains
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
-const corsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    if (!origin) {
-      callback(null, true)
-      return
-    }
-
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      process.env.FRONTEND_URL,
-    ].filter(Boolean) as string[]
-
-    const isVercelDomain = origin.includes('.vercel.app') || origin.includes('vercel.app')
-    
-    if (allowedOrigins.includes(origin) || isVercelDomain) {
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true)
+    const isVercel = origin.includes('.vercel.app') || origin.includes('vercel.app')
+    const isLocal = origin.includes('localhost') || origin.includes('127.0.0.1')
+    if (isVercel || isLocal || origin === process.env.FRONTEND_URL) {
       callback(null, true)
     } else {
-      callback(new Error('Not allowed by CORS'))
+      callback(null, true) // Allow all origins for serverless
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  exposedHeaders: ['Content-Type'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
 }
 
-// Apply CORS middleware
+// Apply middleware globally
 app.use(cors(corsOptions))
+app.use(cookieParser())
+app.use(express.json())
 
-/**
- * Apollo Server configuration
- * Handles GraphQL queries and mutations
- *
- * @author Thang Truong
- * @date 2025-01-27
- */
+/** Apollo Server instance @author Thang Truong @date 2025-12-04 */
 const server = new ApolloServer({
   typeDefs,
   resolvers,
-  formatError: (error) => {
-    const message = error.message || 'An error occurred'
-    const code = error.extensions?.code || 'INTERNAL_SERVER_ERROR'
-    
-    return {
-      message,
-      extensions: {
-        code,
-        ...error.extensions,
-      },
-    }
-  },
+  formatError: (error) => ({
+    message: error.message || 'An error occurred',
+    extensions: { code: error.extensions?.code || 'INTERNAL_SERVER_ERROR', ...error.extensions },
+  }),
+  introspection: true,
 })
 
-// Initialize Apollo Server
 let serverStarted = false
 
 /**
  * Initialize server and setup routes
- * Called once when first request arrives
- *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 async function initializeServer(): Promise<void> {
-  if (serverStarted) {
-    return
-  }
-
+  if (serverStarted) return
   await server.start()
 
-  /**
-   * Root endpoint - provides API information
-   *
-   * @author Thang Truong
-   * @date 2025-01-27
-   */
-  app.get('/', (req: Request, res: Response) => {
-    res.json({ 
-      message: 'GraphQL API is running. Use /graphql endpoint.',
-      graphql: '/graphql',
-      status: 'online'
-    })
+  /** Root endpoint @author Thang Truong @date 2025-12-04 */
+  app.get('/', (_req: Request, res: Response) => {
+    res.json({ message: 'GraphQL API is running. Use /graphql endpoint.', graphql: '/graphql', status: 'online' })
   })
 
-  /**
-   * Handle OPTIONS preflight requests
-   *
-   * @author Thang Truong
-   * @date 2025-01-27
-   */
-  app.options('/graphql', cors(corsOptions))
+  /** OPTIONS preflight handler @author Thang Truong @date 2025-12-04 */
+  app.options('*', cors(corsOptions))
 
-  /**
-   * GraphQL endpoint
-   * express.json() must come before expressMiddleware to parse request body
-   * CORS middleware ensures proper headers for cross-origin requests
-   *
-   * @author Thang Truong
-   * @date 2025-01-27
-   */
-  app.use(
-    '/graphql',
-    cors(corsOptions),
-    express.json({ limit: '10mb', type: 'application/json' }),
-    expressMiddleware(server, {
-      context: async ({ req, res }: { req: Request; res: Response }) => {
-        return { req, res }
-      },
-    })
-  )
+  /** GraphQL endpoint @author Thang Truong @date 2025-12-04 */
+  app.use('/graphql', expressMiddleware(server, {
+    context: async ({ req, res }) => ({ req, res }),
+  }))
 
   serverStarted = true
 }
 
 /**
  * Vercel serverless function handler
- * Exports Express app for Vercel
- * Handles all routes including /graphql
- * Properly processes requests in serverless context
- *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 export default async function handler(req: Request, res: Response): Promise<void> {
   try {
-    // Ensure server is initialized
     await initializeServer()
-    
-    // Handle favicon.ico requests to prevent 404 errors
-    if (req.url === '/favicon.ico') {
-      res.status(204).end()
-      return
-    }
-    
-    // Delegate to Express app
-    // Wrap in Promise to handle async Express middleware
+    if (req.url === '/favicon.ico') { res.status(204).end(); return }
     return new Promise<void>((resolve, reject) => {
-      app(req, res, (err?: any) => {
-        if (err) {
-          reject(err)
-        } else {
-          resolve()
-        }
-      })
+      app(req, res, ((err?: unknown) => {
+        if (err) reject(err instanceof Error ? err : new Error(String(err)))
+        else resolve()
+      }) as NextFunction)
     })
-  } catch (error) {
-    // Error handled silently - only index.ts server entry may use console.log
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Internal server error' })
-    }
+  } catch {
+    if (!res.headersSent) res.status(500).json({ error: 'Internal server error' })
   }
 }
-

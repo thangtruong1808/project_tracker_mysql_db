@@ -1,21 +1,17 @@
 /**
  * Apollo Client Configuration
- * Handles GraphQL connection with proper URL validation
- * Supports both local development and production environments
+ * Handles GraphQL connection with environment-based URL configuration
+ * No hardcoded URLs - uses VITE_GRAPHQL_URL for all environments
  *
  * @author Thang Truong
  * @date 2025-12-04
  */
 
-import { ApolloClient, InMemoryCache, HttpLink, from } from '@apollo/client'
+import { ApolloClient, InMemoryCache, HttpLink, from, ApolloLink } from '@apollo/client'
 import { setContext } from '@apollo/client/link/context'
 import { onError } from '@apollo/client/link/error'
 
-/**
- * Access token getter function reference
- * @author Thang Truong
- * @date 2025-12-04
- */
+/** Access token getter function reference @author Thang Truong @date 2025-12-04 */
 let getAccessToken: (() => string | null) | null = null
 
 /**
@@ -35,16 +31,16 @@ export const setAccessTokenGetter = (getter: () => string | null): void => {
  *
  * @author Thang Truong
  * @date 2025-12-04
- * @param handler - Function to call when token expires
+ * @param _handler - Function to call when token expires
  */
 export const setTokenExpirationHandler = (_handler: () => Promise<void>): void => {
   // Token expiration handling placeholder
 }
 
 /**
- * Constructs GraphQL endpoint URL from environment
- * Prioritizes VITE_GRAPHQL_URL environment variable
- * Falls back to deployed backend URL for production
+ * Constructs GraphQL endpoint URL from environment variable
+ * Development: Uses VITE_GRAPHQL_URL or defaults to localhost:4000
+ * Production: Requires VITE_GRAPHQL_URL to be set
  *
  * @author Thang Truong
  * @date 2025-12-04
@@ -63,37 +59,37 @@ const getGraphQLUrl = (): string => {
     }
   }
 
-  // Production fallback - deployed Vercel backend
-  return 'https://project-tracker-mysql-db-wjay.vercel.app/graphql'
+  // Development mode: default to localhost
+  if (import.meta.env.DEV) {
+    return 'http://localhost:4000/graphql'
+  }
+
+  // Production: VITE_GRAPHQL_URL must be set
+  throw new Error('VITE_GRAPHQL_URL environment variable is required in production')
 }
 
 /**
  * HTTP link for GraphQL network requests
- * Configured with CORS credentials for cookie-based auth
- *
  * @author Thang Truong
  * @date 2025-12-04
  */
 const httpLink = new HttpLink({
   uri: getGraphQLUrl(),
-  credentials: 'include',
-  fetchOptions: {
-    mode: 'cors',
-  },
+  headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
 })
 
 /**
  * Authentication link - adds Bearer token to requests
- * Retrieves token from AuthContext getter function
- *
  * @author Thang Truong
  * @date 2025-12-04
  */
-const authLink = setContext((_, { headers }) => {
+const authLink = setContext(async (_, { headers }) => {
   const token = getAccessToken ? getAccessToken() : null
   return {
     headers: {
       ...headers,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
       ...(token ? { authorization: `Bearer ${token}` } : {}),
     },
   }
@@ -101,55 +97,35 @@ const authLink = setContext((_, { headers }) => {
 
 /**
  * Error handling link for GraphQL and network errors
- * Processes errors silently without console output
- *
  * @author Thang Truong
  * @date 2025-12-04
  */
 const errorLink = onError(({ graphQLErrors, networkError }) => {
-  if (graphQLErrors) {
-    graphQLErrors.forEach(() => {
-      // Silent error handling - errors shown via UI toasts
-    })
-  }
-  if (networkError) {
-    // Network error handled by Apollo error policies
-  }
+  if (graphQLErrors) { graphQLErrors.forEach(() => { /* Silent error handling */ }) }
+  if (networkError) { /* Network error handled by Apollo error policies */ }
 })
+
+/** Logging link for request pipeline @author Thang Truong @date 2025-12-04 */
+const loggingLink = new ApolloLink((operation, forward) => forward(operation))
 
 /**
  * Apollo Client instance with configured link chain
- * Order: errorLink -> authLink -> httpLink
- * Ensures errors are caught, auth is added, then request is sent
- *
  * @author Thang Truong
  * @date 2025-12-04
  */
 export const client = new ApolloClient({
-  link: from([errorLink, authLink, httpLink]),
+  link: from([errorLink, loggingLink, authLink, httpLink]),
   cache: new InMemoryCache({
     dataIdFromObject: (object: any): string | undefined => {
-      if (object.__typename && object.id) {
-        return `${object.__typename}:${object.id}`
-      }
-      if (object.id) {
-        return String(object.id)
-      }
+      if (object.__typename && object.id) return `${object.__typename}:${object.id}`
+      if (object.id) return String(object.id)
       return undefined
     },
   }),
   defaultOptions: {
-    watchQuery: {
-      errorPolicy: 'all',
-      fetchPolicy: 'cache-and-network',
-    },
-    query: {
-      errorPolicy: 'all',
-      fetchPolicy: 'cache-first',
-    },
-    mutate: {
-      errorPolicy: 'all',
-    },
+    watchQuery: { errorPolicy: 'all', fetchPolicy: 'cache-and-network' },
+    query: { errorPolicy: 'all', fetchPolicy: 'network-only' },
+    mutate: { errorPolicy: 'all' },
   },
-  devtools: { enabled: true },
+  devtools: { enabled: import.meta.env.DEV },
 })

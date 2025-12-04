@@ -3,7 +3,7 @@
  * Build configuration with code-splitting for optimal bundle size
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 
 import { defineConfig } from 'vite'
@@ -30,7 +30,7 @@ export default defineConfig({
      * Vercel handles routing automatically, so this is mainly for local preview
      *
      * @author Thang Truong
-     * @date 2025-01-27
+     * @date 2025-12-04
      */
     allowedHosts: [
       '.vercel.app', // Allow all Vercel preview and production domains

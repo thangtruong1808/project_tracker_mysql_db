@@ -4,7 +4,7 @@
  * Checks root directory, backend directory, and default location
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 
 import dotenv from 'dotenv'

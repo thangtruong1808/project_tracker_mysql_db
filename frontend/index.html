@@ -8,12 +8,12 @@
     <!-- Suppress WebSocket connection errors before app loads -->
     <script>
       (function() {
-        const originalConsoleError = console.error;
-        const originalConsoleWarn = console.warn;
-        const originalWindowError = window.onerror;
-        const suppressWS = function(msg) {
-          const m = String(msg || '').toLowerCase();
-          return (m.includes('websocket') || m.includes('ws://localhost:4000') || m.includes('graphql-ws')) &&
+        var originalConsoleError = console.error;
+        var originalConsoleWarn = console.warn;
+        var originalWindowError = window.onerror;
+        var suppressWS = function(msg) {
+          var m = String(msg || '').toLowerCase();
+          return (m.includes('websocket') || m.includes('ws://') || m.includes('wss://') || m.includes('graphql-ws')) &&
                  (m.includes('failed') || m.includes('error') || m.includes('warning') || m.includes('connection'));
         };
         window.onerror = function(msg, source, lineno, colno, error) {
@@ -22,12 +22,12 @@
           return false;
         };
         console.error = function() {
-          const msg = Array.from(arguments).map(a => String(a || '')).join(' ');
+          var msg = Array.from(arguments).map(function(a) { return String(a || ''); }).join(' ');
           if (suppressWS(msg)) return;
           originalConsoleError.apply(console, arguments);
         };
         console.warn = function() {
-          const msg = Array.from(arguments).map(a => String(a || '')).join(' ');
+          var msg = Array.from(arguments).map(function(a) { return String(a || ''); }).join(' ');
           if (suppressWS(msg)) return;
           originalConsoleWarn.apply(console, arguments);
         };
@@ -39,4 +39,3 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

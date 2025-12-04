@@ -4,7 +4,7 @@
  * Must run before any Apollo/GraphQL imports
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 
 const originalConsoleError = console.error
@@ -15,7 +15,7 @@ const originalWindowError = window.onerror
  * Check if error message is WebSocket-related and should be suppressed
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  * @param message - Error message to check
  * @returns True if message should be suppressed
  */
@@ -23,9 +23,9 @@ const suppressWebSocketLogs = (message: string): boolean => {
   const msg = String(message || '').toLowerCase()
   return (
     (msg.includes('websocket') ||
-      msg.includes('ws://localhost:4000') ||
-      msg.includes('graphql-ws') ||
-      msg.includes('ws://')) &&
+      msg.includes('ws://') ||
+      msg.includes('wss://') ||
+      msg.includes('graphql-ws')) &&
     (msg.includes('failed') ||
       msg.includes('error') ||
       msg.includes('warning') ||
@@ -35,9 +35,8 @@ const suppressWebSocketLogs = (message: string): boolean => {
 
 /**
  * Override window.onerror to catch WebSocket errors
- *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 window.onerror = (message, source, lineno, colno, error) => {
   const errorMessage = String(message || '')
@@ -50,9 +49,8 @@ window.onerror = (message, source, lineno, colno, error) => {
 
 /**
  * Override console.error to suppress WebSocket errors
- *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 console.error = (...args: unknown[]) => {
   const errorMessage = args.map((arg) => String(arg || '')).join(' ')
@@ -62,9 +60,8 @@ console.error = (...args: unknown[]) => {
 
 /**
  * Override console.warn to suppress WebSocket warnings
- *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 console.warn = (...args: unknown[]) => {
   const errorMessage = args.map((arg) => String(arg || '')).join(' ')
@@ -73,4 +70,3 @@ console.warn = (...args: unknown[]) => {
 }
 
 export { suppressWebSocketLogs }
-

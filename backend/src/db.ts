@@ -17,7 +17,7 @@ let pool: mysql.Pool | null = null
  * Lazy initialization to avoid errors at module load time
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  * @returns MySQL connection pool
  */
 function getPool(): mysql.Pool {
@@ -88,14 +88,14 @@ function getPool(): mysql.Pool {
  * Provides async/await interface for database queries
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 export const db = {
   /**
    * Execute a SQL query with optional parameters
    *
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-12-04
    * @param sql - SQL query string
    * @param params - Optional array of query parameters
    * @returns Query results
@@ -159,7 +159,7 @@ export const db = {
    * Get a connection from the pool
    *
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-12-04
    * @returns MySQL connection
    */
   getConnection: () => getPool().getConnection(),
