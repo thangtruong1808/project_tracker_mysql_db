@@ -1,7 +1,6 @@
 /**
  * Apollo Client Configuration Helpers
- * Environment-based URL configuration - no hardcoded URLs
- * Uses VITE_GRAPHQL_URL for all environments
+ * Environment-based URL configuration
  *
  * @author Thang Truong
  * @date 2025-12-04
@@ -9,8 +8,7 @@
 
 /**
  * Get GraphQL URL from environment variable
- * Development: Uses VITE_GRAPHQL_URL or defaults to localhost:4000
- * Production: Requires VITE_GRAPHQL_URL to be set
+ * Uses VITE_GRAPHQL_URL or derives from window location
  *
  * @author Thang Truong
  * @date 2025-12-04
@@ -23,34 +21,27 @@ export const getGraphQLUrl = (): string => {
     let cleanUrl = envUrl.trim().replace(/\/+$/, '').replace(/\s+/g, '')
     cleanUrl = cleanUrl.replace(/^["']|["']$/g, '')
     const finalUrl = cleanUrl.endsWith('/graphql') ? cleanUrl : `${cleanUrl}/graphql`
-
     if (finalUrl.startsWith('http://') || finalUrl.startsWith('https://')) {
-      try {
-        new URL(finalUrl)
-        return finalUrl
-      } catch {
-        // Invalid URL format - continue to default
-      }
+      try { new URL(finalUrl); return finalUrl } catch { /* continue */ }
     }
   }
 
-  // Development mode: default to localhost
-  if (import.meta.env.DEV) {
-    return 'http://localhost:4000/graphql'
+  // Development mode
+  if (import.meta.env.DEV) return 'http://localhost:4000/graphql'
+
+  // Production: derive backend URL from window location
+  if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+    return 'https://project-tracker-mysql-db-wjay.vercel.app/graphql'
   }
 
-  // Production: VITE_GRAPHQL_URL must be set
-  throw new Error('VITE_GRAPHQL_URL environment variable is required in production')
+  return 'http://localhost:4000/graphql'
 }
 
 /**
  * Get WebSocket URL from environment variable
- * Converts HTTP URL to WebSocket URL
- * Note: Vercel does NOT support WebSockets - use Pusher for real-time
- *
  * @author Thang Truong
  * @date 2025-12-04
- * @returns WebSocket endpoint URL or null if not available
+ * @returns WebSocket endpoint URL or null
  */
 export const getWebSocketUrl = (): string | null => {
   const envUrl = import.meta.env.VITE_GRAPHQL_URL
@@ -64,11 +55,8 @@ export const getWebSocketUrl = (): string | null => {
     }
   }
 
-  // Development mode: default to localhost WebSocket
-  if (import.meta.env.DEV) {
-    return 'ws://localhost:4000/graphql'
-  }
+  if (import.meta.env.DEV) return 'ws://localhost:4000/graphql'
 
-  // Production: WebSocket URL derived from VITE_GRAPHQL_URL
+  // Production: Vercel doesn't support WebSockets, use null
   return null
 }
