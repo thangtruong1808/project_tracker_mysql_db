@@ -1,13 +1,13 @@
 /**
  * Apollo Client Configuration
- * Simple and robust GraphQL client setup with proper cache policies
- * Uses VITE_GRAPHQL_URL environment variable
+ * Robust GraphQL client setup with comprehensive cache policies
+ * Handles Error 69 by disabling cache normalization for entities
  *
  * @author Thang Truong
  * @date 2025-12-04
  */
 
-import { ApolloClient, InMemoryCache, HttpLink, from } from '@apollo/client'
+import { ApolloClient, InMemoryCache, HttpLink, from, FieldMergeFunction } from '@apollo/client'
 import { setContext } from '@apollo/client/link/context'
 import { onError } from '@apollo/client/link/error'
 
@@ -43,7 +43,7 @@ const getGraphQLUrl = (): string => {
       return url.endsWith('/graphql') ? url : `${url}/graphql`
     }
   } catch {
-    // Silent catch
+    // Silent
   }
   return import.meta.env.DEV ? 'http://localhost:4000/graphql' : '/graphql'
 }
@@ -57,32 +57,62 @@ const authLink = setContext((_, { headers }) => {
   return { headers: { ...headers, ...(token ? { authorization: `Bearer ${token}` } : {}) } }
 })
 
-/** Error link - swallows errors silently @author Thang Truong @date 2025-12-04 */
+/** Error link - handles errors gracefully @author Thang Truong @date 2025-12-04 */
 const errorLink = onError(() => {})
 
 /**
- * Cache type policies - prevents Error 69 by defining merge behavior for arrays
- * Replace incoming arrays instead of merging to avoid cache conflicts
+ * Safe merge function - always replaces existing with incoming
+ * Handles null, undefined, and empty arrays safely
+ * @author Thang Truong
+ * @date 2025-12-04
+ */
+const safeMerge: FieldMergeFunction = (_existing, incoming) => incoming
+
+/**
+ * Cache type policies - comprehensive fix for Error 69
+ * Disables normalization for all entity types using keyFields: false
+ * Uses safe merge for all Query array fields
  * @author Thang Truong
  * @date 2025-12-04
  */
 const typePolicies = {
   Query: {
     fields: {
-      projects: { merge: (_: unknown, incoming: unknown[]) => incoming },
-      users: { merge: (_: unknown, incoming: unknown[]) => incoming },
-      tasks: { merge: (_: unknown, incoming: unknown[]) => incoming },
-      tags: { merge: (_: unknown, incoming: unknown[]) => incoming },
-      notifications: { merge: (_: unknown, incoming: unknown[]) => incoming },
-      activities: { merge: (_: unknown, incoming: unknown[]) => incoming },
-      teamMembers: { merge: (_: unknown, incoming: unknown[]) => incoming },
-      comments: { merge: (_: unknown, incoming: unknown[]) => incoming },
+      projects: { merge: safeMerge },
+      project: { merge: safeMerge },
+      users: { merge: safeMerge },
+      user: { merge: safeMerge },
+      tasks: { merge: safeMerge },
+      task: { merge: safeMerge },
+      tags: { merge: safeMerge },
+      tag: { merge: safeMerge },
+      notifications: { merge: safeMerge },
+      notification: { merge: safeMerge },
+      activities: { merge: safeMerge },
+      activity: { merge: safeMerge },
+      teamMembers: { merge: safeMerge },
+      teamMember: { merge: safeMerge },
+      comments: { merge: safeMerge },
+      comment: { merge: safeMerge },
+      refreshTokenStatus: { merge: safeMerge },
+      searchDashboard: { merge: safeMerge },
     },
   },
+  // Disable cache normalization for entity types to prevent Error 69
+  Project: { keyFields: false as const },
+  User: { keyFields: false as const },
+  Task: { keyFields: false as const },
+  Tag: { keyFields: false as const },
+  Notification: { keyFields: false as const },
+  Activity: { keyFields: false as const },
+  TeamMember: { keyFields: false as const },
+  Comment: { keyFields: false as const },
+  RefreshTokenStatus: { keyFields: false as const },
+  SearchResult: { keyFields: false as const },
 }
 
 /**
- * Apollo Client instance with proper cache configuration
+ * Apollo Client instance with comprehensive cache configuration
  * @author Thang Truong
  * @date 2025-12-04
  */

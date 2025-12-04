@@ -3,7 +3,7 @@
  * Handles token refresh and authentication headers
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 
 import { setContext } from '@apollo/client/link/context'
@@ -17,7 +17,7 @@ let getAccessToken: (() => string | null) | null = null
  * Set the token expiration handler callback
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  * @param handler - Function to call when token expires
  */
 export const setTokenExpirationHandler = (handler: () => Promise<void>) => {
@@ -28,7 +28,7 @@ export const setTokenExpirationHandler = (handler: () => Promise<void>) => {
  * Set the access token getter function
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  * @param getter - Function that returns current access token
  */
 export const setAccessTokenGetter = (getter: () => string | null) => {
@@ -39,7 +39,7 @@ export const setAccessTokenGetter = (getter: () => string | null) => {
  * Handle token refresh on authentication errors
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 const handleTokenRefresh = async () => {
   try {
@@ -56,14 +56,14 @@ const handleTokenRefresh = async () => {
  * Error link to handle GraphQL and network errors
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 /**
  * Error link to handle GraphQL and network errors
  * Automatically refreshes token on authentication errors
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  * @returns Apollo error link
  */
 export const createErrorLink = () => {
@@ -100,14 +100,14 @@ export const createErrorLink = () => {
  * Auth link to add access token to requests
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 /**
  * Auth link to add access token to requests
  * Apollo Client automatically sets content-type, so we don't override it
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  * @returns Apollo context link
  */
 export const createAuthLink = () => {

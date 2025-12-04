@@ -4,7 +4,7 @@
  * Only renders when user is authenticated to avoid useQuery outside Apollo context
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-12-04
  */
 
 import { useQuery } from '@apollo/client'

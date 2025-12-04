@@ -4,7 +4,7 @@
  * Optional - HTTP server continues if WebSocket setup fails
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 
 import { Server } from 'http'
@@ -16,7 +16,7 @@ import { Server } from 'http'
  * Setup is optional - HTTP server will work even if WebSocket fails
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  * @param httpServer - HTTP server instance to attach WebSocket to
  * @returns WebSocket server cleanup function or null if setup fails
  */
@@ -28,7 +28,7 @@ export const setupWebSocketServer = (httpServer: Server): any => {
      * Use package exports path which maps to CommonJS file automatically
      *
      * @author Thang Truong
-     * @date 2025-01-27
+     * @date 2025-12-04
      */
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const ws = require('ws')
@@ -51,7 +51,7 @@ export const setupWebSocketServer = (httpServer: Server): any => {
      * Properly disposes WebSocket connections on server shutdown
      *
      * @author Thang Truong
-     * @date 2025-01-27
+     * @date 2025-12-04
      */
     const wsServerCleanup = useServer(
       {

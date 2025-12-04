@@ -4,7 +4,7 @@
  * Non-blocking - server starts even if connection is slow
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 
 import { db } from '../db'
@@ -16,7 +16,7 @@ import { ensureActivityLogTargetUsers } from '../utils/activityLogMaintenance'
  * Server starts even if DB connection is slow (non-blocking)
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 export const testDatabaseConnection = async (): Promise<void> => {
   // Reduced retries to avoid triggering "host blocked" error on FreeSQLDatabase

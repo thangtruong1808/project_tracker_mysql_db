@@ -103,7 +103,7 @@ export const calculateRefreshTokenExpiry = (): Date => {
  * When refresh token has <= this threshold remaining, rotation is stopped to allow dialog to appear
  * 
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-12-04
  * @returns Threshold in seconds
  */
 export const getRefreshTokenRotationThresholdSeconds = (): number => {

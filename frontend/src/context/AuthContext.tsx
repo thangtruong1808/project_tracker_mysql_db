@@ -6,7 +6,7 @@
  * Silently auto-refreshes access token when it expires
  *
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-12-04
  */
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react'

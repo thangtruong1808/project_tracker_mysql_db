@@ -4,7 +4,7 @@
  * Monitors access token expiration and refreshes when needed
  * 
  * @author Thang Truong
- * @date 2024-12-24
+ * @date 2025-12-04
  */
 
 import { useEffect } from 'react'

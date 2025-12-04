@@ -4,7 +4,7 @@
  * Includes error boundary to catch initialization errors
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 
 import React from 'react'
@@ -16,7 +16,7 @@ import './index.css'
  * Error boundary component for initialization errors
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -56,7 +56,7 @@ class ErrorBoundary extends React.Component<
  * Wrapped in error boundary to catch initialization errors
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 ReactDOM.createRoot(document.getElementById('root')!).render(
   /* Root React Application Container */

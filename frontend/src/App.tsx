@@ -4,7 +4,7 @@
  * Uses code-splitting for optimal bundle size
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 
 import { Suspense, lazy } from 'react'
@@ -44,7 +44,7 @@ const Team = lazy(() => import('./pages/Team'))
  * Loading fallback component
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 const PageLoadingFallback = () => (
   /* Loading skeleton for lazy-loaded pages */
@@ -61,7 +61,7 @@ const PageLoadingFallback = () => (
  * Main application entry point with routing and code-splitting
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  * @returns JSX element containing the application structure
  */
 function App() {

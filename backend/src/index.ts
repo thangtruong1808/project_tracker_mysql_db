@@ -33,7 +33,7 @@ app.use(cookieParser())
  * For real-time features, consider integrating Pusher Channels
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
@@ -75,7 +75,7 @@ let wsServerCleanup: any = null
  * Includes error formatting for better client-side error messages
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 const server = new ApolloServer({
   typeDefs,
@@ -114,7 +114,7 @@ const server = new ApolloServer({
  * Start the server and initialize database connection
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 async function startServer(): Promise<void> {
   try {
@@ -125,13 +125,13 @@ async function startServer(): Promise<void> {
      * Handles all GraphQL queries and mutations
      *
      * @author Thang Truong
-     * @date 2025-01-27
+     * @date 2025-12-04
      */
     /**
      * Root endpoint - provides API information
      *
      * @author Thang Truong
-     * @date 2025-01-27
+     * @date 2025-12-04
      */
     app.get('/', (req: Request, res: Response) => {
       res.json({ 
@@ -146,7 +146,7 @@ async function startServer(): Promise<void> {
      * CORS middleware already handles this, but explicit handler ensures compatibility
      *
      * @author Thang Truong
-     * @date 2025-01-27
+     * @date 2025-12-04
      */
     app.options('/graphql', cors(corsOptions))
 
@@ -157,7 +157,7 @@ async function startServer(): Promise<void> {
      * express.json() must come before expressMiddleware to parse request body correctly
      *
      * @author Thang Truong
-     * @date 2025-01-27
+     * @date 2025-12-04
      */
     app.use(
       '/graphql',
@@ -178,7 +178,7 @@ async function startServer(): Promise<void> {
      * Must be done before WebSocket server setup
      *
      * @author Thang Truong
-     * @date 2025-01-27
+     * @date 2025-12-04
      */
     await new Promise<void>((resolve, reject) => {
       // Render requires binding to 0.0.0.0, not just localhost
@@ -199,7 +199,7 @@ async function startServer(): Promise<void> {
      * Setup is optional - HTTP server will work even if WebSocket fails
      *
      * @author Thang Truong
-     * @date 2025-01-27
+     * @date 2025-12-04
      */
     wsServerCleanup = setupWebSocketServer(httpServer)
 
@@ -210,7 +210,7 @@ async function startServer(): Promise<void> {
      * Server starts even if DB connection is slow (non-blocking)
      *
      * @author Thang Truong
-     * @date 2025-01-27
+     * @date 2025-12-04
      */
     // Start database connection test in background (non-blocking)
     // Server will be available even if database connection is slow
@@ -229,7 +229,7 @@ async function startServer(): Promise<void> {
  * Handle server startup errors
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 startServer().catch((error) => {
   // Failed to start server

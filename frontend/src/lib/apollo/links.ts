@@ -3,7 +3,7 @@
  * Creates HTTP, WebSocket, and split links for Apollo Client
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 
 import { createHttpLink, split } from '@apollo/client'
@@ -18,7 +18,7 @@ let getAccessToken: (() => string | null) | null = null
  * Set the access token getter function
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  * @param getter - Function that returns current access token
  */
 export const setAccessTokenGetter = (getter: () => string | null) => {
@@ -30,14 +30,14 @@ export const setAccessTokenGetter = (getter: () => string | null) => {
  * Includes error handling for invalid URIs
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 /**
  * HTTP link to GraphQL endpoint
  * Includes error handling for invalid URIs
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  * @returns HTTP link instance
  * @throws Error if GraphQL URL is invalid
  */
@@ -77,7 +77,7 @@ export const createHttpLinkInstance = () => {
  * Created for both local development and production (Render supports WebSockets)
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 /**
  * WebSocket link for GraphQL subscriptions
@@ -85,7 +85,7 @@ export const createHttpLinkInstance = () => {
  * Returns null if WebSocket URL is not available or creation fails
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  * @returns GraphQLWsLink instance or null if WebSocket is not available
  */
 export const createWebSocketLink = (): GraphQLWsLink | null => {
@@ -131,7 +131,7 @@ export const createWebSocketLink = (): GraphQLWsLink | null => {
  * Render supports WebSockets, so subscriptions work in production
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-04
  */
 export const createSplitLink = (httpLink: ReturnType<typeof createHttpLinkInstance>, wsLink: ReturnType<typeof createWebSocketLink>) => {
   // If WebSocket link is not available, use HTTP link directly
