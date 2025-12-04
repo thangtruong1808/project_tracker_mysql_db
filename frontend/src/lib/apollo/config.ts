@@ -24,6 +24,7 @@ export const getGraphQLUrl = (): string => {
 
 /**
  * Get WebSocket URL from environment
+ * Only processes absolute HTTP/HTTPS URLs, returns null for relative paths
  * @author Thang Truong
  * @date 2025-12-04
  */
@@ -32,8 +33,17 @@ export const getWebSocketUrl = (): string | null => {
     const envUrl = import.meta.env.VITE_GRAPHQL_URL
     if (envUrl) {
       const url = String(envUrl).trim().replace(/\/+$/, '')
-      const wsUrl = url.replace(/^https?:\/\//, url.startsWith('https') ? 'wss://' : 'ws://')
-      return wsUrl.endsWith('/graphql') ? wsUrl : `${wsUrl}/graphql`
+      // Only convert absolute URLs - relative paths cannot be WebSocket URLs
+      if (url.startsWith('https://')) {
+        const wsUrl = url.replace(/^https:\/\//, 'wss://')
+        return wsUrl.endsWith('/graphql') ? wsUrl : `${wsUrl}/graphql`
+      }
+      if (url.startsWith('http://')) {
+        const wsUrl = url.replace(/^http:\/\//, 'ws://')
+        return wsUrl.endsWith('/graphql') ? wsUrl : `${wsUrl}/graphql`
+      }
+      // Relative paths cannot be converted to WebSocket URLs
+      return null
     }
   } catch {
     // Silent

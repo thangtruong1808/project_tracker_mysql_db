@@ -1,6 +1,6 @@
 /**
  * Apollo Client Configuration
- * Simple and robust GraphQL client setup
+ * Simple and robust GraphQL client setup with proper cache policies
  * Uses VITE_GRAPHQL_URL environment variable
  *
  * @author Thang Truong
@@ -57,17 +57,38 @@ const authLink = setContext((_, { headers }) => {
   return { headers: { ...headers, ...(token ? { authorization: `Bearer ${token}` } : {}) } }
 })
 
-/** Error link @author Thang Truong @date 2025-12-04 */
+/** Error link - swallows errors silently @author Thang Truong @date 2025-12-04 */
 const errorLink = onError(() => {})
 
 /**
- * Apollo Client instance
+ * Cache type policies - prevents Error 69 by defining merge behavior for arrays
+ * Replace incoming arrays instead of merging to avoid cache conflicts
+ * @author Thang Truong
+ * @date 2025-12-04
+ */
+const typePolicies = {
+  Query: {
+    fields: {
+      projects: { merge: (_: unknown, incoming: unknown[]) => incoming },
+      users: { merge: (_: unknown, incoming: unknown[]) => incoming },
+      tasks: { merge: (_: unknown, incoming: unknown[]) => incoming },
+      tags: { merge: (_: unknown, incoming: unknown[]) => incoming },
+      notifications: { merge: (_: unknown, incoming: unknown[]) => incoming },
+      activities: { merge: (_: unknown, incoming: unknown[]) => incoming },
+      teamMembers: { merge: (_: unknown, incoming: unknown[]) => incoming },
+      comments: { merge: (_: unknown, incoming: unknown[]) => incoming },
+    },
+  },
+}
+
+/**
+ * Apollo Client instance with proper cache configuration
  * @author Thang Truong
  * @date 2025-12-04
  */
 export const client = new ApolloClient({
   link: from([errorLink, authLink, httpLink]),
-  cache: new InMemoryCache(),
+  cache: new InMemoryCache({ typePolicies }),
   defaultOptions: {
     watchQuery: { fetchPolicy: 'network-only', errorPolicy: 'all' },
     query: { fetchPolicy: 'network-only', errorPolicy: 'all' },
