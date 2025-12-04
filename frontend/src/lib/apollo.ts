@@ -1,13 +1,12 @@
 /**
  * Apollo Client Configuration
- * Robust GraphQL client setup with comprehensive cache policies
- * Handles Error 69 by disabling cache normalization for entities
+ * Minimal and robust GraphQL client setup
  *
  * @author Thang Truong
  * @date 2025-12-04
  */
 
-import { ApolloClient, InMemoryCache, HttpLink, from, FieldMergeFunction } from '@apollo/client'
+import { ApolloClient, InMemoryCache, HttpLink, from } from '@apollo/client'
 import { setContext } from '@apollo/client/link/context'
 import { onError } from '@apollo/client/link/error'
 
@@ -36,14 +35,10 @@ export const setTokenExpirationHandler = (_handler: () => Promise<void>): void =
  * @date 2025-12-04
  */
 const getGraphQLUrl = (): string => {
-  try {
-    const envUrl = import.meta.env.VITE_GRAPHQL_URL
-    if (envUrl) {
-      const url = String(envUrl).trim().replace(/\/+$/, '')
-      return url.endsWith('/graphql') ? url : `${url}/graphql`
-    }
-  } catch {
-    // Silent
+  const envUrl = import.meta.env.VITE_GRAPHQL_URL
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+    const url = envUrl.trim().replace(/\/+$/, '')
+    return url.endsWith('/graphql') ? url : `${url}/graphql`
   }
   return import.meta.env.DEV ? 'http://localhost:4000/graphql' : '/graphql'
 }
@@ -57,71 +52,21 @@ const authLink = setContext((_, { headers }) => {
   return { headers: { ...headers, ...(token ? { authorization: `Bearer ${token}` } : {}) } }
 })
 
-/** Error link - handles errors gracefully @author Thang Truong @date 2025-12-04 */
+/** Error link @author Thang Truong @date 2025-12-04 */
 const errorLink = onError(() => {})
 
 /**
- * Safe merge function - always replaces existing with incoming
- * Handles null, undefined, and empty arrays safely
- * @author Thang Truong
- * @date 2025-12-04
- */
-const safeMerge: FieldMergeFunction = (_existing, incoming) => incoming
-
-/**
- * Cache type policies - comprehensive fix for Error 69
- * Disables normalization for all entity types using keyFields: false
- * Uses safe merge for all Query array fields
- * @author Thang Truong
- * @date 2025-12-04
- */
-const typePolicies = {
-  Query: {
-    fields: {
-      projects: { merge: safeMerge },
-      project: { merge: safeMerge },
-      users: { merge: safeMerge },
-      user: { merge: safeMerge },
-      tasks: { merge: safeMerge },
-      task: { merge: safeMerge },
-      tags: { merge: safeMerge },
-      tag: { merge: safeMerge },
-      notifications: { merge: safeMerge },
-      notification: { merge: safeMerge },
-      activities: { merge: safeMerge },
-      activity: { merge: safeMerge },
-      teamMembers: { merge: safeMerge },
-      teamMember: { merge: safeMerge },
-      comments: { merge: safeMerge },
-      comment: { merge: safeMerge },
-      refreshTokenStatus: { merge: safeMerge },
-      searchDashboard: { merge: safeMerge },
-    },
-  },
-  // Disable cache normalization for entity types to prevent Error 69
-  Project: { keyFields: false as const },
-  User: { keyFields: false as const },
-  Task: { keyFields: false as const },
-  Tag: { keyFields: false as const },
-  Notification: { keyFields: false as const },
-  Activity: { keyFields: false as const },
-  TeamMember: { keyFields: false as const },
-  Comment: { keyFields: false as const },
-  RefreshTokenStatus: { keyFields: false as const },
-  SearchResult: { keyFields: false as const },
-}
-
-/**
- * Apollo Client instance with comprehensive cache configuration
+ * Apollo Client instance - minimal configuration
+ * Uses no-cache to avoid all cache-related errors
  * @author Thang Truong
  * @date 2025-12-04
  */
 export const client = new ApolloClient({
   link: from([errorLink, authLink, httpLink]),
-  cache: new InMemoryCache({ typePolicies }),
+  cache: new InMemoryCache(),
   defaultOptions: {
-    watchQuery: { fetchPolicy: 'network-only', errorPolicy: 'all' },
-    query: { fetchPolicy: 'network-only', errorPolicy: 'all' },
-    mutate: { errorPolicy: 'all' },
+    watchQuery: { fetchPolicy: 'no-cache', errorPolicy: 'ignore' },
+    query: { fetchPolicy: 'no-cache', errorPolicy: 'ignore' },
+    mutate: { errorPolicy: 'ignore' },
   },
 })
