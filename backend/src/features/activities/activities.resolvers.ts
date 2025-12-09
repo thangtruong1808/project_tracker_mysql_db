@@ -30,7 +30,60 @@ export const activitiesQueryResolvers = {
       FROM activity_logs ORDER BY created_at DESC`
     )) as any[]
 
-    return activities.map((a: any) => ({
+    if (activities.length === 0) {
+      const users = (await db.query('SELECT id FROM users WHERE is_deleted = false ORDER BY id ASC LIMIT 1')) as any[]
+      const defaultUserId = users[0]?.id ? Number(users[0].id) : null
+
+      const projects = (await db.query(
+        'SELECT id, name, status, owner_id FROM projects WHERE is_deleted = false ORDER BY created_at DESC LIMIT 20'
+      )) as any[]
+      const projectLogs = projects.map((p: any) => [
+        p.owner_id || defaultUserId,
+        null,
+        p.id,
+        null,
+        `Project "${p.name}" created`,
+        'PROJECT_CREATED',
+        JSON.stringify({ status: p.status || 'PLANNING' }),
+      ])
+      if (projectLogs.length > 0 && defaultUserId !== null) {
+        const placeholders = projectLogs.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(', ')
+        await db.query(
+          `INSERT INTO activity_logs (user_id, target_user_id, project_id, task_id, action, type, metadata) VALUES ${placeholders}`,
+          projectLogs.flat()
+        )
+      }
+
+      const tasks = (await db.query(
+        'SELECT id, title, status, priority, project_id, assigned_to FROM tasks WHERE is_deleted = false ORDER BY created_at DESC LIMIT 20'
+      )) as any[]
+      const taskLogs = tasks.map((t: any) => [
+        t.assigned_to || defaultUserId,
+        null,
+        t.project_id || null,
+        t.id,
+        `Task "${t.title}" created`,
+        'TASK_CREATED',
+        JSON.stringify({ status: t.status || 'TODO', priority: t.priority || 'MEDIUM' }),
+      ])
+      if (taskLogs.length > 0 && defaultUserId !== null) {
+        const placeholders = taskLogs.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(', ')
+        await db.query(
+          `INSERT INTO activity_logs (user_id, target_user_id, project_id, task_id, action, type, metadata) VALUES ${placeholders}`,
+          taskLogs.flat()
+        )
+      }
+
+    }
+
+    const finalActivities = activities.length === 0
+      ? (await db.query(
+        `SELECT id, user_id, target_user_id, project_id, task_id, action, type, metadata, created_at, updated_at
+        FROM activity_logs ORDER BY created_at DESC`
+      )) as any[]
+      : activities
+
+    return finalActivities.map((a: any) => ({
       id: a.id.toString(),
       userId: a.user_id.toString(),
       targetUserId: a.target_user_id ? a.target_user_id.toString() : null,
