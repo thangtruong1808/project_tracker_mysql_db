@@ -6,7 +6,7 @@
  * @date 2025-12-09
  */
 
-import { useMemo, useEffect, useRef } from 'react'
+import { useMemo, useEffect, useRef, useCallback } from 'react'
 import { useQuery } from '@apollo/client'
 import { NOTIFICATIONS_QUERY } from '../graphql/queries'
 import { subscribeToPusherEvent } from '../lib/pusher'
@@ -26,9 +26,10 @@ interface UseNavbarNotificationsResult {
   refetchNotifications: () => Promise<unknown>
 }
 
+type PusherData = { data?: { notificationCreated?: { id?: string; userId?: string } } }
+
 /**
  * Custom hook for managing navbar notifications with Pusher real-time updates
- *
  * @author Thang Truong
  * @date 2025-12-09
  * @param isAuthenticated - Whether user is authenticated
@@ -40,47 +41,40 @@ export const useNavbarNotifications = (
   userId: string | undefined
 ): UseNavbarNotificationsResult => {
   const processedIds = useRef<Set<string>>(new Set())
-  const {
-    data: notificationsData,
-    loading: notificationsLoading,
-    refetch: refetchNotifications,
-  } = useQuery<{ notifications: NotificationRecord[] }>(NOTIFICATIONS_QUERY, {
-    skip: !isAuthenticated,
-    fetchPolicy: 'cache-and-network',
-  })
+  const { data, loading, refetch } = useQuery<{ notifications: NotificationRecord[] }>(
+    NOTIFICATIONS_QUERY,
+    { skip: !isAuthenticated, fetchPolicy: 'network-only' }
+  )
 
-  /**
-   * Subscribe to Pusher for real-time notification updates
-   * @author Thang Truong
-   * @date 2025-12-09
-   */
+  const handleNotification = useCallback(async (eventData: unknown): Promise<void> => {
+    if (!userId) return
+    const pusherData = eventData as PusherData
+    const notification = pusherData?.data?.notificationCreated
+    if (!notification) return
+    const notifUserId = String(notification.userId || '')
+    if (notifUserId !== String(userId)) return
+    const notifId = String(notification.id || '')
+    if (!notifId || processedIds.current.has(notifId)) return
+    processedIds.current.add(notifId)
+    await refetch()
+  }, [userId, refetch])
+
+  /** Subscribe to Pusher for real-time notification updates @author Thang Truong @date 2025-12-09 */
   useEffect(() => {
     if (!userId) return
     const channel = 'project-tracker'
-    const unsubscribe = subscribeToPusherEvent(channel, 'notification_created', async (data: unknown) => {
-      const eventData = data as { data?: { notificationCreated?: { id: string; userId: string } } }
-      const notification = eventData?.data?.notificationCreated
-      if (notification && notification.userId === userId) {
-        if (!notification.id || processedIds.current.has(notification.id)) return
-        processedIds.current.add(notification.id)
-        await refetchNotifications()
-      }
-    })
+    const unsubscribe = subscribeToPusherEvent(channel, 'notification_created', handleNotification)
     return () => { unsubscribe() }
-  }, [userId, refetchNotifications])
+  }, [userId, handleNotification])
 
-  /**
-   * Memoized filtered notifications for current user
-   * @author Thang Truong
-   * @date 2025-12-09
-   */
+  /** Memoized filtered notifications for current user @author Thang Truong @date 2025-12-09 */
   const userNotifications = useMemo(() => {
     if (!userId) return []
-    return (notificationsData?.notifications || []).filter((n) => n.userId === userId)
-  }, [notificationsData?.notifications, userId])
+    return (data?.notifications || []).filter((n) => String(n.userId) === String(userId))
+  }, [data?.notifications, userId])
 
   const unreadCount = userNotifications.filter((n) => !n.isRead).length
 
-  return { notificationsLoading, userNotifications, unreadCount, refetchNotifications }
+  return { notificationsLoading: loading, userNotifications, unreadCount, refetchNotifications: refetch }
 }
 

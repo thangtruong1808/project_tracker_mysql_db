@@ -9,85 +9,71 @@
 
 import Pusher from 'pusher-js'
 
+/** Track if Pusher is configured @author Thang Truong @date 2025-12-09 */
+let isPusherConfigured = false
+
 /**
  * Retrieves Pusher configuration from environment variables
- * Supports VITE_PUSHER_* variable names for Vite compatibility
- * Returns null if required variables are missing
- *
  * @author Thang Truong
- * @date 2025-12-04
+ * @date 2025-12-09
  * @returns Pusher configuration object or null if not configured
  */
-const getPusherConfig = (): { key: string; cluster: string; forceTLS: boolean; enabledTransports: ('ws' | 'wss')[] } | null => {
+const getPusherConfig = (): { key: string; cluster: string } | null => {
   const key = import.meta.env.VITE_PUSHER_KEY || import.meta.env.VITE_KEY
-  const cluster = import.meta.env.VITE_PUSHER_CLUSTER || import.meta.env.VITE_CLUSTER || 'mt1'
-
-  if (!key) {
-    return null
-  }
-
-  const cleanKey = key.trim().replace(/^["']|["']$/g, '')
-  const cleanCluster = cluster.trim().replace(/^["']|["']$/g, '')
-
-  return {
-    key: cleanKey,
-    cluster: cleanCluster,
-    forceTLS: true,
-    enabledTransports: ['ws', 'wss'] as ('ws' | 'wss')[],
-  }
+  const cluster = import.meta.env.VITE_PUSHER_CLUSTER || import.meta.env.VITE_CLUSTER || 'ap4'
+  if (!key || typeof key !== 'string') return null
+  const cleanKey = String(key).trim().replace(/^["']|["']$/g, '')
+  const cleanCluster = String(cluster).trim().replace(/^["']|["']$/g, '')
+  if (!cleanKey) return null
+  return { key: cleanKey, cluster: cleanCluster }
 }
 
-/**
- * Singleton Pusher client instance
- * @author Thang Truong
- * @date 2025-12-04
- */
+/** Singleton Pusher client @author Thang Truong @date 2025-12-09 */
 let pusherClient: Pusher | null = null
 
 /**
  * Gets or creates singleton Pusher client instance
- * Creates mock client if configuration missing or initialization fails
- *
  * @author Thang Truong
- * @date 2025-12-04
- * @returns Pusher client instance or mock client
+ * @date 2025-12-09
+ * @returns Pusher client instance
  */
 export const getPusherClient = (): Pusher => {
-  if (pusherClient) {
-    return pusherClient
+  if (pusherClient) return pusherClient
+  const config = getPusherConfig()
+  if (!config) {
+    isPusherConfigured = false
+    return createMockPusherClient()
   }
-
   try {
-    const config = getPusherConfig()
-    if (!config) {
-      return createMockPusherClient()
-    }
-    pusherClient = new Pusher(config.key, {
-      cluster: config.cluster,
-      forceTLS: config.forceTLS,
-      enabledTransports: config.enabledTransports,
-    })
+    pusherClient = new Pusher(config.key, { cluster: config.cluster, forceTLS: true })
+    isPusherConfigured = true
     return pusherClient
   } catch {
+    isPusherConfigured = false
     return createMockPusherClient()
   }
 }
 
 /**
- * Creates mock Pusher client for graceful degradation
- * Allows app to function without Pusher configuration
- *
+ * Check if Pusher is configured
  * @author Thang Truong
- * @date 2025-12-04
+ * @date 2025-12-09
+ */
+export const isPusherAvailable = (): boolean => {
+  if (pusherClient) return isPusherConfigured
+  getPusherClient()
+  return isPusherConfigured
+}
+
+/**
+ * Creates mock Pusher client for graceful degradation
+ * @author Thang Truong
+ * @date 2025-12-09
  * @returns Mock Pusher client object
  */
 const createMockPusherClient = (): Pusher => {
   return {
-    subscribe: () => ({
-      bind: () => {},
-      unbind: () => {},
-      unbind_all: () => {},
-    }),
+    subscribe: () => ({ bind: () => {}, unbind: () => {}, unbind_all: () => {} }),
     unsubscribe: () => {},
     disconnect: () => {},
   } as unknown as Pusher
@@ -95,10 +81,8 @@ const createMockPusherClient = (): Pusher => {
 
 /**
  * Subscribes to Pusher channel and event
- * Returns unsubscribe function for cleanup
- *
  * @author Thang Truong
- * @date 2025-12-04
+ * @date 2025-12-09
  * @param channel - Pusher channel name
  * @param event - Event name to listen for
  * @param callback - Handler function for event data
@@ -107,35 +91,23 @@ const createMockPusherClient = (): Pusher => {
 export const subscribeToPusherEvent = (
   channel: string,
   event: string,
-  callback: (data: any) => void
+  callback: (data: unknown) => void
 ): (() => void) => {
-  try {
-    const pusher = getPusherClient()
-    const pusherChannel = pusher.subscribe(channel)
-    pusherChannel.bind(event, callback)
-    return () => {
-      pusherChannel.unbind(event, callback)
-    }
-  } catch {
-    return () => {}
-  }
+  const pusher = getPusherClient()
+  const pusherChannel = pusher.subscribe(channel)
+  pusherChannel.bind(event, callback)
+  return () => { pusherChannel.unbind(event, callback) }
 }
 
 /**
  * Unsubscribes from Pusher channel
- * Silently handles errors for graceful degradation
- *
  * @author Thang Truong
- * @date 2025-12-04
+ * @date 2025-12-09
  * @param channel - Channel name to unsubscribe from
  */
 export const unsubscribeFromPusherChannel = (channel: string): void => {
-  try {
-    const pusher = getPusherClient()
-    pusher.unsubscribe(channel)
-  } catch {
-    // Silent error handling for graceful degradation
-  }
+  const pusher = getPusherClient()
+  pusher.unsubscribe(channel)
 }
 
 export default getPusherClient

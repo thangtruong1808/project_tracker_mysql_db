@@ -1,16 +1,17 @@
 /**
  * usePusherCommentRealtime Hook
  * Handles Pusher subscriptions for comment real-time updates
- * Replaces GraphQL subscriptions with Pusher for better compatibility
  *
  * @author Thang Truong
  * @date 2025-12-09
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { subscribeToPusherEvent } from '../lib/pusher'
 
 type ToastVariant = 'success' | 'info' | 'error'
+type PusherData = { data?: { commentCreated?: CommentPayload; commentLikeUpdated?: CommentPayload; commentUpdated?: CommentPayload; commentDeleted?: CommentPayload } }
+type CommentPayload = { id?: string; uuid?: string; projectId?: string; likesCount?: number; updatedAt?: string }
 
 interface UsePusherCommentRealtimeParams {
   projectId: string
@@ -22,8 +23,6 @@ interface UsePusherCommentRealtimeParams {
 
 /**
  * Initialize Pusher-based comment subscriptions
- * Handles comment create, like, update, and delete events via Pusher
- *
  * @author Thang Truong
  * @date 2025-12-09
  * @param params - Hook parameters
@@ -35,129 +34,38 @@ export const usePusherCommentRealtime = ({
   showToast,
   onCommentDeleted,
 }: UsePusherCommentRealtimeParams): void => {
-  const processedCommentIds = useRef<Set<string>>(new Set())
-  const processedLikeEvents = useRef<Set<string>>(new Set())
-  const processedEditEvents = useRef<Set<string>>(new Set())
-  const processedDeleteEvents = useRef<Set<string>>(new Set())
+  const processedIds = useRef<Set<string>>(new Set())
+
+  const handleEvent = useCallback(async (
+    eventData: unknown,
+    dataKey: 'commentCreated' | 'commentLikeUpdated' | 'commentUpdated' | 'commentDeleted',
+    message: string,
+    isDelete = false
+  ): Promise<void> => {
+    if (!onRefetch) return
+    const data = eventData as PusherData
+    const payload = data?.data?.[dataKey]
+    if (!payload) return
+    const eventProjectId = String(payload.projectId || '')
+    if (eventProjectId !== String(projectId)) return
+    const eventKey = `${dataKey}-${payload.id || ''}-${payload.likesCount || 0}-${payload.updatedAt || ''}`
+    if (processedIds.current.has(eventKey)) return
+    processedIds.current.add(eventKey)
+    await showToast(message, 'info', isDelete ? 2500 : 7000)
+    if (isDelete && onCommentDeleted) {
+      await onCommentDeleted('A comment was removed by a team member.')
+    }
+    await onRefetch()
+  }, [projectId, onRefetch, showToast, onCommentDeleted])
 
   useEffect(() => {
-    if (!isProjectMember || !projectId || !onRefetch) {
-      return
-    }
-
+    if (!isProjectMember || !projectId || !onRefetch) return
     const channel = 'project-tracker'
-    const unsubscribes: Array<() => void> = []
-
-    /**
-     * Handle comment created event
-     *
-     * @author Thang Truong
-     * @date 2025-12-09
-     */
-    const unsubscribeCreated = subscribeToPusherEvent(
-      channel,
-      'comment_created',
-      async (data: any) => {
-        if (data?.data?.commentCreated) {
-          const newComment = data.data.commentCreated
-          if (newComment.projectId === projectId) {
-            const commentId = newComment.id || newComment.uuid
-            if (!commentId || processedCommentIds.current.has(commentId)) {
-              return
-            }
-            processedCommentIds.current.add(commentId)
-            await showToast('New comment received!', 'info', 7000)
-            await onRefetch()
-          }
-        }
-      }
-    )
-
-    /**
-     * Handle comment like updated event
-     *
-     * @author Thang Truong
-     * @date 2025-12-09
-     */
-    const unsubscribeLike = subscribeToPusherEvent(
-      channel,
-      'comment_like_updated',
-      async (data: any) => {
-        if (data?.data?.commentLikeUpdated) {
-          const likeEvent = data.data.commentLikeUpdated
-          if (likeEvent.projectId === projectId) {
-            const eventKey = `${likeEvent.id}-${likeEvent.likesCount}-${likeEvent.updatedAt}`
-            if (processedLikeEvents.current.has(eventKey)) {
-              return
-            }
-            processedLikeEvents.current.add(eventKey)
-            await showToast('Comment likes updated!', 'info', 2500)
-            await onRefetch()
-          }
-        }
-      }
-    )
-
-    /**
-     * Handle comment updated event
-     *
-     * @author Thang Truong
-     * @date 2025-12-09
-     */
-    const unsubscribeUpdated = subscribeToPusherEvent(
-      channel,
-      'comment_updated',
-      async (data: any) => {
-        if (data?.data?.commentUpdated) {
-          const updatedComment = data.data.commentUpdated
-          if (updatedComment.projectId === projectId) {
-            const eventKey = `${updatedComment.id}-${updatedComment.updatedAt}`
-            if (processedEditEvents.current.has(eventKey)) {
-              return
-            }
-            processedEditEvents.current.add(eventKey)
-            await showToast('Comment updated!', 'info', 2500)
-            await onRefetch()
-          }
-        }
-      }
-    )
-
-    /**
-     * Handle comment deleted event
-     *
-     * @author Thang Truong
-     * @date 2025-12-09
-     */
-    const unsubscribeDeleted = subscribeToPusherEvent(
-      channel,
-      'comment_deleted',
-      async (data: any) => {
-        if (data?.data?.commentDeleted) {
-          const deletedComment = data.data.commentDeleted
-          if (deletedComment.projectId === projectId) {
-            const eventKey = `${deletedComment.id}-${deletedComment.updatedAt}`
-            if (processedDeleteEvents.current.has(eventKey)) {
-              return
-            }
-            processedDeleteEvents.current.add(eventKey)
-            const friendlyMessage = 'A team member removed a comment. Your list has been refreshed.'
-            await showToast(friendlyMessage, 'info', 2500)
-            if (onCommentDeleted) {
-              await onCommentDeleted('A comment was just removed by a team member. We updated the list for you.')
-            }
-            await onRefetch()
-          }
-        }
-      }
-    )
-
-    unsubscribes.push(unsubscribeCreated, unsubscribeLike, unsubscribeUpdated, unsubscribeDeleted)
-
-    // Cleanup all subscriptions on unmount
-    return () => {
-      unsubscribes.forEach((unsubscribe) => unsubscribe())
-    }
-  }, [projectId, isProjectMember, onRefetch, showToast, onCommentDeleted])
+    const unsub1 = subscribeToPusherEvent(channel, 'comment_created', (d) => handleEvent(d, 'commentCreated', 'New comment received!'))
+    const unsub2 = subscribeToPusherEvent(channel, 'comment_like_updated', (d) => handleEvent(d, 'commentLikeUpdated', 'Comment likes updated!'))
+    const unsub3 = subscribeToPusherEvent(channel, 'comment_updated', (d) => handleEvent(d, 'commentUpdated', 'Comment updated!'))
+    const unsub4 = subscribeToPusherEvent(channel, 'comment_deleted', (d) => handleEvent(d, 'commentDeleted', 'Comment removed.', true))
+    return () => { unsub1(); unsub2(); unsub3(); unsub4() }
+  }, [projectId, isProjectMember, onRefetch, handleEvent])
 }
 

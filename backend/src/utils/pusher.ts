@@ -9,103 +9,80 @@
 
 import Pusher from 'pusher'
 
+/** Track if Pusher is configured @author Thang Truong @date 2025-12-09 */
+let isPusherConfigured = false
+
 /**
  * Get Pusher configuration from environment variables
- * Supports both PUSHER_* and non-prefixed variable names
- * Validates required environment variables are set
- *
  * @author Thang Truong
- * @date 2025-01-27
- * @returns Pusher configuration object
- * @throws Error if required environment variables are missing
+ * @date 2025-12-09
+ * @returns Pusher configuration object or null if not configured
  */
-const getPusherConfig = () => {
-  // Support both PUSHER_APP_ID and APP_ID for flexibility
+const getPusherConfig = (): { appId: string; key: string; secret: string; cluster: string; useTLS: boolean } | null => {
   const appId = process.env.PUSHER_APP_ID || process.env.APP_ID
   const key = process.env.PUSHER_KEY || process.env.KEY
   const secret = process.env.PUSHER_SECRET || process.env.SECRET
-  const cluster = process.env.PUSHER_CLUSTER || process.env.CLUSTER || 'mt1'
-
-  if (!appId || !key || !secret) {
-    throw new Error(
-      'Pusher configuration missing. Please set PUSHER_APP_ID (or APP_ID), PUSHER_KEY (or KEY), and PUSHER_SECRET (or SECRET) in your .env file.'
-    )
-  }
-
-  // Clean and validate configuration values
-  const cleanAppId = appId.trim().replace(/^["']|["']$/g, '')
-  const cleanKey = key.trim().replace(/^["']|["']$/g, '')
-  const cleanSecret = secret.trim().replace(/^["']|["']$/g, '')
-  const cleanCluster = cluster.trim().replace(/^["']|["']$/g, '')
-
+  const cluster = process.env.PUSHER_CLUSTER || process.env.CLUSTER || 'ap4'
+  if (!appId || !key || !secret) return null
   return {
-    appId: cleanAppId,
-    key: cleanKey,
-    secret: cleanSecret,
-    cluster: cleanCluster,
+    appId: String(appId).trim().replace(/^["']|["']$/g, ''),
+    key: String(key).trim().replace(/^["']|["']$/g, ''),
+    secret: String(secret).trim().replace(/^["']|["']$/g, ''),
+    cluster: String(cluster).trim().replace(/^["']|["']$/g, ''),
     useTLS: true,
   }
 }
 
-/**
- * Initialize Pusher instance
- * Creates singleton Pusher instance for publishing events
- *
- * @author Thang Truong
- * @date 2025-01-27
- * @returns Pusher instance or null if configuration is invalid
- */
+/** Singleton Pusher instance @author Thang Truong @date 2025-12-09 */
 let pusherInstance: Pusher | null = null
 
 /**
  * Get or create Pusher instance
- * Returns singleton instance, creating it if it doesn't exist
- *
  * @author Thang Truong
- * @date 2025-01-27
- * @returns Pusher instance
+ * @date 2025-12-09
+ * @returns Pusher instance or mock if not configured
  */
 export const getPusher = (): Pusher => {
-  if (pusherInstance) {
-    return pusherInstance
+  if (pusherInstance) return pusherInstance
+  const config = getPusherConfig()
+  if (!config) {
+    isPusherConfigured = false
+    return { trigger: async () => {} } as unknown as Pusher
   }
-
   try {
-    const config = getPusherConfig()
     pusherInstance = new Pusher(config)
+    isPusherConfigured = true
     return pusherInstance
-  } catch (error) {
-    // If Pusher initialization fails, return a mock object
-    // This allows the app to continue without Pusher
-    return {
-      trigger: async () => {
-        // Mock trigger - does nothing
-      },
-    } as any
+  } catch {
+    isPusherConfigured = false
+    return { trigger: async () => {} } as unknown as Pusher
   }
 }
 
 /**
- * Publish event to Pusher channel
- * Wrapper function for triggering Pusher events
- *
+ * Check if Pusher is configured
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-09
+ */
+export const isPusherAvailable = (): boolean => {
+  if (!pusherInstance) getPusher()
+  return isPusherConfigured
+}
+
+/**
+ * Publish event to Pusher channel
+ * @author Thang Truong
+ * @date 2025-12-09
  * @param channel - Pusher channel name
  * @param event - Event name
  * @param data - Event data payload
  */
-export const publishPusherEvent = async (
-  channel: string,
-  event: string,
-  data: any
-): Promise<void> => {
+export const publishPusherEvent = async (channel: string, event: string, data: unknown): Promise<void> => {
   try {
     const pusher = getPusher()
     await pusher.trigger(channel, event, data)
-  } catch (error) {
-    // Silently handle Pusher errors to prevent app crashes
-    // Events will be lost but app continues to function
+  } catch {
+    // Silently handle Pusher errors
   }
 }
 

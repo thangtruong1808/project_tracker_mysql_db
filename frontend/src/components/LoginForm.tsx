@@ -53,33 +53,53 @@ const LoginForm = ({ onLoginSuccess }: LoginFormProps) => {
     setError('')
     try {
       const result = await loginMutation({
-        variables: { email: data.email, password: data.password },
+        variables: { email: String(data.email), password: String(data.password) },
       })
-      const loginData = result?.data?.login
-      if (!loginData || !loginData.accessToken || !loginData.user) {
-        setError('Login failed. Invalid response from server.')
+      if (result.errors && result.errors.length > 0) {
+        const errMsg = result.errors[0]?.message || 'Login failed.'
+        setError(String(errMsg))
         return
       }
-      const { accessToken, user } = loginData
-      const firstName = String(user.firstName || '')
-      const lastName = String(user.lastName || '')
+      const loginData = result?.data?.login
+      if (!loginData) {
+        setError('Login failed. Please check your credentials.')
+        return
+      }
+      const accessToken = loginData.accessToken
+      const user = loginData.user
+      if (!accessToken || !user) {
+        setError('Login failed. Invalid server response.')
+        return
+      }
+      const firstName = user.firstName ? String(user.firstName) : ''
+      const lastName = user.lastName ? String(user.lastName) : ''
       const userData = {
-        id: String(user.id || ''),
-        uuid: String(user.uuid || ''),
+        id: user.id ? String(user.id) : '',
+        uuid: user.uuid ? String(user.uuid) : '',
         firstName,
         lastName,
-        email: String(user.email || ''),
-        role: String(user.role || ''),
+        email: user.email ? String(user.email) : '',
+        role: user.role ? String(user.role) : '',
         name: `${firstName} ${lastName}`.trim(),
-        initials: `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase(),
+        initials: firstName && lastName ? `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() : '',
       }
       await login(userData, String(accessToken))
       if (onLoginSuccess) {
         await Promise.resolve(onLoginSuccess())
       }
-      await navigate('/')
+      navigate('/')
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Login failed. Please try again.'
+      let errorMessage = 'Login failed. Please try again.'
+      if (err instanceof Error) {
+        errorMessage = err.message
+      } else if (typeof err === 'object' && err !== null) {
+        const errObj = err as { message?: string; graphQLErrors?: Array<{ message: string }> }
+        if (errObj.graphQLErrors && errObj.graphQLErrors.length > 0) {
+          errorMessage = errObj.graphQLErrors[0].message
+        } else if (errObj.message) {
+          errorMessage = String(errObj.message)
+        }
+      }
       setError(errorMessage)
     }
   }
