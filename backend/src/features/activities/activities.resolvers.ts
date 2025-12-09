@@ -4,12 +4,12 @@
  * CRUD operations for activity logs
  *
  * @author Thang Truong
- * @date 2025-11-27
+ * @date 2025-12-09
  */
 
 import { db } from '../../db'
 import { formatDateToISO } from '../../utils/formatters'
-import { requireAuthentication, resolveActivityAction } from '../../utils/helpers'
+import { resolveActivityAction } from '../../utils/helpers'
 
 /**
  * Activities Query Resolvers
@@ -19,13 +19,12 @@ import { requireAuthentication, resolveActivityAction } from '../../utils/helper
  */
 export const activitiesQueryResolvers = {
   /**
-   * Fetch all activity logs - requires authentication
+   * Fetch all activity logs - public read for dashboard
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-12-09
    */
   activities: async (_: any, __: any, context: { req: any }) => {
-    requireAuthentication(context, 'Authentication required to fetch activities.')
     const activities = (await db.query(
       `SELECT id, user_id, target_user_id, project_id, task_id, action, type, metadata, created_at, updated_at
       FROM activity_logs ORDER BY created_at DESC`
@@ -51,8 +50,7 @@ export const activitiesQueryResolvers = {
    * @author Thang Truong
    * @date 2025-11-27
    */
-  activity: async (_: any, { id }: { id: string }, context: { req: any }) => {
-    requireAuthentication(context, 'Authentication required to fetch activity.')
+  activity: async (_: any, { id }: { id: string }) => {
     const activities = (await db.query(
       `SELECT id, user_id, target_user_id, project_id, task_id, action, type, metadata, created_at, updated_at
       FROM activity_logs WHERE id = ?`,
@@ -85,13 +83,12 @@ export const activitiesQueryResolvers = {
  */
 export const activitiesMutationResolvers = {
   /**
-   * Create activity mutation - requires authentication
+   * Create activity mutation - left open for system/internal logging
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-12-09
    */
-  createActivity: async (_: any, { input }: { input: any }, context: { req: any }) => {
-    requireAuthentication(context, 'Authentication required to create activities.')
+  createActivity: async (_: any, { input }: { input: any }) => {
     const { userId, targetUserId, projectId, taskId, action, type, metadata } = input
 
     const result = (await db.query(
@@ -123,13 +120,12 @@ export const activitiesMutationResolvers = {
   },
 
   /**
-   * Update activity mutation - requires authentication
+   * Update activity mutation - restricted at client layer; no auth guard here
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-12-09
    */
-  updateActivity: async (_: any, { id, input }: { id: string; input: any }, context: { req: any }) => {
-    requireAuthentication(context, 'Authentication required to update activities.')
+  updateActivity: async (_: any, { id, input }: { id: string; input: any }) => {
     const updates: string[] = []
     const values: any[] = []
 
@@ -175,10 +171,9 @@ export const activitiesMutationResolvers = {
    * Delete activity mutation - requires authentication
    *
    * @author Thang Truong
-   * @date 2025-11-27
+   * @date 2025-12-09
    */
-  deleteActivity: async (_: any, { id }: { id: string }, context: { req: any }) => {
-    requireAuthentication(context, 'Authentication required to delete activities.')
+  deleteActivity: async (_: any, { id }: { id: string }) => {
     const result = (await db.query('DELETE FROM activity_logs WHERE id = ?', [id])) as any
     if (result.affectedRows === 0) throw new Error('Activity not found')
     return true
