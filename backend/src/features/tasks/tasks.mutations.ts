@@ -3,13 +3,14 @@
  * Handles task mutation operations
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-12-09
  */
 
 import { db } from '../../db'
 import { verifyAccessToken } from '../../utils/auth'
 import { formatDateToISO } from '../../utils/formatters'
 import { getUserDisplayName, notifyProjectParticipants } from '../../utils/helpers'
+import { randomUUID } from 'crypto'
 
 /**
  * Tasks Mutation Resolvers
@@ -20,16 +21,18 @@ import { getUserDisplayName, notifyProjectParticipants } from '../../utils/helpe
 export const tasksMutationResolvers = {
   /**
    * Create task mutation
+   * Generates UUID server-side to avoid database defaults causing duplicates
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-12-09
    */
   createTask: async (_: any, { input }: { input: any }) => {
     const { title, description, status, priority, dueDate, projectId, assignedTo, tagIds } = input
+    const taskUuid = randomUUID()
 
     const result = (await db.query(
-      'INSERT INTO tasks (title, description, status, priority, due_date, project_id, assigned_to) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [title, description, status, priority, dueDate || null, projectId, assignedTo || null]
+      'INSERT INTO tasks (uuid, title, description, status, priority, due_date, project_id, assigned_to) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [taskUuid, title, description, status, priority, dueDate || null, projectId, assignedTo || null]
     )) as any
 
     const taskId = result.insertId
