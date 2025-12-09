@@ -45,7 +45,7 @@ interface CreateTaskFormData {
  * Renders a modal form for creating a new task with validation
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-12-09
  * @param isOpen - Whether the modal is open
  * @param onClose - Callback when modal is closed
  * @param onSuccess - Callback when task is successfully created
@@ -95,7 +95,7 @@ const CreateTaskModal = ({ isOpen, onClose, onSuccess }: CreateTaskModalProps) =
    * Handle tag selection change
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-12-09
    */
   const handleTagsChange = async (tagIds: string[]) => {
     setSelectedTagIds(tagIds)
@@ -105,12 +105,12 @@ const CreateTaskModal = ({ isOpen, onClose, onSuccess }: CreateTaskModalProps) =
    * Handle form submission with validated data
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-12-09
    */
   const onSubmit = async (data: CreateTaskFormData) => {
     setError('')
     try {
-      await createTask({
+      const result = await createTask({
         variables: {
           input: {
             title: data.title.trim(),
@@ -124,6 +124,12 @@ const CreateTaskModal = ({ isOpen, onClose, onSuccess }: CreateTaskModalProps) =
           },
         },
       })
+      const mutationErrors = result.errors?.filter(Boolean) || []
+      const createdTask = result.data?.createTask
+      if (mutationErrors.length > 0 || !createdTask) {
+        const firstErrorMessage = mutationErrors[0]?.message || 'Failed to create task.'
+        throw new Error(firstErrorMessage)
+      }
       await showToast('Task created successfully', 'success', 7000)
       reset()
       setSelectedTagIds([])
