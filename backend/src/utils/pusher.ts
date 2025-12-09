@@ -67,11 +67,12 @@ export const getPusher = (): Pusher => {
 
 /**
  * Check if Pusher is configured
+ * Forces initialization if not already done
  * @author Thang Truong
  * @date 2025-12-09
  */
 export const isPusherAvailable = (): boolean => {
-  if (!pusherInstance) getPusher()
+  getPusher()
   return isPusherConfigured
 }
 

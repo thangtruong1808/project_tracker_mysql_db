@@ -14,6 +14,7 @@ import { ApolloServer } from '@apollo/server'
 import { expressMiddleware } from '@apollo/server/express4'
 import { typeDefs } from '../src/schema'
 import { resolvers } from '../src/resolvers'
+import { isPusherAvailable } from '../src/utils/pusher'
 
 const app = express()
 
@@ -66,9 +67,15 @@ async function initializeServer(): Promise<void> {
   if (serverStarted) return
   await server.start()
 
-  /** Root endpoint @author Thang Truong @date 2025-12-04 */
+  /** Root endpoint with Pusher status @author Thang Truong @date 2025-12-09 */
   app.get('/', (_req: Request, res: Response) => {
-    res.json({ message: 'GraphQL API is running. Use /graphql endpoint.', graphql: '/graphql', status: 'online' })
+    const pusherEnabled = isPusherAvailable()
+    res.json({
+      message: 'GraphQL API is running. Use /graphql endpoint.',
+      graphql: '/graphql',
+      status: 'online',
+      realtime: pusherEnabled ? 'enabled' : 'disabled',
+    })
   })
 
   /** OPTIONS preflight handler @author Thang Truong @date 2025-12-04 */

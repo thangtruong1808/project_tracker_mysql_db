@@ -1,7 +1,7 @@
 /**
  * Vite Configuration
  * Build configuration with code-splitting for optimal bundle size
- * Loads environment variables from root directory (.env)
+ * Handles environment variables for both local and Vercel deployments
  *
  * @author Thang Truong
  * @date 2025-12-09
@@ -10,17 +10,34 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import fs from 'fs'
+
+/**
+ * Determine the environment directory for .env files
+ * Uses parent directory for local development (shared .env)
+ * Falls back to current directory for Vercel builds
+ * @author Thang Truong
+ * @date 2025-12-09
+ */
+const getEnvDir = (): string => {
+  const parentEnv = path.resolve(__dirname, '..', '.env')
+  if (fs.existsSync(parentEnv)) {
+    return path.resolve(__dirname, '..')
+  }
+  return __dirname
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   /**
-   * Load .env from root directory (parent of frontend)
-   * This allows shared environment variables between frontend and backend
+   * Load .env from appropriate directory
+   * Local: parent directory (shared with backend)
+   * Vercel: current directory (uses Vercel-injected vars)
    * @author Thang Truong
    * @date 2025-12-09
    */
-  envDir: path.resolve(__dirname, '..'),
+  envDir: getEnvDir(),
   server: {
     port: 3000,
     proxy: {
@@ -36,17 +53,12 @@ export default defineConfig({
     strictPort: false,
     /**
      * Allowed hosts for preview mode
-     * Vercel handles routing automatically, so this is mainly for local preview
-     *
      * @author Thang Truong
-     * @date 2025-12-04
+     * @date 2025-12-09
      */
-    allowedHosts: [
-      '.vercel.app', // Allow all Vercel preview and production domains
-    ],
+    allowedHosts: ['.vercel.app'],
   },
   build: {
     chunkSizeWarningLimit: 500,
   },
 })
-
