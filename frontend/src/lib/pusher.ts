@@ -1,7 +1,7 @@
 /**
  * Pusher Client Configuration
  * Uses HTTP transport for better Vercel compatibility
- * WebSocket can be unstable on serverless edge networks
+ * Provides channel access after connection is established
  *
  * @author Thang Truong
  * @date 2025-12-09
@@ -48,7 +48,7 @@ const createMockPusherClient = (): Pusher => {
     subscribe: () => ({ bind: () => {}, unbind: () => {}, unbind_all: () => {} }),
     unsubscribe: () => {},
     disconnect: () => {},
-    connection: { bind: () => {}, state: 'disconnected' },
+    connection: { bind: () => {}, state: 'disconnected', connect: () => {} },
   } as unknown as Pusher
 }
 
@@ -88,12 +88,13 @@ export const getPusherClient = (): Pusher => {
 }
 
 /**
- * Gets shared channel instance (singleton)
+ * Gets or creates shared channel instance
+ * Subscribes to channel if not already subscribed
  * @author Thang Truong
  * @date 2025-12-09
  * @returns Shared channel object
  */
-const getSharedChannel = (): ReturnType<Pusher['subscribe']> => {
+export const getSharedChannel = (): ReturnType<Pusher['subscribe']> => {
   if (sharedChannel) return sharedChannel
   const pusher = getPusherClient()
   sharedChannel = pusher.subscribe(CHANNEL_NAME)
