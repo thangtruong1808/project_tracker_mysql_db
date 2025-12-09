@@ -63,8 +63,11 @@ export const getPusherClient = (): Pusher => {
     pusherClient = new Pusher(config.key, {
       cluster: config.cluster,
       forceTLS: true,
-      disabledTransports: ['ws', 'wss'],
-      enabledTransports: ['xhr_streaming', 'xhr_polling'],
+      /**
+       * Allow WebSocket first with HTTP fallback for Vercel
+       * Pusher will prefer ws/wss and fall back to xhr_streaming/xhr_polling
+       */
+      enabledTransports: ['ws', 'wss', 'xhr_streaming', 'xhr_polling'],
     })
     isPusherConfigured = true
     return pusherClient
