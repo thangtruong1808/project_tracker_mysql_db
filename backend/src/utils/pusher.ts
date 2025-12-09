@@ -72,6 +72,8 @@ export const getPusher = (): Pusher => {
  * @date 2025-12-09
  */
 export const isPusherAvailable = (): boolean => {
+  const configExists = !!getPusherConfig()
+  if (!configExists) return false
   getPusher()
   return isPusherConfigured
 }

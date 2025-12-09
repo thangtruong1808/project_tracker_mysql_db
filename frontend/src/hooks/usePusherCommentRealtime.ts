@@ -51,8 +51,6 @@ export const usePusherCommentRealtime = ({
   showToast,
   onCommentDeleted,
 }: UsePusherCommentRealtimeParams): void => {
-  /** Track processed events with timestamp to allow reprocessing after delay @author Thang Truong @date 2025-12-09 */
-  const processedEvents = useRef<Map<string, number>>(new Map())
   const { channelReady } = usePusher()
   /** Store callbacks in refs to prevent re-subscription on callback changes */
   const onRefetchRef = useRef(onRefetch)
@@ -67,24 +65,6 @@ export const usePusherCommentRealtime = ({
     onCommentDeletedRef.current = onCommentDeleted
     projectIdRef.current = projectId
   }, [onRefetch, showToast, onCommentDeleted, projectId])
-
-  /**
-   * Clear old processed events periodically (older than 5 seconds)
-   * Prevents memory issues and allows legitimate duplicate events
-   * @author Thang Truong
-   * @date 2025-12-09
-   */
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now()
-      processedEvents.current.forEach((timestamp, key) => {
-        if (now - timestamp > 5000) {
-          processedEvents.current.delete(key)
-        }
-      })
-    }, 10000) // Clean every 10 seconds
-    return () => clearInterval(interval)
-  }, [])
 
   /**
    * Subscribe to Pusher events - only re-subscribes when projectId, membership, or channel ready state changes
@@ -111,12 +91,6 @@ export const usePusherCommentRealtime = ({
       if (!payload) return
       const eventProjectId = String(payload.projectId || '')
       if (eventProjectId !== String(projectIdRef.current)) return
-      /** Use comment ID and event type for deduplication with 5 second window @author Thang Truong @date 2025-12-09 */
-      const eventKey = `${dataKey}-${payload.id || ''}`
-      const now = Date.now()
-      const lastProcessed = processedEvents.current.get(eventKey)
-      if (lastProcessed && now - lastProcessed < 5000) return
-      processedEvents.current.set(eventKey, now)
       await showToastRef.current(message, 'info', isDelete ? 2500 : 7000)
       if (isDelete && onCommentDeletedRef.current) {
         await onCommentDeletedRef.current('A comment was removed by a team member.')
