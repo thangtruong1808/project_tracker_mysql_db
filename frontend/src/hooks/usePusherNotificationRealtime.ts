@@ -1,10 +1,10 @@
 /**
  * usePusherNotificationRealtime Hook
  * Handles Pusher subscriptions for notification real-time updates
- * Replaces GraphQL subscriptions with Pusher
+ * Replaces GraphQL subscriptions with Pusher for better compatibility
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-09
  */
 
 import { useEffect, useRef } from 'react'

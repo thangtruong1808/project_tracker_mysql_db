@@ -2,11 +2,10 @@
  * AuthContext
  * Manages user authentication state and tokens
  * Handles token refresh and automatic authentication on app initialization
- * Monitors refresh token expiration and triggers dialog when refresh token is about to expire
- * Silently auto-refreshes access token when it expires
+ * Monitors refresh token expiration and triggers dialog when about to expire
  *
  * @author Thang Truong
- * @date 2025-12-04
+ * @date 2025-12-09
  */
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react'

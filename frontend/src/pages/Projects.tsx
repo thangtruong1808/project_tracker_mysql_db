@@ -1,7 +1,7 @@
 /**
  * Projects Page - Displays all projects with search, sorting, and pagination
  * @author Thang Truong
- * @date 2025-12-04
+ * @date 2025-12-09
  */
 
 import { useState, useEffect, useCallback } from 'react'

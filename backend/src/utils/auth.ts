@@ -122,31 +122,39 @@ export const getRefreshTokenRotationThresholdSeconds = (): number => {
 
 /**
  * Set refresh token as HTTP-only cookie
+ * Uses sameSite: 'none' with secure: true for cross-origin deployments (Vercel)
+ * @author Thang Truong
+ * @date 2025-12-09
  * @param res - Express response object
  * @param refreshToken - Refresh token to set in cookie
  */
 export const setRefreshTokenCookie = (res: any, refreshToken: string): void => {
   const expiresAt = calculateRefreshTokenExpiry()
-  const maxAge = Math.floor((expiresAt.getTime() - Date.now()) / 1000) // Convert to seconds
+  const maxAge = Math.floor((expiresAt.getTime() - Date.now()) / 1000)
+  const isProduction = process.env.NODE_ENV === 'production'
 
   res.cookie('refreshToken', refreshToken, {
-    httpOnly: true, // Prevents JavaScript access (XSS protection)
-    secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
-    sameSite: 'strict', // CSRF protection
-    maxAge: maxAge * 1000, // Cookie expiration in milliseconds
-    path: '/', // Cookie available for all paths
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: maxAge * 1000,
+    path: '/',
   })
 }
 
 /**
  * Clear refresh token cookie
+ * Uses sameSite: 'none' with secure: true for cross-origin deployments (Vercel)
+ * @author Thang Truong
+ * @date 2025-12-09
  * @param res - Express response object
  */
 export const clearRefreshTokenCookie = (res: any): void => {
+  const isProduction = process.env.NODE_ENV === 'production'
   res.clearCookie('refreshToken', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
     path: '/',
   })
 }

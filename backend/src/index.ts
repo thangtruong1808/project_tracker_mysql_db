@@ -25,43 +25,35 @@ const httpServer = createServer(app)
 app.use(cookieParser())
 
 /**
- * Configure CORS options
- * Allows frontend to connect from localhost:3000 or production frontend URL
- * Frontend URL can be set via FRONTEND_URL environment variable (Vercel frontend URL)
- * Supports Vercel preview and production deployments
- * Vercel serverless functions do NOT support WebSockets
- * For real-time features, consider integrating Pusher Channels
+ * Configure CORS options with credentials support for cross-origin cookies
+ * Allows frontend to connect from localhost or Vercel domains
+ * Uses dynamic origin to support cross-origin Set-Cookie headers
  *
  * @author Thang Truong
- * @date 2025-12-04
+ * @date 2025-12-09
  */
 const corsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: string | boolean) => void) => {
     if (!origin) {
       callback(null, true)
       return
     }
-
     const allowedOrigins = [
       'http://localhost:3000',
       'http://127.0.0.1:3000',
-      process.env.FRONTEND_URL, // Vercel frontend URL from environment variable
+      process.env.FRONTEND_URL,
     ].filter(Boolean) as string[]
-
-    // Allow all Vercel preview and production domains
     const isVercelDomain = origin.includes('.vercel.app') || origin.includes('vercel.app')
-    
     if (allowedOrigins.includes(origin) || isVercelDomain) {
-      callback(null, true)
+      callback(null, origin)
     } else {
       callback(new Error('Not allowed by CORS'))
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Content-Type'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie'],
+  exposedHeaders: ['Set-Cookie'],
 }
 
 // Apply CORS middleware to all routes

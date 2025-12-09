@@ -18,9 +18,9 @@ import { resolvers } from '../src/resolvers'
 const app = express()
 
 /**
- * CORS configuration - allows all Vercel domains
+ * CORS configuration - allows all Vercel domains with credentials support
  * @author Thang Truong
- * @date 2025-12-04
+ * @date 2025-12-09
  */
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
@@ -28,14 +28,15 @@ const corsOptions: cors.CorsOptions = {
     const isVercel = origin.includes('.vercel.app') || origin.includes('vercel.app')
     const isLocal = origin.includes('localhost') || origin.includes('127.0.0.1')
     if (isVercel || isLocal || origin === process.env.FRONTEND_URL) {
-      callback(null, true)
+      callback(null, origin)
     } else {
-      callback(null, true) // Allow all origins for serverless
+      callback(null, origin)
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With', 'Cookie'],
+  exposedHeaders: ['Set-Cookie'],
 }
 
 // Apply middleware globally

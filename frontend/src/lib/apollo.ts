@@ -43,8 +43,12 @@ const getGraphQLUrl = (): string => {
   return import.meta.env.DEV ? 'http://localhost:4000/graphql' : '/graphql'
 }
 
-/** HTTP link @author Thang Truong @date 2025-12-04 */
-const httpLink = new HttpLink({ uri: getGraphQLUrl() })
+/** HTTP link with credentials for cross-origin cookies @author Thang Truong @date 2025-12-09 */
+const httpLink = new HttpLink({
+  uri: getGraphQLUrl(),
+  credentials: 'include',
+  fetchOptions: { mode: 'cors' },
+})
 
 /** Auth link @author Thang Truong @date 2025-12-04 */
 const authLink = setContext((_, { headers }) => {
