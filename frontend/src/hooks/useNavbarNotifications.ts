@@ -2,6 +2,7 @@
  * useNavbarNotifications Custom Hook
  * Handles notification fetching and real-time updates for navbar via Pusher
  * Waits for channel to be ready before subscribing
+ * Uses simplified deduplication to prevent blocking
  *
  * @author Thang Truong
  * @date 2025-12-09
@@ -43,7 +44,8 @@ export const useNavbarNotifications = (
   isAuthenticated: boolean,
   userId: string | undefined
 ): UseNavbarNotificationsResult => {
-  const processedIds = useRef<Set<string>>(new Set())
+  /** Track processed notifications with timestamp @author Thang Truong @date 2025-12-09 */
+  const processedNotifications = useRef<Map<string, number>>(new Map())
   const { channelReady } = usePusher()
   const { data, loading, refetch } = useQuery<{ notifications: NotificationRecord[] }>(
     NOTIFICATIONS_QUERY,
@@ -59,6 +61,24 @@ export const useNavbarNotifications = (
     refetchRef.current = refetch
     userIdRef.current = userId
   }, [refetch, userId])
+
+  /**
+   * Clear old processed notifications periodically (older than 5 seconds)
+   * Prevents memory issues and allows legitimate duplicate events
+   * @author Thang Truong
+   * @date 2025-12-09
+   */
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now()
+      processedNotifications.current.forEach((timestamp, key) => {
+        if (now - timestamp > 5000) {
+          processedNotifications.current.delete(key)
+        }
+      })
+    }, 10000) // Clean every 10 seconds
+    return () => clearInterval(interval)
+  }, [])
 
   /**
    * Subscribe to Pusher for real-time notification updates
@@ -82,8 +102,12 @@ export const useNavbarNotifications = (
       const notifUserId = String(notification.userId || '')
       if (notifUserId !== String(userIdRef.current)) return
       const notifId = String(notification.id || '')
-      if (!notifId || processedIds.current.has(notifId)) return
-      processedIds.current.add(notifId)
+      if (!notifId) return
+      /** Use notification ID with 5 second deduplication window @author Thang Truong @date 2025-12-09 */
+      const now = Date.now()
+      const lastProcessed = processedNotifications.current.get(notifId)
+      if (lastProcessed && now - lastProcessed < 5000) return
+      processedNotifications.current.set(notifId, now)
       await refetchRef.current()
     }
 

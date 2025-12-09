@@ -1,7 +1,7 @@
 /**
  * PusherContext
- * Initializes Pusher connection and channel subscription at app level
- * Ensures everything is ready before components use Pusher
+ * Initializes Pusher connection and ensures channel is subscribed
+ * Monitors connection state and handles reconnection
  *
  * @author Thang Truong
  * @date 2025-12-09
@@ -24,6 +24,7 @@ interface PusherProviderProps {
 /**
  * PusherProvider Component
  * Initializes Pusher connection and channel subscription once at app startup
+ * Monitors connection state and handles reconnection
  * @author Thang Truong
  * @date 2025-12-09
  */
@@ -48,37 +49,43 @@ export const PusherProvider = ({ children }: PusherProviderProps): JSX.Element =
       const client = getPusherClient()
 
       /**
-       * Track connection state changes
+       * Track connection state changes and handle reconnection
        * @author Thang Truong
        * @date 2025-12-09
        */
-      const onConnected = (): void => {
+      const onConnected = async (): Promise<void> => {
         setIsConnected(true)
+        try {
+          await getSharedChannel()
+          setChannelReady(true)
+        } catch {
+          setChannelReady(false)
+        }
       }
+
       const onDisconnected = (): void => {
         setIsConnected(false)
         setChannelReady(false)
       }
 
-      client.connection.bind('connected', onConnected)
-      client.connection.bind('disconnected', onDisconnected)
-
-      if (client.connection.state === 'connected') {
-        setIsConnected(true)
-      } else if (client.connection.state === 'disconnected' || client.connection.state === 'failed') {
-        client.connect()
+      const onError = (): void => {
+        setIsConnected(false)
+        setChannelReady(false)
+        if (client.connection.state === 'disconnected' || client.connection.state === 'failed') {
+          setTimeout(() => {
+            client.connect()
+          }, 1000)
+        }
       }
 
-      /**
-       * Wait for connection then subscribe to channel
-       * @author Thang Truong
-       * @date 2025-12-09
-       */
-      try {
-        await getSharedChannel()
-        setChannelReady(true)
-      } catch {
-        // Channel subscription failed - components will handle gracefully
+      client.connection.bind('connected', onConnected)
+      client.connection.bind('disconnected', onDisconnected)
+      client.connection.bind('error', onError)
+
+      if (client.connection.state === 'connected') {
+        await onConnected()
+      } else if (client.connection.state === 'disconnected' || client.connection.state === 'failed') {
+        client.connect()
       }
     }
 

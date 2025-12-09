@@ -2,6 +2,7 @@
  * Pusher Client Configuration
  * Uses HTTP transport for better Vercel compatibility
  * Ensures connection and channel are ready before use
+ * Handles reconnection and maintains stable subscriptions
  *
  * @author Thang Truong
  * @date 2025-12-09
@@ -9,26 +10,17 @@
 
 import Pusher from 'pusher-js'
 
-/** Track configuration state @author Thang Truong @date 2025-12-09 */
 let isPusherConfigured = false
-
-/** Singleton Pusher client @author Thang Truong @date 2025-12-09 */
 let pusherClient: Pusher | null = null
-
-/** Shared channel instance @author Thang Truong @date 2025-12-09 */
 let sharedChannel: ReturnType<Pusher['subscribe']> | null = null
-
-/** Channel subscription promise @author Thang Truong @date 2025-12-09 */
 let channelPromise: Promise<ReturnType<Pusher['subscribe']>> | null = null
-
-/** Channel name constant @author Thang Truong @date 2025-12-09 */
+const eventBindings: Map<string, Array<(data: unknown) => void>> = new Map()
 const CHANNEL_NAME = 'project-tracker'
 
 /**
  * Retrieves Pusher configuration from environment variables
  * @author Thang Truong
  * @date 2025-12-09
- * @returns Pusher configuration object or null if not configured
  */
 const getPusherConfig = (): { key: string; cluster: string } | null => {
   const key = import.meta.env.VITE_PUSHER_KEY || import.meta.env.VITE_KEY
@@ -44,7 +36,6 @@ const getPusherConfig = (): { key: string; cluster: string } | null => {
  * Creates mock Pusher client for graceful degradation
  * @author Thang Truong
  * @date 2025-12-09
- * @returns Mock Pusher client object
  */
 const createMockPusherClient = (): Pusher => {
   return {
@@ -60,7 +51,6 @@ const createMockPusherClient = (): Pusher => {
  * Forces HTTP transport for better Vercel compatibility
  * @author Thang Truong
  * @date 2025-12-09
- * @returns Pusher client instance
  */
 export const getPusherClient = (): Pusher => {
   if (pusherClient) return pusherClient
@@ -73,12 +63,6 @@ export const getPusherClient = (): Pusher => {
     pusherClient = new Pusher(config.key, {
       cluster: config.cluster,
       forceTLS: true,
-      /**
-       * Use HTTP streaming/polling instead of WebSocket
-       * WebSocket connections can fail on Vercel edge network
-       * @author Thang Truong
-       * @date 2025-12-09
-       */
       disabledTransports: ['ws', 'wss'],
       enabledTransports: ['xhr_streaming', 'xhr_polling'],
     })
@@ -94,7 +78,6 @@ export const getPusherClient = (): Pusher => {
  * Waits for Pusher connection to be established
  * @author Thang Truong
  * @date 2025-12-09
- * @returns Promise that resolves when connected
  */
 const waitForConnection = (): Promise<void> => {
   return new Promise((resolve) => {
@@ -119,8 +102,6 @@ const waitForConnection = (): Promise<void> => {
  * Waits for channel subscription to complete
  * @author Thang Truong
  * @date 2025-12-09
- * @param channel - Channel to wait for
- * @returns Promise that resolves when subscribed
  */
 const waitForChannelSubscription = (channel: ReturnType<Pusher['subscribe']>): Promise<void> => {
   return new Promise((resolve) => {
@@ -137,11 +118,25 @@ const waitForChannelSubscription = (channel: ReturnType<Pusher['subscribe']>): P
 }
 
 /**
- * Gets or creates shared channel instance
- * Waits for connection and subscription before returning
+ * Rebind all events after channel reconnection
  * @author Thang Truong
  * @date 2025-12-09
- * @returns Promise that resolves to shared channel object
+ */
+const rebindAllEvents = (): void => {
+  if (!sharedChannel) return
+  eventBindings.forEach((callbacks, event) => {
+    callbacks.forEach((callback) => {
+      sharedChannel?.bind(event, callback)
+    })
+  })
+}
+
+/**
+ * Gets or creates shared channel instance
+ * Waits for connection and subscription before returning
+ * Handles reconnection automatically
+ * @author Thang Truong
+ * @date 2025-12-09
  */
 export const getSharedChannel = async (): Promise<ReturnType<Pusher['subscribe']>> => {
   if (sharedChannel && sharedChannel.subscribed) return sharedChannel
@@ -152,6 +147,7 @@ export const getSharedChannel = async (): Promise<ReturnType<Pusher['subscribe']
     const pusher = getPusherClient()
     if (!sharedChannel) {
       sharedChannel = pusher.subscribe(CHANNEL_NAME)
+      sharedChannel.bind('pusher:subscription_succeeded', rebindAllEvents)
     }
     await waitForChannelSubscription(sharedChannel)
     return sharedChannel
@@ -172,13 +168,10 @@ export const isPusherAvailable = (): boolean => {
 
 /**
  * Subscribes to Pusher event on shared channel
- * Waits for channel to be ready before binding
+ * Binds immediately - Pusher queues events if channel not ready
+ * Tracks bindings for reconnection handling
  * @author Thang Truong
  * @date 2025-12-09
- * @param _channel - Channel name (uses shared channel)
- * @param event - Event name to listen for
- * @param callback - Handler function for event data
- * @returns Cleanup function to unbind event
  */
 export const subscribeToPusherEvent = (
   _channel: string,
@@ -186,18 +179,41 @@ export const subscribeToPusherEvent = (
   callback: (data: unknown) => void
 ): (() => void) => {
   let isUnsubscribed = false
-  let channel: ReturnType<Pusher['subscribe']> | null = null
+  if (!eventBindings.has(event)) {
+    eventBindings.set(event, [])
+  }
+  eventBindings.get(event)!.push(callback)
 
-  getSharedChannel().then((ch) => {
+  /**
+   * Bind event immediately - Pusher will queue if channel not ready
+   * @author Thang Truong
+   * @date 2025-12-09
+   */
+  const bindEvent = (channel: ReturnType<Pusher['subscribe']>): void => {
     if (isUnsubscribed) return
-    channel = ch
     channel.bind(event, callback)
-  })
+  }
+
+  if (sharedChannel) {
+    bindEvent(sharedChannel)
+  } else {
+    getSharedChannel().then(bindEvent)
+  }
 
   return () => {
     isUnsubscribed = true
-    if (channel) {
-      channel.unbind(event, callback)
+    const callbacks = eventBindings.get(event)
+    if (callbacks) {
+      const index = callbacks.indexOf(callback)
+      if (index > -1) {
+        callbacks.splice(index, 1)
+      }
+      if (callbacks.length === 0) {
+        eventBindings.delete(event)
+      }
+    }
+    if (sharedChannel) {
+      sharedChannel.unbind(event, callback)
     }
   }
 }
@@ -206,13 +222,13 @@ export const subscribeToPusherEvent = (
  * Unsubscribes from Pusher channel
  * @author Thang Truong
  * @date 2025-12-09
- * @param _channel - Channel name to unsubscribe from
  */
 export const unsubscribeFromPusherChannel = (_channel: string): void => {
   if (pusherClient && sharedChannel) {
     pusherClient.unsubscribe(CHANNEL_NAME)
     sharedChannel = null
     channelPromise = null
+    eventBindings.clear()
   }
 }
 
