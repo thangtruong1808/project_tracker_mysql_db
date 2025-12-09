@@ -1,7 +1,7 @@
 /**
  * useNavbarNotifications Custom Hook
  * Handles notification fetching and real-time updates for navbar via Pusher
- * Uses refs to prevent re-subscription loops
+ * Waits for channel to be ready before subscribing
  *
  * @author Thang Truong
  * @date 2025-12-09
@@ -11,6 +11,7 @@ import { useMemo, useEffect, useRef } from 'react'
 import { useQuery } from '@apollo/client'
 import { NOTIFICATIONS_QUERY } from '../graphql/queries'
 import { subscribeToPusherEvent } from '../lib/pusher'
+import { usePusher } from '../context/PusherContext'
 
 interface NotificationRecord {
   id: string
@@ -43,6 +44,7 @@ export const useNavbarNotifications = (
   userId: string | undefined
 ): UseNavbarNotificationsResult => {
   const processedIds = useRef<Set<string>>(new Set())
+  const { channelReady } = usePusher()
   const { data, loading, refetch } = useQuery<{ notifications: NotificationRecord[] }>(
     NOTIFICATIONS_QUERY,
     { skip: !isAuthenticated, fetchPolicy: 'network-only' }
@@ -60,12 +62,12 @@ export const useNavbarNotifications = (
 
   /**
    * Subscribe to Pusher for real-time notification updates
-   * Only re-subscribes when userId changes
+   * Only re-subscribes when userId or channel ready state changes
    * @author Thang Truong
    * @date 2025-12-09
    */
   useEffect(() => {
-    if (!userId) return
+    if (!userId || !channelReady) return
 
     /**
      * Handle incoming Pusher notification events
@@ -90,7 +92,7 @@ export const useNavbarNotifications = (
     return () => {
       unsubscribe()
     }
-  }, [userId]) // Only re-subscribe when userId changes
+  }, [userId, channelReady]) // Wait for channelReady
 
   /** Memoized filtered notifications for current user @author Thang Truong @date 2025-12-09 */
   const userNotifications = useMemo(() => {

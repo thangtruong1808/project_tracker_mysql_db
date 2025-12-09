@@ -1,7 +1,7 @@
 /**
  * usePusherCommentRealtime Hook
  * Handles Pusher subscriptions for comment real-time updates
- * Uses refs to prevent re-subscription loops
+ * Waits for channel to be ready before subscribing
  *
  * @author Thang Truong
  * @date 2025-12-09
@@ -9,6 +9,7 @@
 
 import { useEffect, useRef } from 'react'
 import { subscribeToPusherEvent } from '../lib/pusher'
+import { usePusher } from '../context/PusherContext'
 
 type ToastVariant = 'success' | 'info' | 'error'
 type PusherData = {
@@ -50,6 +51,7 @@ export const usePusherCommentRealtime = ({
   onCommentDeleted,
 }: UsePusherCommentRealtimeParams): void => {
   const processedIds = useRef<Set<string>>(new Set())
+  const { channelReady } = usePusher()
   /** Store callbacks in refs to prevent re-subscription on callback changes */
   const onRefetchRef = useRef(onRefetch)
   const showToastRef = useRef(showToast)
@@ -65,12 +67,12 @@ export const usePusherCommentRealtime = ({
   }, [onRefetch, showToast, onCommentDeleted, projectId])
 
   /**
-   * Subscribe to Pusher events - only re-subscribes when projectId or membership changes
+   * Subscribe to Pusher events - only re-subscribes when projectId, membership, or channel ready state changes
    * @author Thang Truong
    * @date 2025-12-09
    */
   useEffect(() => {
-    if (!isProjectMember || !projectId || !onRefetch) return
+    if (!isProjectMember || !projectId || !onRefetch || !channelReady) return
 
     /**
      * Handle incoming Pusher events for comments
@@ -119,5 +121,5 @@ export const usePusherCommentRealtime = ({
       unsub3()
       unsub4()
     }
-  }, [projectId, isProjectMember]) // Only re-subscribe when these change
+  }, [projectId, isProjectMember, channelReady]) // Wait for channelReady
 }

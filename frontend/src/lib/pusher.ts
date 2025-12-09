@@ -1,7 +1,7 @@
 /**
  * Pusher Client Configuration
  * Uses HTTP transport for better Vercel compatibility
- * Provides channel access after connection is established
+ * Ensures connection and channel are ready before use
  *
  * @author Thang Truong
  * @date 2025-12-09
@@ -17,6 +17,9 @@ let pusherClient: Pusher | null = null
 
 /** Shared channel instance @author Thang Truong @date 2025-12-09 */
 let sharedChannel: ReturnType<Pusher['subscribe']> | null = null
+
+/** Channel subscription promise @author Thang Truong @date 2025-12-09 */
+let channelPromise: Promise<ReturnType<Pusher['subscribe']>> | null = null
 
 /** Channel name constant @author Thang Truong @date 2025-12-09 */
 const CHANNEL_NAME = 'project-tracker'
@@ -88,17 +91,73 @@ export const getPusherClient = (): Pusher => {
 }
 
 /**
- * Gets or creates shared channel instance
- * Subscribes to channel if not already subscribed
+ * Waits for Pusher connection to be established
  * @author Thang Truong
  * @date 2025-12-09
- * @returns Shared channel object
+ * @returns Promise that resolves when connected
  */
-export const getSharedChannel = (): ReturnType<Pusher['subscribe']> => {
-  if (sharedChannel) return sharedChannel
-  const pusher = getPusherClient()
-  sharedChannel = pusher.subscribe(CHANNEL_NAME)
-  return sharedChannel
+const waitForConnection = (): Promise<void> => {
+  return new Promise((resolve) => {
+    const client = getPusherClient()
+    const state = client.connection.state
+    if (state === 'connected') {
+      resolve()
+      return
+    }
+    const onConnected = (): void => {
+      client.connection.unbind('connected', onConnected)
+      resolve()
+    }
+    client.connection.bind('connected', onConnected)
+    if (state === 'disconnected' || state === 'failed') {
+      client.connect()
+    }
+  })
+}
+
+/**
+ * Waits for channel subscription to complete
+ * @author Thang Truong
+ * @date 2025-12-09
+ * @param channel - Channel to wait for
+ * @returns Promise that resolves when subscribed
+ */
+const waitForChannelSubscription = (channel: ReturnType<Pusher['subscribe']>): Promise<void> => {
+  return new Promise((resolve) => {
+    if (channel.subscribed) {
+      resolve()
+      return
+    }
+    const onSubscribed = (): void => {
+      channel.unbind('pusher:subscription_succeeded', onSubscribed)
+      resolve()
+    }
+    channel.bind('pusher:subscription_succeeded', onSubscribed)
+  })
+}
+
+/**
+ * Gets or creates shared channel instance
+ * Waits for connection and subscription before returning
+ * @author Thang Truong
+ * @date 2025-12-09
+ * @returns Promise that resolves to shared channel object
+ */
+export const getSharedChannel = async (): Promise<ReturnType<Pusher['subscribe']>> => {
+  if (sharedChannel && sharedChannel.subscribed) return sharedChannel
+  if (channelPromise) return channelPromise
+
+  channelPromise = (async () => {
+    await waitForConnection()
+    const pusher = getPusherClient()
+    if (!sharedChannel) {
+      sharedChannel = pusher.subscribe(CHANNEL_NAME)
+    }
+    await waitForChannelSubscription(sharedChannel)
+    return sharedChannel
+  })()
+
+  return channelPromise
 }
 
 /**
@@ -113,6 +172,7 @@ export const isPusherAvailable = (): boolean => {
 
 /**
  * Subscribes to Pusher event on shared channel
+ * Waits for channel to be ready before binding
  * @author Thang Truong
  * @date 2025-12-09
  * @param _channel - Channel name (uses shared channel)
@@ -125,10 +185,20 @@ export const subscribeToPusherEvent = (
   event: string,
   callback: (data: unknown) => void
 ): (() => void) => {
-  const channel = getSharedChannel()
-  channel.bind(event, callback)
+  let isUnsubscribed = false
+  let channel: ReturnType<Pusher['subscribe']> | null = null
+
+  getSharedChannel().then((ch) => {
+    if (isUnsubscribed) return
+    channel = ch
+    channel.bind(event, callback)
+  })
+
   return () => {
-    channel.unbind(event, callback)
+    isUnsubscribed = true
+    if (channel) {
+      channel.unbind(event, callback)
+    }
   }
 }
 
@@ -142,6 +212,7 @@ export const unsubscribeFromPusherChannel = (_channel: string): void => {
   if (pusherClient && sharedChannel) {
     pusherClient.unsubscribe(CHANNEL_NAME)
     sharedChannel = null
+    channelPromise = null
   }
 }
 

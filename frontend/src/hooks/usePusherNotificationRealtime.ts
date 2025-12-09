@@ -1,7 +1,7 @@
 /**
  * usePusherNotificationRealtime Hook
  * Handles Pusher subscriptions for notification real-time updates
- * Uses refs to prevent re-subscription loops
+ * Waits for channel to be ready before subscribing
  *
  * @author Thang Truong
  * @date 2025-12-09
@@ -9,6 +9,7 @@
 
 import { useEffect, useRef } from 'react'
 import { subscribeToPusherEvent } from '../lib/pusher'
+import { usePusher } from '../context/PusherContext'
 
 type ToastVariant = 'success' | 'info' | 'error'
 type PusherData = { data?: { notificationCreated?: { id?: string; userId?: string } } }
@@ -32,6 +33,7 @@ export const usePusherNotificationRealtime = ({
   showToast,
 }: UsePusherNotificationRealtimeParams): void => {
   const processedIds = useRef<Set<string>>(new Set())
+  const { channelReady } = usePusher()
   /** Store callbacks in refs to prevent re-subscription on callback changes */
   const onRefetchRef = useRef(onRefetch)
   const showToastRef = useRef(showToast)
@@ -45,12 +47,12 @@ export const usePusherNotificationRealtime = ({
   }, [onRefetch, showToast, userId])
 
   /**
-   * Subscribe to Pusher events - only re-subscribes when userId changes
+   * Subscribe to Pusher events - only re-subscribes when userId or channel ready state changes
    * @author Thang Truong
    * @date 2025-12-09
    */
   useEffect(() => {
-    if (!userId) return
+    if (!userId || !channelReady) return
 
     /**
      * Handle incoming Pusher notification events
@@ -76,5 +78,5 @@ export const usePusherNotificationRealtime = ({
     return () => {
       unsubscribe()
     }
-  }, [userId]) // Only re-subscribe when userId changes
+  }, [userId, channelReady]) // Wait for channelReady
 }

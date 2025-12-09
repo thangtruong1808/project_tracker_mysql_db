@@ -1,7 +1,7 @@
 /**
  * PusherContext
- * Initializes Pusher connection and ensures channel is subscribed
- * Provides connection state to child components
+ * Initializes Pusher connection and channel subscription at app level
+ * Ensures everything is ready before components use Pusher
  *
  * @author Thang Truong
  * @date 2025-12-09
@@ -48,54 +48,37 @@ export const PusherProvider = ({ children }: PusherProviderProps): JSX.Element =
       const client = getPusherClient()
 
       /**
-       * Wait for connection before subscribing to channel
+       * Track connection state changes
        * @author Thang Truong
        * @date 2025-12-09
        */
-      const waitForConnection = (): Promise<void> => {
-        return new Promise((resolve) => {
-          const state = client.connection.state
-          if (state === 'connected') {
-            setIsConnected(true)
-            resolve()
-            return
-          }
-
-          const onConnected = (): void => {
-            setIsConnected(true)
-            client.connection.unbind('connected', onConnected)
-            resolve()
-          }
-
-          client.connection.bind('connected', onConnected)
-
-          if (state === 'disconnected' || state === 'failed') {
-            client.connect()
-          } else if (state === 'connecting') {
-            // Already connecting, just wait
-          }
-        })
+      const onConnected = (): void => {
+        setIsConnected(true)
+      }
+      const onDisconnected = (): void => {
+        setIsConnected(false)
+        setChannelReady(false)
       }
 
+      client.connection.bind('connected', onConnected)
+      client.connection.bind('disconnected', onDisconnected)
+
+      if (client.connection.state === 'connected') {
+        setIsConnected(true)
+      } else if (client.connection.state === 'disconnected' || client.connection.state === 'failed') {
+        client.connect()
+      }
+
+      /**
+       * Wait for connection then subscribe to channel
+       * @author Thang Truong
+       * @date 2025-12-09
+       */
       try {
-        await waitForConnection()
-
-        /**
-         * Subscribe to channel after connection is established
-         * @author Thang Truong
-         * @date 2025-12-09
-         */
-        const channel = getSharedChannel()
-        channel.bind('pusher:subscription_succeeded', () => {
-          setChannelReady(true)
-        })
-
-        // If already subscribed, mark as ready
-        if (channel.subscribed) {
-          setChannelReady(true)
-        }
+        await getSharedChannel()
+        setChannelReady(true)
       } catch {
-        // Connection failed - components will use mock client
+        // Channel subscription failed - components will handle gracefully
       }
     }
 
