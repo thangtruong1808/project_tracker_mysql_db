@@ -1,7 +1,7 @@
 /**
  * Pusher Client Configuration
- * Initializes Pusher client for real-time subscriptions
- * Uses environment variables for configuration
+ * Singleton Pusher client for real-time subscriptions
+ * Uses shared channel subscription to minimize connections
  *
  * @author Thang Truong
  * @date 2025-12-09
@@ -9,8 +9,17 @@
 
 import Pusher from 'pusher-js'
 
-/** Track if Pusher is configured @author Thang Truong @date 2025-12-09 */
+/** Track configuration state @author Thang Truong @date 2025-12-09 */
 let isPusherConfigured = false
+
+/** Singleton Pusher client @author Thang Truong @date 2025-12-09 */
+let pusherClient: Pusher | null = null
+
+/** Shared channel instance @author Thang Truong @date 2025-12-09 */
+let sharedChannel: ReturnType<Pusher['subscribe']> | null = null
+
+/** Channel name constant @author Thang Truong @date 2025-12-09 */
+const CHANNEL_NAME = 'project-tracker'
 
 /**
  * Retrieves Pusher configuration from environment variables
@@ -28,8 +37,20 @@ const getPusherConfig = (): { key: string; cluster: string } | null => {
   return { key: cleanKey, cluster: cleanCluster }
 }
 
-/** Singleton Pusher client @author Thang Truong @date 2025-12-09 */
-let pusherClient: Pusher | null = null
+/**
+ * Creates mock Pusher client for graceful degradation
+ * @author Thang Truong
+ * @date 2025-12-09
+ * @returns Mock Pusher client object
+ */
+const createMockPusherClient = (): Pusher => {
+  return {
+    subscribe: () => ({ bind: () => {}, unbind: () => {}, unbind_all: () => {} }),
+    unsubscribe: () => {},
+    disconnect: () => {},
+    connection: { bind: () => {}, state: 'disconnected' },
+  } as unknown as Pusher
+}
 
 /**
  * Gets or creates singleton Pusher client instance
@@ -45,7 +66,10 @@ export const getPusherClient = (): Pusher => {
     return createMockPusherClient()
   }
   try {
-    pusherClient = new Pusher(config.key, { cluster: config.cluster, forceTLS: true })
+    pusherClient = new Pusher(config.key, {
+      cluster: config.cluster,
+      forceTLS: true,
+    })
     isPusherConfigured = true
     return pusherClient
   } catch {
@@ -55,49 +79,46 @@ export const getPusherClient = (): Pusher => {
 }
 
 /**
+ * Gets shared channel instance (singleton)
+ * @author Thang Truong
+ * @date 2025-12-09
+ * @returns Shared channel object
+ */
+const getSharedChannel = (): ReturnType<Pusher['subscribe']> => {
+  if (sharedChannel) return sharedChannel
+  const pusher = getPusherClient()
+  sharedChannel = pusher.subscribe(CHANNEL_NAME)
+  return sharedChannel
+}
+
+/**
  * Check if Pusher is configured
  * @author Thang Truong
  * @date 2025-12-09
  */
 export const isPusherAvailable = (): boolean => {
-  if (pusherClient) return isPusherConfigured
   getPusherClient()
   return isPusherConfigured
 }
 
 /**
- * Creates mock Pusher client for graceful degradation
+ * Subscribes to Pusher event on shared channel
  * @author Thang Truong
  * @date 2025-12-09
- * @returns Mock Pusher client object
- */
-const createMockPusherClient = (): Pusher => {
-  return {
-    subscribe: () => ({ bind: () => {}, unbind: () => {}, unbind_all: () => {} }),
-    unsubscribe: () => {},
-    disconnect: () => {},
-  } as unknown as Pusher
-}
-
-/**
- * Subscribes to Pusher channel and event
- * @author Thang Truong
- * @date 2025-12-09
- * @param channel - Pusher channel name
+ * @param channel - Channel name (uses shared channel)
  * @param event - Event name to listen for
  * @param callback - Handler function for event data
- * @returns Cleanup function to unsubscribe
+ * @returns Cleanup function to unbind event
  */
 export const subscribeToPusherEvent = (
-  channel: string,
+  _channel: string,
   event: string,
   callback: (data: unknown) => void
 ): (() => void) => {
-  const pusher = getPusherClient()
-  const pusherChannel = pusher.subscribe(channel)
-  pusherChannel.bind(event, callback)
+  const channel = getSharedChannel()
+  channel.bind(event, callback)
   return () => {
-    pusherChannel.unbind(event, callback)
+    channel.unbind(event, callback)
   }
 }
 
@@ -107,9 +128,12 @@ export const subscribeToPusherEvent = (
  * @date 2025-12-09
  * @param channel - Channel name to unsubscribe from
  */
-export const unsubscribeFromPusherChannel = (channel: string): void => {
-  const pusher = getPusherClient()
-  pusher.unsubscribe(channel)
+export const unsubscribeFromPusherChannel = (_channel: string): void => {
+  if (pusherClient && sharedChannel) {
+    pusherClient.unsubscribe(CHANNEL_NAME)
+    sharedChannel = null
+  }
 }
 
 export default getPusherClient
+

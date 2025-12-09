@@ -12,6 +12,7 @@ import { ApolloProvider } from '@apollo/client'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { client } from './lib/apollo'
 import { AuthProvider } from './context/AuthContext'
+import { PusherProvider } from './context/PusherContext'
 import { ToastProvider } from './hooks/useToast'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
@@ -69,9 +70,10 @@ function App() {
     /* Main Application Container */
     <ApolloProvider client={client}>
       <AuthProvider>
-        <ToastProvider>
-          <TokenStatusPoller />
-          <Router>
+        <PusherProvider>
+          <ToastProvider>
+            <TokenStatusPoller />
+            <Router>
             <div className="min-h-screen bg-gray-50">
               <TokenExpirationHandler />
               <Suspense fallback={<PageLoadingFallback />}>
@@ -196,9 +198,10 @@ function App() {
                 </Routes>
               </Suspense>
               <ToastContainer />
-            </div>
-          </Router>
-        </ToastProvider>
+              </div>
+            </Router>
+          </ToastProvider>
+        </PusherProvider>
       </AuthProvider>
     </ApolloProvider>
   )
