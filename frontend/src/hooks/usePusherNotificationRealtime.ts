@@ -23,7 +23,7 @@ interface UsePusherNotificationRealtimeParams {
  * Listens for new notifications for the specified user
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-09
  * @param params - Hook parameters
  */
 export const usePusherNotificationRealtime = ({
@@ -44,7 +44,7 @@ export const usePusherNotificationRealtime = ({
      * Handle notification created event
      *
      * @author Thang Truong
-     * @date 2025-01-27
+     * @date 2025-12-09
      */
     const unsubscribe = subscribeToPusherEvent(
       channel,

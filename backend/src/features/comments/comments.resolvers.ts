@@ -1,7 +1,7 @@
 /**
  * Comments Feature Resolvers - Handles comment queries, mutations and subscriptions
  * @author Thang Truong
- * @date 2025-11-27
+ * @date 2025-12-09
  */
 
 import { db } from '../../db'

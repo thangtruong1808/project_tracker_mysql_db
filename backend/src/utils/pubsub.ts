@@ -11,6 +11,30 @@ import { publishPusherEvent } from './pusher'
 
 type EventMap = { [key: string]: ((payload: unknown) => void)[] }
 
+/**
+ * Extract Pusher event name from internal event name
+ * Removes the trailing ID and converts to lowercase
+ * Examples:
+ *   COMMENT_CREATED_1 -> comment_created
+ *   COMMENT_LIKE_UPDATED_1 -> comment_like_updated
+ *   NOTIFICATION_CREATED_123 -> notification_created
+ *
+ * @author Thang Truong
+ * @date 2025-12-09
+ * @param eventName - Internal event name with ID suffix
+ * @returns Pusher event name without ID
+ */
+const extractPusherEventName = (eventName: string): string => {
+  const parts = eventName.split('_')
+  if (parts.length <= 1) return eventName.toLowerCase()
+  const lastPart = parts[parts.length - 1]
+  const isIdSuffix = /^\d+$/.test(lastPart)
+  if (isIdSuffix) {
+    return parts.slice(0, -1).join('_').toLowerCase()
+  }
+  return eventName.toLowerCase()
+}
+
 class PubSub {
   private events: EventMap = {}
 
@@ -23,20 +47,16 @@ class PubSub {
    * @param eventName - Event name (e.g., 'COMMENT_CREATED_1')
    * @param payload - Event payload data
    */
-  publish(eventName: string, payload: unknown): void {
-    if (!this.events[eventName]) {
-      this.events[eventName] = []
-    }
+  async publish(eventName: string, payload: unknown): Promise<void> {
+    if (!this.events[eventName]) this.events[eventName] = []
     this.events[eventName].forEach((callback) => callback(payload))
     const channelName = 'project-tracker'
-    const parts = eventName.split('_')
-    let pusherEvent = eventName.toLowerCase()
-    if (parts.length >= 3) {
-      pusherEvent = `${parts[0]}_${parts[1]}`.toLowerCase()
-    } else if (parts.length === 2) {
-      pusherEvent = `${parts[0]}_${parts[1]}`.toLowerCase()
+    const pusherEvent = extractPusherEventName(eventName)
+    try {
+      await publishPusherEvent(channelName, pusherEvent, { eventName, data: payload })
+    } catch {
+      // Silently handle Pusher errors
     }
-    publishPusherEvent(channelName, pusherEvent, { eventName, data: payload }).catch(() => {})
   }
 
   /**

@@ -1,7 +1,7 @@
 /**
  * Shared Helpers Utility - Common helper functions used across all resolvers
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-12-09
  */
 
 import { db } from '../db'

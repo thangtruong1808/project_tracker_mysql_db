@@ -4,7 +4,7 @@
  * Only authenticated users who are project members (or owner) can view and post comments
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-09
  */
 
 import { useState, useMemo, useEffect } from 'react'
@@ -34,7 +34,7 @@ interface ProjectDetailCommentsProps {
  * Only project members (or owner) can view and post comments
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-09
  */
 const ProjectDetailComments = ({ comments, projectId, members, owner, onRefetch }: ProjectDetailCommentsProps) => {
   const { id } = useParams<{ id: string }>()
@@ -47,7 +47,7 @@ const ProjectDetailComments = ({ comments, projectId, members, owner, onRefetch 
    * Check if authenticated user is a project member or owner
    *
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-12-09
    */
   const isProjectMember = useMemo(() => {
     if (!isAuthenticated || !user) return false
@@ -64,7 +64,7 @@ const ProjectDetailComments = ({ comments, projectId, members, owner, onRefetch 
    * Replaces GraphQL subscriptions with Pusher for better compatibility
    *
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-12-09
    */
   usePusherCommentRealtime({
     projectId,
@@ -94,7 +94,7 @@ const ProjectDetailComments = ({ comments, projectId, members, owner, onRefetch 
    * Only authenticated project members (or owner) can post comments
    *
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-12-09
    */
   const handleCommentSubmit = async (content: string): Promise<void> => {
     if (isSubmitting) return

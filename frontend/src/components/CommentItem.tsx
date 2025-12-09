@@ -4,7 +4,7 @@
  * Only comment owners can edit and delete their comments
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-09
  */
 
 import { useState } from 'react'
@@ -66,7 +66,7 @@ const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, update
   /**
    * Handle like button click - backend checks DB and returns updated isLiked status
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-12-09
    */
   const handleLike = async (e: React.MouseEvent): Promise<void> => {
     e.stopPropagation()
@@ -99,7 +99,7 @@ const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, update
   /**
    * Handle edit button click - enables edit mode
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-12-09
    */
   const handleEdit = (e: React.MouseEvent): void => {
     e.stopPropagation()
@@ -109,7 +109,7 @@ const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, update
   /**
    * Handle save edited comment
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-12-09
    */
   const handleSaveEdit = async (newContent: string): Promise<void> => {
     if (isSubmitting) return
@@ -129,7 +129,7 @@ const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, update
   /**
    * Handle cancel edit
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-12-09
    */
   const handleCancelEdit = (): void => {
     setIsEditing(false)
@@ -138,7 +138,7 @@ const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, update
   /**
    * Handle delete button click - opens confirmation dialog
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-12-09
    */
   const handleDelete = (e: React.MouseEvent): void => {
     e.stopPropagation()
@@ -148,7 +148,7 @@ const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, update
   /**
    * Handle delete dialog close
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-12-09
    */
   const handleDeleteDialogClose = (): void => {
     setIsDeleteDialogOpen(false)
@@ -157,7 +157,7 @@ const CommentItem = ({ id, content, user, likesCount, isLiked, createdAt, update
   /**
    * Handle delete success - refetch handled by dialog mutation
    * @author Thang Truong
-   * @date 2025-01-27
+   * @date 2025-12-09
    */
   const handleDeleteSuccess = async (): Promise<void> => {
     setIsDeleteDialogOpen(false)

@@ -25,7 +25,7 @@ interface UsePusherCommentRealtimeParams {
  * Handles comment create, like, update, and delete events via Pusher
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-09
  * @param params - Hook parameters
  */
 export const usePusherCommentRealtime = ({
@@ -52,7 +52,7 @@ export const usePusherCommentRealtime = ({
      * Handle comment created event
      *
      * @author Thang Truong
-     * @date 2025-01-27
+     * @date 2025-12-09
      */
     const unsubscribeCreated = subscribeToPusherEvent(
       channel,
@@ -77,7 +77,7 @@ export const usePusherCommentRealtime = ({
      * Handle comment like updated event
      *
      * @author Thang Truong
-     * @date 2025-01-27
+     * @date 2025-12-09
      */
     const unsubscribeLike = subscribeToPusherEvent(
       channel,
@@ -102,7 +102,7 @@ export const usePusherCommentRealtime = ({
      * Handle comment updated event
      *
      * @author Thang Truong
-     * @date 2025-01-27
+     * @date 2025-12-09
      */
     const unsubscribeUpdated = subscribeToPusherEvent(
       channel,
@@ -127,7 +127,7 @@ export const usePusherCommentRealtime = ({
      * Handle comment deleted event
      *
      * @author Thang Truong
-     * @date 2025-01-27
+     * @date 2025-12-09
      */
     const unsubscribeDeleted = subscribeToPusherEvent(
       channel,
