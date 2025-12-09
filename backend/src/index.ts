@@ -17,6 +17,7 @@ import { typeDefs } from './schema'
 import { resolvers } from './resolvers'
 import { setupWebSocketServer } from './server/websocketSetup'
 import { testDatabaseConnection } from './server/databaseConnection'
+import { isPusherAvailable } from './utils/pusher'
 
 const app = express()
 const httpServer = createServer(app)
@@ -210,6 +211,14 @@ async function startServer(): Promise<void> {
       console.error('Database connection test error:', error)
       // Don't exit - let server continue running
     })
+
+    /**
+     * Log Pusher configuration status for real-time features
+     * @author Thang Truong
+     * @date 2025-12-09
+     */
+    const pusherStatus = isPusherAvailable()
+    console.log(`Pusher real-time: ${pusherStatus ? 'ENABLED' : 'DISABLED (check PUSHER_* env vars)'}`)
   } catch (error) {
     // Failed to start server
     console.error('Failed to start server:', error)

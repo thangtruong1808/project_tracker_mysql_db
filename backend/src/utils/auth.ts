@@ -194,15 +194,15 @@ export const generateAccessToken = (userId: number, email: string): string => {
 }
 
 /**
- * Generate refresh token ID
+ * Generate refresh token ID using native crypto
+ * Uses crypto.randomUUID() which is available in Node.js 16+
  *
  * @author Thang Truong
- * @date 2025-01-27
+ * @date 2025-12-09
  * @returns Unique refresh token ID
  */
-export const generateRefreshTokenId = async (): Promise<string> => {
-  const { v4: uuidv4 } = await import('uuid')
-  return uuidv4()
+export const generateRefreshTokenId = (): string => {
+  return crypto.randomUUID()
 }
 
 /**

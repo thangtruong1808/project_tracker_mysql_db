@@ -7,6 +7,7 @@
  * @date 2025-11-27
  */
 
+import crypto from 'crypto'
 import { db } from '../../db'
 import { hashPassword } from '../../utils/auth'
 import { formatDateToISO } from '../../utils/formatters'
@@ -68,8 +69,7 @@ export const usersMutationResolvers = {
     }
 
     const hashedPassword = await hashPassword(input.password)
-    const { v4: uuidv4 } = await import('uuid')
-    const userUuid = uuidv4()
+    const userUuid = crypto.randomUUID()
     const userRole = input.role || 'Frontend Developer'
 
     const result = (await db.query(
