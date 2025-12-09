@@ -1,12 +1,13 @@
 /**
  * useNavbarNotifications Custom Hook
  * Handles notification fetching and real-time updates for navbar via Pusher
+ * Uses refs to prevent re-subscription loops
  *
  * @author Thang Truong
  * @date 2025-12-09
  */
 
-import { useMemo, useEffect, useRef, useCallback } from 'react'
+import { useMemo, useEffect, useRef } from 'react'
 import { useQuery } from '@apollo/client'
 import { NOTIFICATIONS_QUERY } from '../graphql/queries'
 import { subscribeToPusherEvent } from '../lib/pusher'
@@ -30,6 +31,7 @@ type PusherData = { data?: { notificationCreated?: { id?: string; userId?: strin
 
 /**
  * Custom hook for managing navbar notifications with Pusher real-time updates
+ * Subscribes only once per userId change to prevent loops
  * @author Thang Truong
  * @date 2025-12-09
  * @param isAuthenticated - Whether user is authenticated
@@ -46,26 +48,49 @@ export const useNavbarNotifications = (
     { skip: !isAuthenticated, fetchPolicy: 'network-only' }
   )
 
-  const handleNotification = useCallback(async (eventData: unknown): Promise<void> => {
-    if (!userId) return
-    const pusherData = eventData as PusherData
-    const notification = pusherData?.data?.notificationCreated
-    if (!notification) return
-    const notifUserId = String(notification.userId || '')
-    if (notifUserId !== String(userId)) return
-    const notifId = String(notification.id || '')
-    if (!notifId || processedIds.current.has(notifId)) return
-    processedIds.current.add(notifId)
-    await refetch()
-  }, [userId, refetch])
+  /** Store refetch in ref to prevent re-subscription on refetch changes */
+  const refetchRef = useRef(refetch)
+  const userIdRef = useRef(userId)
 
-  /** Subscribe to Pusher for real-time notification updates @author Thang Truong @date 2025-12-09 */
+  /** Update refs when props change without triggering re-subscription */
+  useEffect(() => {
+    refetchRef.current = refetch
+    userIdRef.current = userId
+  }, [refetch, userId])
+
+  /**
+   * Subscribe to Pusher for real-time notification updates
+   * Only re-subscribes when userId changes
+   * @author Thang Truong
+   * @date 2025-12-09
+   */
   useEffect(() => {
     if (!userId) return
+
+    /**
+     * Handle incoming Pusher notification events
+     * @author Thang Truong
+     * @date 2025-12-09
+     */
+    const handleNotification = async (eventData: unknown): Promise<void> => {
+      if (!userIdRef.current) return
+      const pusherData = eventData as PusherData
+      const notification = pusherData?.data?.notificationCreated
+      if (!notification) return
+      const notifUserId = String(notification.userId || '')
+      if (notifUserId !== String(userIdRef.current)) return
+      const notifId = String(notification.id || '')
+      if (!notifId || processedIds.current.has(notifId)) return
+      processedIds.current.add(notifId)
+      await refetchRef.current()
+    }
+
     const channel = 'project-tracker'
     const unsubscribe = subscribeToPusherEvent(channel, 'notification_created', handleNotification)
-    return () => { unsubscribe() }
-  }, [userId, handleNotification])
+    return () => {
+      unsubscribe()
+    }
+  }, [userId]) // Only re-subscribe when userId changes
 
   /** Memoized filtered notifications for current user @author Thang Truong @date 2025-12-09 */
   const userNotifications = useMemo(() => {
@@ -77,4 +102,3 @@ export const useNavbarNotifications = (
 
   return { notificationsLoading: loading, userNotifications, unreadCount, refetchNotifications: refetch }
 }
-

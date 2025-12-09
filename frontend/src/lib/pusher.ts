@@ -20,7 +20,7 @@ let isPusherConfigured = false
  */
 const getPusherConfig = (): { key: string; cluster: string } | null => {
   const key = import.meta.env.VITE_PUSHER_KEY || import.meta.env.VITE_KEY
-  const cluster = import.meta.env.VITE_PUSHER_CLUSTER || import.meta.env.VITE_CLUSTER || 'ap4'
+  const cluster = import.meta.env.VITE_PUSHER_CLUSTER || import.meta.env.VITE_CLUSTER || 'mt1'
   if (!key || typeof key !== 'string') return null
   const cleanKey = String(key).trim().replace(/^["']|["']$/g, '')
   const cleanCluster = String(cluster).trim().replace(/^["']|["']$/g, '')
@@ -96,7 +96,9 @@ export const subscribeToPusherEvent = (
   const pusher = getPusherClient()
   const pusherChannel = pusher.subscribe(channel)
   pusherChannel.bind(event, callback)
-  return () => { pusherChannel.unbind(event, callback) }
+  return () => {
+    pusherChannel.unbind(event, callback)
+  }
 }
 
 /**
@@ -111,4 +113,3 @@ export const unsubscribeFromPusherChannel = (channel: string): void => {
 }
 
 export default getPusherClient
-

@@ -18,11 +18,17 @@ let isPusherConfigured = false
  * @date 2025-12-09
  * @returns Pusher configuration object or null if not configured
  */
-const getPusherConfig = (): { appId: string; key: string; secret: string; cluster: string; useTLS: boolean } | null => {
+const getPusherConfig = (): {
+  appId: string
+  key: string
+  secret: string
+  cluster: string
+  useTLS: boolean
+} | null => {
   const appId = process.env.PUSHER_APP_ID || process.env.APP_ID
   const key = process.env.PUSHER_KEY || process.env.KEY
   const secret = process.env.PUSHER_SECRET || process.env.SECRET
-  const cluster = process.env.PUSHER_CLUSTER || process.env.CLUSTER || 'ap4'
+  const cluster = process.env.PUSHER_CLUSTER || process.env.CLUSTER || 'mt1'
   if (!appId || !key || !secret) return null
   return {
     appId: String(appId).trim().replace(/^["']|["']$/g, ''),
@@ -77,7 +83,12 @@ export const isPusherAvailable = (): boolean => {
  * @param event - Event name
  * @param data - Event data payload
  */
-export const publishPusherEvent = async (channel: string, event: string, data: unknown): Promise<void> => {
+export const publishPusherEvent = async (
+  channel: string,
+  event: string,
+  data: unknown
+): Promise<void> => {
+  if (!isPusherConfigured) return
   try {
     const pusher = getPusher()
     await pusher.trigger(channel, event, data)
@@ -87,4 +98,3 @@ export const publishPusherEvent = async (channel: string, event: string, data: u
 }
 
 export default getPusher
-

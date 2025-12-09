@@ -4,7 +4,7 @@
  * Includes error boundary to catch initialization errors
  *
  * @author Thang Truong
- * @date 2025-12-04
+ * @date 2025-12-09
  */
 
 import React from 'react'
@@ -16,7 +16,7 @@ import './index.css'
  * Error boundary component for initialization errors
  *
  * @author Thang Truong
- * @date 2025-12-04
+ * @date 2025-12-09
  */
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -37,6 +37,7 @@ class ErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
+      /* Error fallback UI */
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="text-center">
@@ -56,7 +57,7 @@ class ErrorBoundary extends React.Component<
  * Wrapped in error boundary to catch initialization errors
  *
  * @author Thang Truong
- * @date 2025-12-04
+ * @date 2025-12-09
  */
 ReactDOM.createRoot(document.getElementById('root')!).render(
   /* Root React Application Container */
