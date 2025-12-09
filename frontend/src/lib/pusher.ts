@@ -1,7 +1,7 @@
 /**
  * Pusher Client Configuration
- * Singleton Pusher client for real-time subscriptions
- * Uses shared channel subscription to minimize connections
+ * Uses HTTP transport for better Vercel compatibility
+ * WebSocket can be unstable on serverless edge networks
  *
  * @author Thang Truong
  * @date 2025-12-09
@@ -54,6 +54,7 @@ const createMockPusherClient = (): Pusher => {
 
 /**
  * Gets or creates singleton Pusher client instance
+ * Forces HTTP transport for better Vercel compatibility
  * @author Thang Truong
  * @date 2025-12-09
  * @returns Pusher client instance
@@ -69,6 +70,14 @@ export const getPusherClient = (): Pusher => {
     pusherClient = new Pusher(config.key, {
       cluster: config.cluster,
       forceTLS: true,
+      /**
+       * Use HTTP streaming/polling instead of WebSocket
+       * WebSocket connections can fail on Vercel edge network
+       * @author Thang Truong
+       * @date 2025-12-09
+       */
+      disabledTransports: ['ws', 'wss'],
+      enabledTransports: ['xhr_streaming', 'xhr_polling'],
     })
     isPusherConfigured = true
     return pusherClient
@@ -105,7 +114,7 @@ export const isPusherAvailable = (): boolean => {
  * Subscribes to Pusher event on shared channel
  * @author Thang Truong
  * @date 2025-12-09
- * @param channel - Channel name (uses shared channel)
+ * @param _channel - Channel name (uses shared channel)
  * @param event - Event name to listen for
  * @param callback - Handler function for event data
  * @returns Cleanup function to unbind event
@@ -126,7 +135,7 @@ export const subscribeToPusherEvent = (
  * Unsubscribes from Pusher channel
  * @author Thang Truong
  * @date 2025-12-09
- * @param channel - Channel name to unsubscribe from
+ * @param _channel - Channel name to unsubscribe from
  */
 export const unsubscribeFromPusherChannel = (_channel: string): void => {
   if (pusherClient && sharedChannel) {
@@ -136,4 +145,3 @@ export const unsubscribeFromPusherChannel = (_channel: string): void => {
 }
 
 export default getPusherClient
-

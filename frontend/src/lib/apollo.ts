@@ -1,6 +1,6 @@
 /**
  * Apollo Client Configuration
- * GraphQL client setup with proper error handling
+ * GraphQL client setup with cache merge functions and error handling
  *
  * @author Thang Truong
  * @date 2025-12-09
@@ -43,7 +43,7 @@ const getGraphQLUrl = (): string => {
   return import.meta.env.DEV ? 'http://localhost:4000/graphql' : '/graphql'
 }
 
-/** HTTP link with credentials for cross-origin cookies @author Thang Truong @date 2025-12-09 */
+/** HTTP link with credentials @author Thang Truong @date 2025-12-09 */
 const httpLink = new HttpLink({
   uri: getGraphQLUrl(),
   credentials: 'include',
@@ -56,29 +56,46 @@ const authLink = setContext((_, { headers }) => {
   return { headers: { ...headers, ...(token ? { authorization: `Bearer ${token}` } : {}) } }
 })
 
-/** Error link - handles GraphQL errors @author Thang Truong @date 2025-12-09 */
+/** Error link @author Thang Truong @date 2025-12-09 */
 const errorLink = onError(({ graphQLErrors, networkError }) => {
   if (graphQLErrors) {
     graphQLErrors.forEach(({ message }) => {
       if (message && !message.includes('token')) {
-        // Allow errors to propagate for proper handling
+        // Allow errors to propagate
       }
     })
   }
   if (networkError) {
-    // Network error occurred - allow it to propagate
+    // Network error - allow propagation
   }
 })
 
 /**
- * Apollo Client instance with proper error handling
- * Uses network-only to always fetch fresh data
+ * Apollo Client with custom cache merge functions
+ * Prevents cache warnings for array fields like notifications
  * @author Thang Truong
  * @date 2025-12-09
  */
 export const client = new ApolloClient({
   link: from([errorLink, authLink, httpLink]),
-  cache: new InMemoryCache(),
+  cache: new InMemoryCache({
+    typePolicies: {
+      Query: {
+        fields: {
+          /** Custom merge for notifications - replaces instead of merging */
+          notifications: { merge: (_existing, incoming) => incoming },
+          /** Custom merge for comments - replaces instead of merging */
+          comments: { merge: (_existing, incoming) => incoming },
+          /** Custom merge for projects - replaces instead of merging */
+          projects: { merge: (_existing, incoming) => incoming },
+          /** Custom merge for users - replaces instead of merging */
+          users: { merge: (_existing, incoming) => incoming },
+          /** Custom merge for tasks - replaces instead of merging */
+          tasks: { merge: (_existing, incoming) => incoming },
+        },
+      },
+    },
+  }),
   defaultOptions: {
     watchQuery: { fetchPolicy: 'network-only', errorPolicy: 'all' },
     query: { fetchPolicy: 'network-only', errorPolicy: 'all' },
