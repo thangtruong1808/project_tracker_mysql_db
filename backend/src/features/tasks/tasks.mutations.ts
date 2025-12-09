@@ -9,7 +9,7 @@
 import { db } from '../../db'
 import { verifyAccessToken } from '../../utils/auth'
 import { formatDateToISO } from '../../utils/formatters'
-import { getUserDisplayName, notifyProjectParticipants } from '../../utils/helpers'
+import { getUserDisplayName, notifyProjectParticipants, createActivityLog } from '../../utils/helpers'
 import { randomUUID } from 'crypto'
 
 /**
@@ -58,6 +58,14 @@ export const tasksMutationResolvers = {
       [taskId]
     )) as any[]
 
+    await createActivityLog({
+      userId: assignedTo || null,
+      projectId,
+      taskId,
+      type: 'TASK_CREATED',
+      action: `Task "${task.title}" created`,
+      metadata: { status: task.status, priority: task.priority },
+    })
     return {
       id: task.id.toString(),
       uuid: task.uuid || '',
@@ -124,6 +132,14 @@ export const tasksMutationResolvers = {
       [id]
     )) as any[]
 
+    await createActivityLog({
+      userId: input.assignedTo || null,
+      projectId: task.project_id,
+      taskId: id,
+      type: 'TASK_UPDATED',
+      action: `Task "${task.title}" updated`,
+      metadata: { status: task.status, priority: task.priority },
+    })
     return {
       id: task.id.toString(),
       uuid: task.uuid || '',
@@ -158,6 +174,13 @@ export const tasksMutationResolvers = {
     )) as any
 
     if (result.affectedRows === 0) throw new Error('Task not found or already deleted')
+    await createActivityLog({
+      userId: null,
+      projectId: null,
+      taskId: id,
+      type: 'TASK_DELETED',
+      action: `Task ${id} deleted`,
+    })
     return true
   },
 

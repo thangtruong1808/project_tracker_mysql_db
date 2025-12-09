@@ -9,7 +9,7 @@
 import { db } from '../../db'
 import { verifyAccessToken } from '../../utils/auth'
 import { formatDateToISO, formatUser } from '../../utils/formatters'
-import { tryGetUserIdFromRequest, getUserDisplayName, notifyProjectParticipants } from '../../utils/helpers'
+import { tryGetUserIdFromRequest, getUserDisplayName, notifyProjectParticipants, createActivityLog } from '../../utils/helpers'
 import { randomUUID } from 'crypto'
 
 /**
@@ -50,6 +50,13 @@ export const projectsMutationResolvers = {
     if (projects.length === 0) throw new Error('Failed to retrieve created project')
 
     const project = projects[0]
+    await createActivityLog({
+      userId: ownerId || null,
+      projectId: project.id,
+      type: 'PROJECT_CREATED',
+      action: `Project "${project.name}" created`,
+      metadata: { status: project.status },
+    })
     return {
       id: project.id.toString(),
       name: project.name,
@@ -103,6 +110,13 @@ export const projectsMutationResolvers = {
         message: `${actorName} updated project "${project.name}".`,
       })
     }
+    await createActivityLog({
+      userId: actorUserId || null,
+      projectId: project.id,
+      type: 'PROJECT_UPDATED',
+      action: `Project "${project.name}" updated`,
+      metadata: { status: project.status },
+    })
 
     return {
       id: project.id.toString(),
@@ -156,6 +170,12 @@ export const projectsMutationResolvers = {
     )) as any
 
     if (result.affectedRows === 0) throw new Error('Project not found or already deleted')
+    await createActivityLog({
+      userId: actorUserId,
+      projectId: id,
+      type: 'PROJECT_DELETED',
+      action: `Project ${id} deleted`,
+    })
     return true
   },
 

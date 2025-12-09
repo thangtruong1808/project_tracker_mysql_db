@@ -170,3 +170,40 @@ export const resolveActivityAction = (type: string, customAction?: string | null
   }
   return actionLabels[type] || 'Activity recorded'
 }
+
+/**
+ * Create activity log entry
+ * @author Thang Truong
+ * @date 2025-12-09
+ */
+export const createActivityLog = async ({
+  userId,
+  targetUserId = null,
+  projectId = null,
+  taskId = null,
+  type,
+  action = null,
+  metadata = null,
+}: {
+  userId: number | string | null
+  targetUserId?: number | string | null
+  projectId?: number | string | null
+  taskId?: number | string | null
+  type: string
+  action?: string | null
+  metadata?: any
+}) => {
+  await db.query(
+    `INSERT INTO activity_logs (user_id, target_user_id, project_id, task_id, action, type, metadata)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      userId || null,
+      targetUserId || null,
+      projectId || null,
+      taskId || null,
+      action || null,
+      type,
+      metadata ? JSON.stringify(metadata) : null,
+    ]
+  )
+}
