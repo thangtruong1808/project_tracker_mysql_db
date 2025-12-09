@@ -3,13 +3,14 @@
  * Handles project mutation operations
  *
  * @author Thang Truong
- * @date 2025-11-26
+ * @date 2025-12-09
  */
 
 import { db } from '../../db'
 import { verifyAccessToken } from '../../utils/auth'
 import { formatDateToISO, formatUser } from '../../utils/formatters'
 import { tryGetUserIdFromRequest, getUserDisplayName, notifyProjectParticipants } from '../../utils/helpers'
+import { randomUUID } from 'crypto'
 
 /**
  * Projects Mutation Resolvers
@@ -20,17 +21,19 @@ import { tryGetUserIdFromRequest, getUserDisplayName, notifyProjectParticipants 
 export const projectsMutationResolvers = {
   /**
    * Create project mutation - saves owner_id from authenticated user
+   * Generates UUID server-side to avoid DB trigger dependence on Vercel
    *
    * @author Thang Truong
-   * @date 2025-11-26
+   * @date 2025-12-09
    */
   createProject: async (_: any, { input }: { input: any }, context: { req: any }) => {
     const { name, description, status } = input
     const ownerId = tryGetUserIdFromRequest(context.req)
+    const projectUuid = randomUUID()
 
     const result = (await db.query(
-      'INSERT INTO projects (name, description, status, owner_id) VALUES (?, ?, ?, ?)',
-      [name, description || null, status, ownerId]
+      'INSERT INTO projects (uuid, name, description, status, owner_id) VALUES (?, ?, ?, ?, ?)',
+      [projectUuid, name, description || null, status, ownerId]
     )) as any
 
     const projects = (await db.query(
